@@ -5,16 +5,27 @@ ChoresAwards is a user-friendly, point-based system designed to help families ma
 Main Features of ChoresRewards
 
 ✨ Clean, Simple interface
+
 🌓 Dark/Light mode buttons on the main screen
+
 💾 Chores and rewards and settings all persist
+
 📱 Fully responsive design
+
 🚀 Fast and lightweight
+
 🔉 upload and change Customisable sounds for completing chores
+
 🔒 PIN protection 4 digit pin to keep the kids from changing settings
+
 🌈 Change Color Preference of the Kanban board
+
 👇 Drag and Drop to change the order
+
 🎰 Bonus Points System Static Points or Dynamic range
+
 🎉 Celebrations when all chores are completed
+
 💝 Rewards for earning points
 
 
