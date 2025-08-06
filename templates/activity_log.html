@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Activity Log - ChoresAwards</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        [data-theme="dark"] .stat-number {
+            color: #4CAF50 !important;
+        }
+        [data-theme="dark"] .stat-label {
+            color: #4CAF50 !important;
+            opacity: 0.9;
+        }
+        [data-theme="dark"] .activity-log-subtitle {
+            color: #fff !important;
+            opacity: 0.7;
+        }
+        [data-theme="dark"] .activity-description {
+            color: #fff !important;
+        }
+        [data-theme="dark"] .activity-meta {
+            color: #ccc !important;
+        }
+        [data-theme="dark"] .activity-date,
+        [data-theme="dark"] .activity-user {
+            color: #ccc !important;
+        }
+        .theme-toggle-container {
+            margin-left: 2em;
+        }
+        .theme-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.7em;
+            padding: 8px;
+            display: none; /* Hide theme toggle */
+        }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--section-background, #222);
+            padding: 1em 2em;
+            border-radius: var(--border-radius, 12px);
+            margin-bottom: 1.5em;
+        }
+        .header-content nav {
+            margin-right: 4em;
+        }
+        .header-content nav a {
+            color: #fff;
+            margin-right: 1.5em;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .header-content nav a:last-child {
+            margin-right: 0;
+        }
+        .header-content h2 {
+            margin: 0;
+            color: #fff;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1em;
+        }
+        .charts-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2em;
+            margin-bottom: 2em;
+            justify-content: center;
+        }
+        .chart-container {
+            background: var(--section-background, #222);
+            border-radius: 12px;
+            padding: 1.5em;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            min-width: 320px;
+            max-width: 420px;
+            flex: 1 1 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .chart-title {
+            color: #fff;
+            font-size: 1.1em;
+            margin-bottom: 1em;
+            text-align: center;
+            opacity: 0.85;
+        }
+        canvas {
+            background: #fff;
+            border-radius: 8px;
+            padding: 0.5em;
+            transition: background 0.3s;
+        }
+        [data-theme="dark"] canvas {
+            background: #181818 !important;
+        }
+        .placeholder {
+            color: #bbb;
+            font-size: 1em;
+            text-align: center;
+            margin: 2em 0;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+</head>
+<body data-theme="dark">
+    <header>
+        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;">
+            <h2>Chores and Rewards - Activity Log</h2> 
+        </div>
+    <!-- New Navigation Button Area -->
+<nav style="margin: 0 0 28px 0; display: flex; justify-content: flex-start; gap: 12px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 16px;">
+    <a href="{{ url_for('routes.index') }}">
+        Home
+        <span style="position: absolute; bottom: -17px; left: 0; width: 100%; height: 2px; background: #4CAF50; transform: scaleX(0); transition: transform 0.3s ease; transform-origin: left;"></span>
+    </a>
+    <a href="{{ url_for('routes.settings') }}">
+        Settings
+        <span style="position: absolute; bottom: -17px; left: 0; width: 100%; height: 2px; background: #4CAF50; transform: scaleX(0); transition: transform 0.3s ease; transform-origin: left;"></span>
+    </a>
+</nav>
+<style>
+    nav a:hover {
+        color: #4CAF50;
+        background: rgba(76, 175, 80, 0.1);
+    }
+    nav a:hover span {
+        transform: scaleX(1);
+    }
+</style>
+
+    <main>
+        <div class="activity-log-container">
+            <div class="activity-log-header">
+                <p class="activity-log-subtitle">Track all actions and changes in your chores and rewards system</p>
+            </div>
+            {% if activity_logs %}
+            <div class="activity-stats">
+                <div class="stat-item">
+                    <span class="stat-number">{{ activity_logs|length }}</span>
+                    <span class="stat-label">Total Activities</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{{ activity_logs|selectattr('type', 'equalto', 'chore_completed')|list|length }}</span>
+                    <span class="stat-label">Chores Completed</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{{ activity_logs|selectattr('type', 'equalto', 'reward_redeemed')|list|length }}</span>
+                    <span class="stat-label">Rewards Redeemed</span>
+                </div>
+            </div>
+            {% endif %}
+            <div class="charts-section">
+                <div class="chart-container">
+                    <div class="chart-title">Chores by Person</div>
+                    {% if chores_by_person is defined and chores_by_person %}
+                        <canvas id="personPie" width="320" height="320"></canvas>
+                    {% else %}
+                        <div class="placeholder">No data available for Chores Completed by Person.</div>
+                    {% endif %}
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">Monthly Chores per Person</div>
+                    {% if monthly_chores_by_person is defined and monthly_chores_by_person %}
+                        <canvas id="monthlyBar" width="320" height="320"></canvas>
+                    {% else %}
+                        <div class="placeholder">No data available for Monthly Summary.</div>
+                    {% endif %}
+                </div>
+                <div class="chart-container" style="min-width: 480px; max-width: 700px;">
+                    <div class="chart-title">Top Tasks Trend (Last 4 Weeks)</div>
+                    {% if top_tasks_trend is defined and top_tasks_trend and trend_weeks is defined and trend_weeks %}
+                        <canvas id="topTasksTrend" width="600" height="320"></canvas>
+                    {% else %}
+                        <div class="placeholder">No data available for Top Tasks Trend.</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% if activity_types or activity_users %}
+            <div class="activity-filters">
+                <form method="GET" style="display: contents;">
+                    <div class="filter-group">
+                        <label for="type-filter">Filter by Type:</label>
+                        <select name="type" id="type-filter" class="filter-select">
+                            <option value="">All Types</option>
+                            {% for activity_type in activity_types %}
+                            <option value="{{ activity_type }}" {% if current_type_filter == activity_type %}selected{% endif %}>
+                                {{ activity_type.replace('_', ' ').title() }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="user-filter">Filter by User:</label>
+                        <select name="user" id="user-filter" class="filter-select">
+                            <option value="">All Users</option>
+                            {% for user in activity_users %}
+                            <option value="{{ user }}" {% if current_user_filter == user %}selected{% endif %}>
+                                {{ user }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="clear-filters-btn">Apply Filters</button>
+                    {% if current_type_filter or current_user_filter %}
+                    <a href="{{ url_for('routes.activity_log') }}" class="clear-filters-btn">Clear Filters</a>
+                    {% endif %}
+                </form>
+            </div>
+            {% endif %}
+            <div class="activity-log-list">
+                {% if activity_logs %}
+                    {% for log in activity_logs %}
+                    <div class="activity-log-item">
+                        <div class="activity-icon {{ log.type.replace('_', '-') }}">
+                            {% if log.type == 'chore_added' %}
+                                <i class="fas fa-plus-circle"></i>
+                            {% elif log.type == 'chore_completed' %}
+                                <i class="fas fa-check-circle"></i>
+                            {% elif log.type == 'chore_deleted' %}
+                                <i class="fas fa-trash-alt"></i>
+                            {% elif log.type == 'daily_chore_added' %}
+                                <i class="fas fa-calendar-plus"></i>
+                            {% elif log.type == 'daily_chore_deleted' %}
+                                <i class="fas fa-calendar-times"></i>
+                            {% elif log.type == 'daily_chores_reset' %}
+                                <i class="fas fa-calendar-check"></i>
+                            {% elif log.type == 'points_reset' %}
+                                <i class="fas fa-undo"></i>
+                            {% elif log.type == 'reward_added' %}
+                                <i class="fas fa-gift"></i>
+                            {% elif log.type == 'reward_redeemed' %}
+                                <i class="fas fa-trophy"></i>
+                            {% elif log.type == 'reward_deleted' %}
+                                <i class="fas fa-gift"></i>
+                            {% elif log.type == 'family_member_added' %}
+                                <i class="fas fa-user-plus"></i>
+                            {% elif log.type == 'avatar_updated' %}
+                                <i class="fas fa-user-circle"></i>
+                            {% elif log.type == 'name_updated' %}
+                                <i class="fas fa-user-edit"></i>
+                            {% elif log.type == 'color_updated' %}
+                                <i class="fas fa-palette"></i>
+                            {% elif log.type == 'order_updated' %}
+                                <i class="fas fa-sort"></i>
+                            {% elif log.type == 'settings_updated' %}
+                                <i class="fas fa-cog"></i>
+                            {% elif log.type == 'system_error' %}
+                                <i class="fas fa-exclamation-triangle"></i>
+                            {% elif log.type == 'bonus_points' %}
+                                <i class="fas fa-coins"></i>
+                            {% else %}
+                                <i class="fas fa-info-circle"></i>
+                            {% endif %}
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-description">
+                                {{ log.description }}
+                            </div>
+                            <div class="activity-meta">
+                                <div class="activity-date">
+                                    <i class="fas fa-clock"></i>
+                                    {% if log.local_date is defined %}{{ log.local_date.strftime("%d %b %Y at %H:%M") }}{% else %}{{ log.date.strftime("%d %b %Y at %H:%M") }}{% endif %}
+                                </div>
+                                <div class="activity-type">
+                                    <i class="fas fa-tag"></i>
+                                    {{ log.type.replace('_', ' ').title() }}
+                                </div>
+                                {% if log.user_name %}
+                                <div class="activity-user">
+                                    <i class="fas fa-user"></i>
+                                    {{ log.user_name }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% elif error %}
+                    <div class="activity-log-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Error Loading Activity Log</h3>
+                        <p>{{ error }}</p>
+                    </div>
+                {% else %}
+                    <div class="activity-log-empty">
+                        <i class="fas fa-history"></i>
+                        <h3>No Activities Yet</h3>
+                        <p>Start using the app to see your activity history here.<br>
+                        Complete chores, redeem rewards, and manage your family to see activities logged.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+    <script id="chart-data" type="application/json">
+    {
+        "personPieData": {{ chores_by_person|tojson|safe }},
+        "monthlyBarData": {{ monthly_chores_by_person|tojson|safe }},
+        "topTasksTrendData": {{ top_tasks_trend|tojson|safe }},
+        "trendWeeks": {{ trend_weeks|tojson|safe }}
+    }
+    </script>
+    <script src="{{ url_for('static', filename='js/activity_log.js') }}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Remove theme toggle functionality to force dark mode
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            themeToggle.style.display = 'none';
+        }
+        updateChartsForTheme('dark');
+    });
+    </script>
+</body>
+</html>

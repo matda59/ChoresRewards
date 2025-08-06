@@ -1,0 +1,2825 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ChoresAwards</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+        <!-- Add Font Awesome for icons -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+        <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+        <script>
+        // --- Clear All Completed Chores ---
+        function clearAllCompletedChores(btn) {
+            console.log('Clear All button clicked');
+            // Find the parent completed-chores-list
+            const completedList = btn.closest('.completed-chores-list');
+            if (!completedList) { console.log('No completed-chores-list found'); return; }
+            // Get all completed chore elements
+            const choreDivs = completedList.querySelectorAll('.chore.completed');
+            const ids = Array.from(choreDivs).map(div => div.getAttribute('data-chore-id'));
+            if (ids.length === 0) { alert('No completed chores to clear.'); return; }
+            // Use UnifiedModal for confirmation
+            showUnifiedModal({
+                icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+                message: 'Are you sure you want to delete all completed chores for this person?',
+                buttons: [
+                    {text: 'Delete', color: '#e53935', onClick: function() {
+                        let deleted = 0;
+                        ids.forEach((id, idx) => {
+                            fetch("{{ url_for('routes.delete_chore') }}", {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ chore_id: id, permanent: true })
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                deleted++;
+                                if (deleted === ids.length) window.location.reload();
+                            });
+                        });
+                    }},
+                    {text: 'Cancel', color: '#888', onClick: null}
+                ]
+            });
+        }
+        </script>
+        <style>
+        /* Celebration Animation Styles */
+        .celebration-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: fadeIn 0.5s ease-in;
+        }
+        .celebration-content {
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+            max-width: 500px;
+            width: 90%;
+        }
+        .celebration-content::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shimmer 2s infinite;
+        }
+        .celebration-title {
+            font-size: 3em;
+            color: #fff;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            animation: bounce 1s infinite alternate;
+        }
+        .celebration-message {
+            font-size: 1.5em;
+            color: #fff;
+            margin-bottom: 30px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        .celebration-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 5px solid #fff;
+            margin: 0 auto 20px;
+            display: block;
+            animation: pulse 1.5s infinite;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+        .celebration-close {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+        .celebration-close:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(255, 107, 107, 0.6);
+        }
+        /* Confetti Animation */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #f0f;
+            animation: confetti-fall 3s linear infinite;
+        }
+        .confetti:nth-child(1) { left: 10%; animation-delay: 0s; background: #ff6b6b; }
+        .confetti:nth-child(2) { left: 20%; animation-delay: 0.2s; background: #4ecdc4; }
+        .confetti:nth-child(3) { left: 30%; animation-delay: 0.4s; background: #45b7d1; }
+        .confetti:nth-child(4) { left: 40%; animation-delay: 0.6s; background: #96ceb4; }
+        .confetti:nth-child(5) { left: 50%; animation-delay: 0.8s; background: #feca57; }
+        .confetti:nth-child(6) { left: 60%; animation-delay: 1s; background: #ff9ff3; }
+        .confetti:nth-child(7) { left: 70%; animation-delay: 1.2s; background: #54a0ff; }
+        .confetti:nth-child(8) { left: 80%; animation-delay: 1.4s; background: #5f27cd; }
+        .confetti:nth-child(9) { left: 90%; animation-delay: 1.6s; background: #00d2d3; }
+        .confetti:nth-child(10) { left: 15%; animation-delay: 1.8s; background: #ff6348; }
+        .confetti:nth-child(11) { left: 25%; animation-delay: 2s; background: #2ed573; }
+        .confetti:nth-child(12) { left: 35%; animation-delay: 2.2s; background: #ffa502; }
+        .confetti:nth-child(13) { left: 45%; animation-delay: 2.4s; background: #3742fa; }
+        .confetti:nth-child(14) { left: 55%; animation-delay: 2.6s; background: #2f3542; }
+        .confetti:nth-child(15) { left: 65%; animation-delay: 2.8s; background: #ff4757; }
+        /* Sparkles */
+        .sparkle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #fff;
+            border-radius: 50%;
+            animation: sparkle 2s linear infinite;
+        }
+        .sparkle:nth-child(16) { left: 12%; top: 20%; animation-delay: 0.1s; }
+        .sparkle:nth-child(17) { left: 88%; top: 30%; animation-delay: 0.3s; }
+        .sparkle:nth-child(18) { left: 25%; top: 60%; animation-delay: 0.5s; }
+        .sparkle:nth-child(19) { left: 75%; top: 70%; animation-delay: 0.7s; }
+        .sparkle:nth-child(20) { left: 50%; top: 15%; animation-delay: 0.9s; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes bounce {
+            from { transform: translateY(0px); }
+            to { transform: translateY(-10px); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        @keyframes sparkle {
+            0%, 100% {
+                opacity: 0;
+                transform: scale(0);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        .celebration-stars {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2em;
+            color: #ffd700;
+            animation: twinkle 1s infinite alternate;
+        }
+        @keyframes twinkle {
+            from { opacity: 0.5; transform: translateX(-50%) scale(0.8); }
+            to { opacity: 1; transform: translateX(-50%) scale(1.2); }
+        }
+        .sound-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2em;
+        }
+        .sound-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+/* Slot Machine Styles */
+.slot-machine-container {
+    margin: 20px 0;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    border: 2px solid #ffd700;
+}
+
+.slot-machine-title {
+    font-size: 1.8em;
+    color: #ffd700;
+    margin-bottom: 15px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.slot-machine-display {
+    background: #000;
+    color: #ffd700;
+    font-size: 4em;
+    font-weight: bold;
+    padding: 20px;
+    border-radius: 10px;
+    border: 3px solid #ffd700;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Courier New', monospace;
+    text-shadow: 0 0 10px #ffd700;
+    animation: slot-glow 1s infinite alternate;
+}
+
+.slot-machine-result {
+    font-size: 1.4em;
+    color: #fff;
+    margin-top: 15px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slot-glow {
+    from { box-shadow: 0 0 5px #ffd700; }
+    to { box-shadow: 0 0 20px #ffd700, 0 0 30px #ffd700; }
+}        
+    </style>
+</head>
+<body>
+<!-- Now moved below the main heading -->
+<!-- PIN Authorization Overlay Start -->
+<div id="pin-overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center; flex-direction: column;">
+    <div style="background: #222; padding: 2rem; border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.8); width: 320px; max-width: 90%;">
+        <h2 style="color: white; margin-bottom: 1rem; text-align: center;">Enter Master PIN</h2>
+        <input id="master-pin-input" type="password" maxlength="4" pattern="\d{4}" placeholder="4-digit PIN" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; border: none; margin-bottom: 1rem; text-align: center;">
+        <div id="master-pin-error" style="color: #f44336; font-weight: 600; margin-bottom: 1rem; display: none; text-align: center;"></div>
+        <button id="master-pin-submit" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; background-color: #4CAF50; color: white; border: none; cursor: pointer;">Submit</button>
+    </div>
+</div>
+<!-- PIN Authorization Overlay End -->
+<!-- Celebration Overlay -->
+<div id="celebration-overlay" class="celebration-overlay">
+    <div class="celebration-content">
+        <div class="celebration-stars">⭐ ⭐ ⭐</div>
+        <button class="sound-toggle" onclick="toggleCelebrationSound()" title="Toggle Sound">
+            <i class="fas fa-volume-up" id="sound-icon"></i>
+        </button>
+        <!-- Confetti -->
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <!-- Sparkles -->
+        <div class="sparkle"></div>
+        <div class="sparkle"></div>
+        <div class="sparkle"></div>
+        <div class="sparkle"></div>
+        <div class="sparkle"></div>
+        
+        <h1 class="celebration-title">🎉 AMAZING! 🎉</h1>
+        <img id="celebration-avatar" class="celebration-avatar" src="" alt="Celebration Avatar">
+        <p id="celebration-message" class="celebration-message">You completed all your chores!</p>
+        
+        <!-- Slot Machine Container -->
+        <div id="slot-machine-container" class="slot-machine-container" style="display:none;">
+            <div class="slot-machine-title">🎰 BONUS POINTS! 🎰</div>
+            <div id="slot-machine-display" class="slot-machine-display">?</div>
+            <div id="slot-machine-result" class="slot-machine-result" style="display:none;"></div>
+        </div>
+        
+        <button class="celebration-close" onclick="closeCelebration()">Awesome! 🚀</button>
+    </div>
+</div>
+<!-- All site content is wrapped in the site-content container -->
+<div id="site-content">
+<div id="site-content">
+    <header>
+<div class="header-content" style="display:flex; align-items:center; justify-content:flex-start;">
+    <img src="{{ url_for('static', filename='images/mascot-transp.png') }}" 
+         alt="Chores Reward Icon" 
+         style="height:90px; width:90px; margin-right:5px;">
+    <h2 style="color: white; margin:0;">Chores and Rewards</h2>
+</div>
+    <!-- New Navigation Button Area -->
+<nav style="margin: 0 0 28px 0; display: flex; justify-content: flex-start; gap: 12px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 16px;">
+    <a href="{{ url_for('routes.activity_log') }}" style="color: #8b8b8b; padding: 8px 16px; text-decoration: none; font-size: 1em; font-weight: 500; transition: all 0.3s ease; border-radius: 4px; position: relative;">
+        Activity Log
+        <span style="position: absolute; bottom: -17px; left: 0; width: 100%; height: 2px; background: #4CAF50; transform: scaleX(0); transition: transform 0.3s ease; transform-origin: left;"></span>
+    </a>
+    <a href="{{ url_for('routes.settings') }}" style="color: #7e7e7e; padding: 8px 16px; text-decoration: none; font-size: 1em; font-weight: 500; transition: all 0.3s ease; border-radius: 4px; position: relative;">
+        Settings
+        <span style="position: absolute; bottom: -17px; left: 0; width: 100%; height: 2px; background: #4CAF50; transform: scaleX(0); transition: transform 0.3s ease; transform-origin: left;"></span>
+    </a>
+</nav>
+<style>
+    nav a:hover {
+        color: #4CAF50;
+        background: rgba(76, 175, 80, 0.1);
+    }
+    nav a:hover span {
+        transform: scaleX(1);
+    }
+</style>
+
+
+    <header>
+    <div class="theme-toggle-container" style="display:flex;align-items:center;gap:10px; margin-left:20px;">
+    <button class="theme-toggle" id="theme-toggle">
+    <i class="fas fa-sun light-icon"></i>
+    <i class="fas fa-moon dark-icon"></i>
+    </button>
+    </div>
+    </header>
+ 
+
+<!-- Edit Name Modal -->
+<div id="edit-name-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#676665; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+    <h3>Edit Name</h3>
+    <input type="text" id="edit-name-input" placeholder="Enter new name" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:80%; margin-bottom:18px;">
+    <div style="margin-top:10px; display:flex; gap:16px; justify-content:center;">
+      <button class="confirm-btn" onclick="confirmEditName()" style="background:#2d2d2d; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Confirm</button>
+      <button class="cancel-btn" onclick="closeEditNameModal()" style="background:#888; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+    <!--  Rewards Section -->
+    <section class="weekly-rewards">
+        <h2 style="text-align: center; color: #4CAF50;">
+            <i class="fas fa-trophy" style="color: gold;"></i> Rewards!
+        </h2>
+        <div class="completed-rewards-container">
+            {% for reward in rewards %}
+            {% if not reward.completed %}
+            <div class="completed-reward-item" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward.assigned_to }}" data-assigned-to-id="{{ get_person_by_name(reward.assigned_to).id }}">
+                <div class="completed-reward-content">
+                    <div class="reward-header">
+                        <div class="reward-icon">
+                            {% if reward.title == "Millhouse Canteen" %}
+                                <i class="fas fa-utensils"></i>
+                            {% elif reward.title == "MiniGolf" %}
+                                <i class="fas fa-golf-ball"></i>
+                            {% elif reward.title == "1 hour of ipad" %}
+                                <i class="fas fa-tablet-alt"></i>
+                            {% elif reward.title == "1 hour of TV" %}
+                                <i class="fas fa-tv"></i>
+                            {% elif reward.title == "A Movie" %}
+                                <i class="fas fa-film"></i>
+                            {% elif reward.title == "Baking Something Yum" %}
+                                <i class="fas fa-birthday-cake"></i>
+                            {% else %}
+                                <i class="fas fa-gift"></i>
+                            {% endif %}
+                        </div>
+                        <div class="reward-title" style="color: #4CAF50;">{{ reward.title }}</div>
+                    </div>
+                    <div class="reward-details">
+                        <div class="reward-points" style="color: #4CAF50;">{{ reward.points_required }} points required</div> 
+                        <div class="reward-assigned">
+                            <img src="{{ url_for('static', filename='uploads/' + (get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to).avatar else 'uploads/default_avatar.png')) }}" 
+                                 alt="{{ reward.assigned_to }}" 
+                                 class="redeemer-avatar"
+                                 title="{{ reward.assigned_to }}">
+                        </div>
+                    </div>
+                    <div class="reward-actions">
+                        <button class="delete-reward-btn" 
+                                data-reward-id="{{ reward.id }}" 
+                                onclick="confirmDeleteReward({{ reward.id }})"
+                                aria-label="Delete reward">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                        <button class="complete-reward-btn" 
+                        type="button"
+                        onclick="completeReward({{ reward.id }})"
+                        aria-label="Complete reward">
+                        <i class="fas fa-check-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+
+<!-- Unified Modal -->
+<div id="unified-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#fff; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+    <div id="unified-modal-icon" style="font-size:2.5em; margin-bottom:10px;"></div>
+    <div id="unified-modal-message" style="font-size:1.15em; margin-bottom:22px; color:#222;"></div>
+    <div id="unified-modal-buttons" style="display:flex; gap:16px; justify-content:center;"></div>
+  </div>
+</div>
+
+<script>
+// --- Clear All Completed Chores ---
+function clearAllCompletedChores(btn) {
+    console.log('Clear All button clicked');
+    if (!confirm('Are you sure you want to delete all completed chores for this person?')) return;
+    // Find the parent completed-chores-list
+    const completedList = btn.closest('.completed-chores-list');
+    if (!completedList) { console.log('No completed-chores-list found'); return; }
+    // Get all completed chore elements
+    const choreDivs = completedList.querySelectorAll('.chore.completed');
+    const ids = Array.from(choreDivs).map(div => div.getAttribute('data-chore-id'));
+    if (ids.length === 0) { alert('No completed chores to clear.'); return; }
+    // For each, send a delete request
+    let deleted = 0;
+    ids.forEach((id, idx) => {
+        fetch("{{ url_for('routes.delete_chore') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chore_id: id, permanent: true })
+        })
+        .then(res => res.json())
+        .then(data => {
+            deleted++;
+            if (deleted === ids.length) window.location.reload();
+        });
+    });
+}
+// --- Edit Name Modal Logic ---
+let editNamePersonId = null;
+function openEditNameModal(personId, currentName) {
+    editNamePersonId = personId;
+    document.getElementById('edit-name-input').value = currentName;
+    document.getElementById('edit-name-modal').style.display = 'flex';
+    setTimeout(() => {
+        document.getElementById('edit-name-input').focus();
+    }, 100);
+}
+function closeEditNameModal() {
+    document.getElementById('edit-name-modal').style.display = 'none';
+    editNamePersonId = null;
+}
+function confirmEditName() {
+    const newName = document.getElementById('edit-name-input').value.trim();
+    if (!newName) return;
+    fetch('/update_name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person_id: editNamePersonId, new_name: newName })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to update name');
+        }
+    });
+    closeEditNameModal();
+}
+
+// --- Unified Modal Logic ---
+
+
+function showUnifiedModal({icon, message, buttons}) {
+    const modal = document.getElementById('unified-modal');
+    const iconDiv = document.getElementById('unified-modal-icon');
+    const msg = document.getElementById('unified-modal-message');
+    const btns = document.getElementById('unified-modal-buttons');
+    iconDiv.innerHTML = icon || '';
+    msg.innerHTML = message;
+    btns.innerHTML = '';
+    buttons.forEach(btn => {
+        const b = document.createElement('button');
+        b.textContent = btn.text;
+        b.style.background = btn.color;
+        b.style.color = '#fff';
+        b.style.border = 'none';
+        b.style.padding = '10px 18px';
+        b.style.borderRadius = '6px';
+        b.style.fontWeight = '600';
+        b.style.cursor = 'pointer';
+        b.onclick = function() {
+            closeUnifiedModal();
+            if (btn.onClick) btn.onClick();
+        };
+        btns.appendChild(b);
+    });
+    modal.style.display = 'flex';
+}
+function closeUnifiedModal() {
+    document.getElementById('unified-modal').style.display = 'none';
+    pendingDeleteChoreId = null;
+    pendingDeleteChoreIsDaily = false;
+    unifiedModalCallback = null;
+}
+
+// --- Delete Chore Modal Replacement ---
+function confirmDeleteChore(choreId, isDaily) {
+    pendingDeleteChoreId = choreId;
+    pendingDeleteChoreIsDaily = isDaily;
+    if (isDaily) {
+        showUnifiedModal({
+            icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+            message: 'Do you want to delete this daily chore permanently, or just for today?',
+            buttons: [
+                {text: 'Delete Permanently', color: '#e53935', onClick: function() { deleteChore(choreId, true); }},
+                {text: 'Delete for Today', color: '#fbc02d', onClick: function() { deleteChore(choreId, false); }},
+                {text: 'Cancel', color: '#888', onClick: null}
+            ]
+        });
+    } else {
+        showUnifiedModal({
+            icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+            message: 'Are you sure you want to delete this chore?',
+            buttons: [
+                {text: 'Delete', color: '#e53935', onClick: function() { deleteChore(choreId, true); }},
+                {text: 'Cancel', color: '#888', onClick: null}
+            ]
+        });
+    }
+}
+
+function deleteChore(choreId, permanent) {
+    fetch("{{ url_for('routes.delete_chore') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chore_id: choreId, permanent: permanent }),
+    })
+    .then(async response => {
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = { success: false, message: 'Invalid server response' };
+        }
+if (data.success) {
+    window.location.reload();
+} else {
+    showUnifiedModal({
+    icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+    message: data.message || data.error || "Failed to delete chore",
+    buttons: [
+    {text: 'OK', color: '#888', onClick: null}
+    ]
+    });
+    }
+    });
+    }
+    
+    // --- Redeem Reward Modal ---
+function completeReward(rewardId) {
+    // Find the reward element and get reward details
+    const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+    if (!rewardElem) {
+        showUnifiedModal({
+            icon: '😢',
+            message: 'Reward not found!',
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+        return;
+    }
+    const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
+    const rewardTitle = rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : 'this reward';
+    const pointsMatch = rewardElem.querySelector('.reward-points').textContent.match(/(\d+)/);
+    const pointsRequired = pointsMatch ? parseInt(pointsMatch[1]) : 0;
+    // Get person's current points from the points display in their column
+    const personColumn = document.querySelector(`.column[data-person="${assignedTo}"]`);
+    const pointsDisplay = personColumn ? personColumn.querySelector('.points-display') : null;
+    const currentPointsText = pointsDisplay ? pointsDisplay.textContent.replace(' points', '') : '0';
+    const currentPoints = parseInt(currentPointsText) || 0;
+    if (currentPoints < pointsRequired) {
+        showUnifiedModal({
+            icon: '😢',
+            message: `Not enough points to redeem "${rewardTitle}"! You need ${pointsRequired} points but only have ${currentPoints} points.`,
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+        return;
+    }
+    // Confirmation modal using unified style
+    showUnifiedModal({
+        icon: '<i class="fas fa-check-circle" style="color:#4CAF50;"></i>',
+        message: `Redeem "${rewardTitle}" for <b>${assignedTo}</b> costing ${pointsRequired} points?`,
+        buttons: [
+            {text: 'Redeem', color: '#4CAF50', onClick: function() { doRedeemReward(rewardId); }},
+            {text: 'Cancel', color: '#888', onClick: null}
+        ]
+    });
+}
+    
+
+function doRedeemReward(rewardId) {
+    const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+    const assignedToId = rewardElem.getAttribute('data-assigned-to-id');
+    
+    fetch("{{ url_for('routes.complete_reward') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            reward_id: rewardId,
+            assigned_to_id: assignedToId 
+        }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show reward celebration overlay
+            const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+            const rewardTitle = rewardElem ? (rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : '') : '';
+            const assignedTo = rewardElem ? rewardElem.getAttribute('data-assigned-to') : '';
+            document.getElementById('reward-celebration-message').textContent = `${assignedTo} redeemed "${rewardTitle}"!`;
+            const overlay = document.getElementById('reward-celebration-overlay');
+            // Make sure overlay is on top and visible
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+            overlay.style.zIndex = '99999';
+            overlay.style.pointerEvents = 'auto';
+            console.log('Overlay shown, about to play sound');
+            // Play celebration sound if available
+            if (typeof playCelebrationSound === 'function') playCelebrationSound();
+            // Trigger confetti, balloons, and streamers after overlay is visible
+            setTimeout(() => {
+                console.log('Calling triggerRewardCelebrationEffects after overlay visible');
+                triggerRewardCelebrationEffects();
+            }, 100);
+            // Prevent any default form or button event from reloading the page
+            if (window.event) window.event.preventDefault && window.event.preventDefault();
+            // Hide overlay with fade out and reload after 4 seconds
+            setTimeout(() => {
+                overlay.style.transition = 'opacity 0.5s';
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    window.location.reload();
+                }, 500);
+            }, 4000);
+        } else {
+            showUnifiedModal({
+                icon: '😢',
+                message: data.error || 'Could not redeem reward',
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+        }
+    })
+    .catch(error => {
+        showUnifiedModal({
+            icon: '😢',
+            message: 'Error redeeming reward',
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+    });
+}
+
+// --- Reward Celebration Effects ---
+function triggerRewardCelebrationEffects() {
+    console.log('triggerRewardCelebrationEffects called');
+    // Confetti
+    const confettiContainer = document.getElementById('reward-confetti-container');
+    const balloonsContainer = document.getElementById('reward-balloons-container');
+    const streamersContainer = document.getElementById('reward-streamers-container');
+    if (confettiContainer) {
+        confettiContainer.innerHTML = '';
+        // DEBUG: Add a visible test element
+        const debugTest = document.createElement('div');
+        debugTest.textContent = 'CONFETTI TEST';
+        debugTest.style.position = 'absolute';
+        debugTest.style.top = '10px';
+        debugTest.style.left = '10px';
+        debugTest.style.color = 'red';
+        debugTest.style.fontSize = '2em';
+        confettiContainer.appendChild(debugTest);
+        for (let i = 0; i < 40; i++) {
+            const confetti = document.createElement('div');
+            confetti.style.position = 'absolute';
+            confetti.style.left = Math.random() * 100 + 'vw';
+            confetti.style.top = '-20px';
+            confetti.style.width = '12px';
+            confetti.style.height = '18px';
+            confetti.style.background = `hsl(${Math.random()*360},90%,60%)`;
+            confetti.style.borderRadius = '3px';
+            confetti.style.opacity = 0.85;
+            confetti.style.transform = `rotate(${Math.random()*360}deg)`;
+            confetti.style.zIndex = 20002;
+            confetti.style.animation = `reward-confetti-fall 1.5s linear ${Math.random()}s forwards`;
+            confettiContainer.appendChild(confetti);
+        }
+    }
+    if (balloonsContainer) {
+        balloonsContainer.innerHTML = '';
+        for (let i = 0; i < 8; i++) {
+            const balloon = document.createElement('div');
+            balloon.style.position = 'absolute';
+            balloon.style.left = (10 + Math.random() * 80) + 'vw';
+            balloon.style.bottom = '-120px';
+            balloon.style.width = '48px';
+            balloon.style.height = '64px';
+            balloon.style.background = `hsl(${Math.random()*360},80%,70%)`;
+            balloon.style.borderRadius = '50% 50% 50% 50% / 60% 60% 40% 40%';
+            balloon.style.opacity = 0.85;
+            balloon.style.zIndex = 20003;
+            balloon.style.animation = `reward-balloon-rise 2.2s cubic-bezier(.4,1.4,.6,1) ${Math.random()}s forwards`;
+            balloonsContainer.appendChild(balloon);
+        }
+    }
+    if (streamersContainer) {
+        streamersContainer.innerHTML = '';
+        for (let i = 0; i < 10; i++) {
+            const streamer = document.createElement('div');
+            streamer.style.position = 'absolute';
+            streamer.style.left = (10 + Math.random() * 80) + 'vw';
+            streamer.style.top = '-40px';
+            streamer.style.width = '6px';
+            streamer.style.height = '60px';
+            streamer.style.background = `hsl(${Math.random()*360},80%,60%)`;
+            streamer.style.borderRadius = '3px';
+            streamer.style.opacity = 0.7;
+            streamer.style.zIndex = 20004;
+            streamer.style.animation = `reward-streamer-fall 1.7s linear ${Math.random()}s forwards`;
+            streamersContainer.appendChild(streamer);
+        }
+    }
+}
+
+// Reward celebration keyframes
+const rewardStyle = document.createElement('style');
+rewardStyle.innerHTML = `
+@keyframes reward-confetti-fall {
+    0% { top: -20px; opacity: 0.85; }
+    80% { opacity: 0.85; }
+    100% { top: 90vh; opacity: 0; }
+}
+@keyframes reward-balloon-rise {
+    0% { bottom: -120px; opacity: 0.85; }
+    80% { opacity: 0.85; }
+    100% { bottom: 90vh; opacity: 0; }
+}
+@keyframes reward-streamer-fall {
+    0% { top: -40px; opacity: 0.7; }
+    80% { opacity: 0.7; }
+    100% { top: 90vh; opacity: 0; }
+}
+`;
+document.head.appendChild(rewardStyle);
+
+// --- Delete Reward Modal ---
+function confirmDeleteReward(rewardId) {
+    // Find the reward element and get reward details
+    const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+    if (!rewardElem) {
+        showUnifiedModal({
+            icon: '😢',
+            message: 'Reward not found!',
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+        return;
+    }
+    
+    const rewardTitle = rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : 'this reward';
+    const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
+    
+    showUnifiedModal({
+        icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+        message: `Are you sure you want to delete "${rewardTitle}" for <b>${assignedTo}</b>?`,
+        buttons: [
+            {text: 'Delete', color: '#e53935', onClick: function() { deleteReward(rewardId); }},
+            {text: 'Cancel', color: '#888', onClick: null}
+        ]
+    });
+}
+
+function deleteReward(rewardId) {
+    fetch("{{ url_for('routes.delete_reward') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reward_id: rewardId }),
+    })
+    .then(async response => {
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = { success: false, error: 'Invalid server response' };
+        }
+        if (data.success) {
+            window.location.reload();
+        } else {
+            showUnifiedModal({
+                icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+                message: data.error || data.message || 'Failed to delete reward',
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+        }
+    })
+    .catch(error => {
+        showUnifiedModal({
+            icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+            message: 'Error deleting reward: ' + error,
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+    });
+}
+
+// (Removed duplicate suggestion system. Only the initializeChoreSuggestions/renderChoreSuggestions system is used now.)
+</script>
+
+
+
+    <section>
+        <h2 style="text-align:center; color:#535453; margin-bottom: 18px; margin-top: 0; font-size:2em; letter-spacing:1px; display:flex; align-items:center; justify-content:center; gap:12px;">
+    Family Members Chores
+</h2>
+<div id="add-person-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#464646; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+    <h3>Add Family Member</h3>
+    <input type="text" id="add-person-input" placeholder="Enter name" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:80%; margin-bottom:18px;">
+    <div style="margin-top:10px; display:flex; gap:16px; justify-content:center;">
+      <button class="confirm-btn" onclick="confirmAddPerson()" style="background:#2d2d2d; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Add</button>
+      <button class="cancel-btn" onclick="closeAddPersonModal()" style="background:#888; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+        <div id="kanban">
+            {% set charlotte = family | selectattr("name", "equalto", "Charlotte") | list %}
+            {% set others = family | rejectattr("name", "equalto", "Charlotte") | list %}
+            {# Sort the combined list by the order field #}
+            {% set sorted_family = (charlotte + others) | sort(attribute='order') %}
+            {% for person in sorted_family %}
+            <div class="column" data-person="{{ person.name }}" style="display: flex; flex-direction: column; height: 100%;">
+                <!-- Column header with centered name and edit icon -->
+                <div class="column-header" style="display:flex;align-items:center;justify-content:space-between;padding:5px 5px 5px 5px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                    <!-- Delete person button removed as per user request -->
+                    <!-- <button class="delete-person-btn" title="Delete Person" style="background:none;border:none;cursor:pointer;font-size:1.1em;color:#e53935;" onclick="confirmDeletePerson('{{ person.id }}', '{{ person.name }}')">
+                        <i class="fas fa-trash-alt"></i>
+                    </button> -->
+                    </div>
+                    <h3 class="name" style="margin: 0; font-size: 1.5em; color: black;flex:1;text-align:center;">
+                        <span class="person-name" data-person-id="{{ person.id }}">{{ person.name }}</span>
+                        <i class="fas fa-pencil-alt edit-name-icon" style="cursor: pointer; margin-left: 4ch; color: #2d2d2d;" 
+                           title="Edit Name" style= "color: #2d2d2d;""
+                           onclick="openEditNameModal('{{ person.id }}', '{{ person.name }}')"></i>
+                    </h3>
+                    <div class="action-icons" style="margin-top: 5px;display:flex;align-items:center;gap:8px;">
+                        <!-- Removed Reset Points button as per user request -->
+                        <!-- Color palette icon with hidden color picker -->
+                        <div class="color-picker-container" style="display: inline-block; margin-left: 10px;">
+                            <input type="color" id="color-picker-{{ person.id }}" class="color-input" onchange="changeKanbanColor(event, {{ person.id }})">
+                            <button class="color-picker-btn" onclick="document.getElementById('color-picker-{{ person.id }}').click()" title="Change Background Color">
+                                <i class="fas fa-palette" style="color: #333333;"></i>
+                            </button>
+                        </div>
+                                            </div>
+                </div>
+                <div class="points-display" style="font-size: 1.5em; color: black;">{{ person.points + person.bonus_points }} points</div>
+                                <div class="avatar-container">
+                    <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'uploads/default_avatar.png') }}" alt="{{ person.name }}" class="avatar">
+                    <!-- Moved avatar upload form below avatar -->
+                    <form class="avatar-upload-form" onsubmit="uploadAvatar(event, {{ person.id }})">
+                        <input id="avatar-upload-{{ person.id }}" type="file" name="avatar" accept="image/*" style="display: none;" onchange="uploadAvatar(event, {{ person.id }})">
+                        <label for="avatar-upload-{{ person.id }}" class="custom-file-upload" title="Change Profile Picture">
+                            <i class="fa-solid fa-image"></i>
+                        </label>
+                    </form>
+                </div>
+            <!-- Retrieve all chores for this person -->
+            {% set person_chores = chores | selectattr("assigned_to_id", "equalto", person.id) | list %}
+            {% set incomplete_chores = person_chores | rejectattr("completed") | list %}
+            {% set completed_chores = person_chores | selectattr("completed") | list %}
+            
+            <h4 class="chores-to-do-header" style="color: black;">Chores:</h4>
+            
+            <!-- First, display pending (incomplete) chores at the top -->
+            {% if incomplete_chores %}
+                <div class="chores-list incomplete-chores-list">
+                    {% for chore in incomplete_chores %}
+                        <div class="chore" data-chore-id="{{ chore.id }}">
+                            {% if chore.is_daily %}
+                                <span class="daily-chore-indicator">
+                                    <i class="fas fa-sync" style="color: cyan;"></i>
+                                </span>
+                            {% endif %}
+                            {% if chore.title == "Clean Room" %}
+                                <i class="fas fa-bed"></i>
+                            {% elif chore.title == "Clean Desk" %}
+                                <i class="fas fa-table"></i>
+                            {% elif chore.title == "Pack Lunch" %}
+                                <i class="fas fa-box"></i>
+                            {% elif chore.title == "Clean Playroom" %}
+                                <i class="fas fa-gamepad"></i>
+                            {% elif chore.title == "Pack Water Bottle" %}
+                                <i class="fas fa-bottle"></i>
+                            {% elif chore.title == "Brush Teeth" %}
+                                <i class="fas fa-tooth"></i>
+                            {% elif chore.title == "Unstack Dishwasher" %}
+                                <i class="fas fa-sink"></i>
+                            {% elif chore.title == "Put Away Laundry" %}
+                                <i class="fas fa-basket-shopping"></i>
+                            {% elif chore.title == "Do a workout" %}
+                                <i class="fas fa-heart"></i>
+                            {% elif chore.title == "Take Sam For A Walk" %}
+                                <i class="fas fa-dog"></i>
+                            {% elif chore.title == "Reading" %}
+                                <i class="fas fa-book"></i>
+                            {% elif chore.title == "Sleep without meltdown" %}
+                                <i class="fas fa-face-smile"></i>
+                            {% else %}
+                                <i class="fas fa-tasks"></i>
+                            {% endif %}
+                            
+                            <span class="chore-title">
+                                {{ chore.title }} ({{ chore.points }} points)
+                            </span>
+                            
+                            <button onclick="completeChore({{ chore.id }})">Complete</button>
+                            
+                            <button class="delete-chore-btn" 
+                            onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})"
+                            aria-label="Delete chore">
+                            <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p style="color: black;">No Pending Chores</p>
+            {% endif %}
+            
+            <!-- Collapsible Completed Chores Section -->
+            {% if completed_chores %}
+                <div class="completed-chores-toggle-container" style="margin-top: 15px;">
+                    <button class="completed-chores-toggle-btn" 
+                            onclick="toggleCompletedChores(this)" 
+                            aria-label="Show/Hide Completed Chores"
+                            style="background: none; border: none; cursor: pointer; font-size: 1.1em; color: #333; display: flex; align-items: center;">
+                        <i class="fas fa-chevron-down" style="transition: transform 0.2s;"></i>
+                        <span style="margin-left: 6px;">Show Completed Chores ({{ completed_chores|length }})</span>
+                    </button>
+                    <div class="chores-list completed-chores-list" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h4 class="chores-completed-header" style="color: black; margin-top: 0;">Completed Chores:</h4>
+                            <button class="clear-all-completed-btn" style="background:#f44336; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:0.95em; cursor:pointer; margin-bottom:6px;" onclick="clearAllCompletedChores(this)"><i class='fas fa-trash'></i> Clear All</button>
+                        </div>
+                        <div class="clear-all-hint" style="font-size:0.95em;color:#888;margin-bottom:6px;">(Expand to see and clear all completed chores)</div>
+                        {% for chore in completed_chores %}
+                            <div class="chore completed" data-chore-id="{{ chore.id }}">
+                                {% if chore.is_daily %}
+                                    <span class="daily-chore-indicator">
+                                        <i class="fas fa-sync" style="color: cyan;"></i>
+                                    </span>
+                                {% endif %}
+                                {% if chore.title == "Clean Room" %}
+                                    <i class="fas fa-bed"></i>
+                                {% elif chore.title == "Clean Desk" %}
+                                    <i class="fas fa-table"></i>
+                                {% elif chore.title == "Pack Lunch" %}
+                                    <i class="fas fa-box"></i>
+                                {% elif chore.title == "Clean Playroom" %}
+                                    <i class="fas fa-gamepad"></i>
+                                {% elif chore.title == "Pack Water Bottle" %}
+                                    <i class="fas fa-bottle"></i>
+                                {% elif chore.title == "Brush Teeth" %}
+                                    <i class="fas fa-tooth"></i>
+                                {% elif chore.title == "Unstack Dishwasher" %}
+                                    <i class="fas fa-sink"></i>
+                                {% elif chore.title == "Put Away Laundry" %}
+                                    <i class="fas fa-basket-shopping"></i>
+                                {% elif chore.title == "Do a workout" %}
+                                    <i class="fas fa-heart"></i>
+                                {% elif chore.title == "Take Sam For A Walk" %}
+                                    <i class="fas fa-dog"></i>
+                                {% elif chore.title == "Reading" %}
+                                    <i class="fas fa-book"></i>
+                                {% elif chore.title == "Sleep without meltdown" %}
+                                    <i class="fas fa-face-smile"></i>
+                                {% else %}
+                                    <i class="fas fa-tasks"></i>
+                                {% endif %}
+                                
+                                <span class="chore-title">
+                                    {{ chore.title }} ({{ chore.points }} points)
+                                </span>
+                                
+                                <span class="completion-status" title="Completed">✅</span>
+                                <div class="completion-date">
+                                    Completed: {{ chore.date_completed.strftime("%d %b %Y") if chore.date_completed else "Today" }}
+                                </div>
+                                
+                                <button class="delete-chore-btn" 
+                                    onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})"
+                                    aria-label="Delete chore">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+            
+            <!-- Drag handle for Kanban column -->
+            <div class="column-footer" style="text-align: center; padding: 5px; margin-top: auto; border-top: 1px solid #ccc; cursor: grab;">
+                <span class="drag-handle" title="Drag to reorder" style="font-size: 1.2em; color: #888;"><i class="fas fa-grip-lines"></i> Drag</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<script>
+    // Drag-and-drop Kanban columns
+    document.addEventListener('DOMContentLoaded', function() {
+        const kanban = document.getElementById('kanban');
+        let draggedCol = null;
+        let dragOverCol = null;
+
+        function saveKanbanOrder() {
+            // Get the new order of person IDs
+            const columns = kanban.querySelectorAll('.column');
+            columns.forEach((col, idx) => {
+                const personId = col.querySelector('.person-name').getAttribute('data-person-id');
+                // Send the new order to the backend
+                fetch('/update_order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ person_id: personId, order: idx })
+                });
+            });
+        }
+
+        kanban.querySelectorAll('.column').forEach(col => {
+            col.setAttribute('draggable', 'true');
+            col.addEventListener('dragstart', function(e) {
+                draggedCol = this;
+                e.dataTransfer.effectAllowed = 'move';
+                this.style.opacity = '0.5';
+            });
+            col.addEventListener('dragend', function() {
+                this.style.opacity = '';
+                draggedCol = null;
+            });
+            col.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                dragOverCol = this;
+                this.style.borderLeft = '4px solid #4CAF50';
+            });
+            col.addEventListener('dragleave', function() {
+                this.style.borderLeft = '';
+            });
+            col.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.style.borderLeft = '';
+                if (draggedCol && draggedCol !== this) {
+                    if (this.nextSibling === draggedCol) {
+                        kanban.insertBefore(draggedCol, this);
+                    } else {
+                        kanban.insertBefore(draggedCol, this.nextSibling);
+                    }
+                    saveKanbanOrder();
+                }
+            });
+        });
+    });
+    </script>
+<section class="chores">
+    <h2 style="text-align: center;"><i class="fas fa-tasks" style="color: rgb(225, 0, 255);"></i> Add Chores</h2>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 15px;">
+        <div class="chore-suggestions" style="display: inline-flex; flex-wrap: wrap; gap: 5px;">
+            <!-- Chore suggestions will be dynamically added here -->
+        </div>
+        <div style="display: inline-flex; gap: 5px; margin-left: auto;">
+            <input type="text" id="new-chore-suggestion" placeholder="Add New chore suggestion" style="padding: 5px; border-radius: 5px; border: 1px solid #ccc;">
+            <button type="button" onclick="addNewChoreSuggestion()" style="padding: 5px 10px; border-radius: 5px; background-color: #676665; color: white; border: none;">Add</button>
+            <button type="button" onclick="toggleEditMode()" style="padding: 5px 10px; border-radius: 5px; background-color: #676665; color: white; border: none;">Edit Suggestions</button>
+        </div>
+    </div>
+    <form id="add-chore-form" onsubmit="addChore(event)">
+        <input type="text" name="title" placeholder="Add a chore" required>
+        <div id="assigned-to-btn-group" style="margin: 8px 0;">
+            {% for person in family %}
+            <button type="button" class="assigned-to-btn" data-person="{{ person.name }}" style="margin-right:6px;padding:4px 14px;border-radius:5px;border:1px solid #4CAF50;background:#eee;color:#222;font-weight:600;cursor:pointer;">{{ person.name }}</button>
+            {% endfor %}
+        </div>
+        <input type="hidden" name="assigned_to" id="assigned-to-hidden" required>
+        <input type="number" name="points" placeholder="Points (e.g., 1, 2, 3)" value="1" min="1" required>
+        <label class="form-group">
+            <input type="checkbox" name="is_daily" id="is_daily">
+            <span class="label-text">Daily chore?</span>
+        </label>
+        <button type="submit">Add Chore</button>
+    </form>
+    <script>
+    // Initial chore suggestions
+    const initialChoreSuggestions = [
+        'Clean Room',
+        'Clean Desk',
+        'Pack Lunch',
+        'Clean Playroom',
+        'Pack Water Bottle',
+        'Brush Teeth',
+        'Unstack Dishwasher',
+        'Put Away Laundry',
+        'Do a workout',
+        'Take Sam For A Walk',
+        'Reading',
+        'Go to Sleep without meltdown'
+    ];
+    
+    let choreSuggestions = [];
+    let editMode = false;
+    
+    // Initialize chore suggestions
+    function initializeChoreSuggestions() {
+        // Load from localStorage if available, otherwise use initial suggestions
+        if (localStorage.getItem('choreSuggestions')) {
+            choreSuggestions = JSON.parse(localStorage.getItem('choreSuggestions'));
+        } else {
+            choreSuggestions = [...initialChoreSuggestions];
+            saveChoreSuggestions();
+        }
+    }
+    
+    // Render chore suggestions
+    function renderChoreSuggestions() {
+        const container = document.querySelector('.chore-suggestions');
+        container.innerHTML = '';
+        
+        choreSuggestions.forEach((chore, index) => {
+            if (editMode) {
+                // In edit mode, show input fields with delete buttons
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'inline-flex';
+                wrapper.style.alignItems = 'center';
+                wrapper.style.margin = '2px';
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = chore;
+                input.style.marginRight = '5px';
+                input.style.padding = '5px';
+                input.style.borderRadius = '5px';
+                input.style.border = '1px solid #ccc';
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = '×';
+                deleteBtn.style.padding = '3px 8px';
+                deleteBtn.style.borderRadius = '5px';
+                deleteBtn.style.backgroundColor = '#f44336';
+                deleteBtn.style.color = 'white';
+                deleteBtn.style.border = 'none';
+                deleteBtn.style.cursor = 'pointer';
+                deleteBtn.onclick = () => {
+                    choreSuggestions.splice(index, 1);
+                    saveChoreSuggestions();
+                    renderChoreSuggestions();
+                };
+                
+                wrapper.appendChild(input);
+                wrapper.appendChild(deleteBtn);
+                container.appendChild(wrapper);
+            } else {
+                // In normal mode, show buttons as usual
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'chore-suggestion-button';
+                button.textContent = chore;
+                button.onclick = function() {
+                    document.querySelector('#add-chore-form input[name=\'title\']').value = chore;
+                };
+                button.style.margin = '0';
+                button.style.padding = '8px 12px';
+                button.style.borderRadius = '5px';
+                button.style.border = '1px solid #ccc';
+                button.style.backgroundColor = '#3d3d3d';
+                button.style.color = 'white';
+                button.style.cursor = 'pointer';
+                
+                container.appendChild(button);
+            }
+        });
+    }
+    
+    // Toggle edit mode
+    function toggleEditMode() {
+        editMode = !editMode;
+        const button = document.querySelector('[onclick="toggleEditMode()"]');
+        
+        if (editMode) {
+            button.textContent = 'Save Suggestions';
+            button.style.backgroundColor = '#4CAF50';
+            
+            // Save current values when exiting edit mode
+            const saveChanges = () => {
+                const inputs = document.querySelectorAll('.chore-suggestions input[type="text"]');
+                choreSuggestions = Array.from(inputs).map(input => input.value.trim()).filter(chore => chore);
+                saveChoreSuggestions();
+                toggleEditMode(); // This will call renderChoreSuggestions()
+            };
+            
+            button.onclick = saveChanges;
+        } else {
+            button.textContent = 'Edit Suggestions';
+            button.style.backgroundColor = '#676665';
+            button.onclick = toggleEditMode;
+        }
+        
+        renderChoreSuggestions();
+    }
+    
+    // Add new chore suggestion
+    function addNewChoreSuggestion() {
+        const input = document.getElementById('new-chore-suggestion');
+        const newChore = input.value.trim();
+        
+        if (newChore && !choreSuggestions.includes(newChore)) {
+            choreSuggestions.push(newChore);
+            saveChoreSuggestions();
+            renderChoreSuggestions();
+            input.value = '';
+        }
+    }
+    
+    // Save chore suggestions to localStorage
+    function saveChoreSuggestions() {
+        localStorage.setItem('choreSuggestions', JSON.stringify(choreSuggestions));
+    }
+    
+    // Assigned To button group logic
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeChoreSuggestions();
+        
+        const btns = document.querySelectorAll('.assigned-to-btn');
+        const hiddenInput = document.getElementById('assigned-to-hidden');
+        // Select the first person by default
+        if (btns.length > 0) {
+            btns[0].classList.add('selected');
+            hiddenInput.value = btns[0].getAttribute('data-person');
+        }
+        btns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                btns.forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                hiddenInput.value = this.getAttribute('data-person');
+            });
+        });
+        
+        // Initial render
+        renderChoreSuggestions();
+    });
+    </script>
+</section>
+        <style>
+    .assigned-to-btn.selected {
+        background: #4CAF50 !important;
+        color: #fff !important;
+        border: 1.5px solid #388e3c !important;
+    }
+    [data-theme="dark"] .assigned-to-btn {
+        background: #222 !important;
+        color: #fff !important;
+        border: 1px solid #888 !important;
+    }
+    [data-theme="dark"] .assigned-to-btn.selected {
+        background: #4CAF50 !important;
+        color: #fff !important;
+        border: 1.5px solid #388e3c !important;
+    }
+    </style>
+</section>
+<section class="add-rewards">
+    <h2 style="text-align: center;"><i class="fas fa-trophy" style="color: gold;"></i> Add Rewards</h2>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 15px;">
+        <div class="reward-suggestions" style="display: inline-flex; flex-wrap: wrap; gap: 5px;">
+            <!-- Reward suggestions will be dynamically added here -->
+        </div>
+        <div style="display: inline-flex; gap: 5px; margin-left: auto;">
+            <input type="text" id="new-reward-suggestion" placeholder="Add New reward Suggestion" style="padding: 5px; border-radius: 5px; border: 1px solid #ccc;">
+            <button type="button" onclick="addNewRewardSuggestion()" style="padding: 5px 10px; border-radius: 5px; background-color: #676665; color: white; border: none;">Add</button>
+            <button type="button" onclick="toggleRewardEditMode()" style="padding: 5px 10px; border-radius: 5px; background-color: #676665; color: white; border: none;">Edit Suggestions</button>
+        </div>
+    </div>
+    <form action="{{ url_for('routes.add_reward') }}" method="POST" id="add-reward-form">
+        <input type="text" name="title" placeholder="Reward title" required>
+        <input type="number" name="points_required" placeholder="Points required" required>
+        <select name="assigned_to" required>
+            {% for person in family %}
+            <option value="{{ person.name }}">{{ person.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Add Reward</button>
+    </form>
+    <script>
+    // Initial reward suggestions
+    const initialRewardSuggestions = [
+        'Millhouse Canteen',
+        'MiniGolf',
+        '1 hour of ipad',
+        '1 hour of TV',
+        'A Movie',
+        'Baking Something Yum'
+    ];
+    
+    let rewardSuggestions = [];
+    let rewardEditMode = false;
+    
+    // Initialize reward suggestions
+    function initializeRewardSuggestions() {
+        // Load from localStorage if available, otherwise use initial suggestions
+        if (localStorage.getItem('rewardSuggestions')) {
+            rewardSuggestions = JSON.parse(localStorage.getItem('rewardSuggestions'));
+        } else {
+            rewardSuggestions = [...initialRewardSuggestions];
+            saveRewardSuggestions();
+        }
+    }
+    
+    // Render reward suggestions
+    function renderRewardSuggestions() {
+        const container = document.querySelector('.reward-suggestions');
+        container.innerHTML = '';
+        
+        rewardSuggestions.forEach((reward, index) => {
+            if (rewardEditMode) {
+                // In edit mode, show input fields with delete buttons
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'inline-flex';
+                wrapper.style.alignItems = 'center';
+                wrapper.style.margin = '2px';
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = reward;
+                input.style.marginRight = '5px';
+                input.style.padding = '5px';
+                input.style.borderRadius = '5px';
+                input.style.border = '1px solid #ccc';
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = '×';
+                deleteBtn.style.padding = '3px 8px';
+                deleteBtn.style.borderRadius = '5px';
+                deleteBtn.style.backgroundColor = '#f44336';
+                deleteBtn.style.color = 'white';
+                deleteBtn.style.border = 'none';
+                deleteBtn.style.cursor = 'pointer';
+                deleteBtn.onclick = () => {
+                    rewardSuggestions.splice(index, 1);
+                    saveRewardSuggestions();
+                    renderRewardSuggestions();
+                };
+                
+                wrapper.appendChild(input);
+                wrapper.appendChild(deleteBtn);
+                container.appendChild(wrapper);
+            } else {
+                // In normal mode, show buttons as usual
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'reward-suggestion-button';
+                button.textContent = reward;
+                button.onclick = function() {
+                    document.querySelector('#add-reward-form input[name=\'title\']').value = reward;
+                };
+                button.style.margin = '0';
+                button.style.padding = '8px 12px';
+                button.style.borderRadius = '5px';
+                button.style.border = '1px solid #ccc';
+                button.style.backgroundColor = '#3d3d3d';
+                button.style.color = 'white';
+                button.style.cursor = 'pointer';
+                
+                container.appendChild(button);
+            }
+        });
+    }
+    
+    // Toggle edit mode for rewards
+    function toggleRewardEditMode() {
+        rewardEditMode = !rewardEditMode;
+        const button = document.querySelector('[onclick="toggleRewardEditMode()"]');
+        
+        if (rewardEditMode) {
+            button.textContent = 'Save Suggestions';
+            button.style.backgroundColor = '#4CAF50';
+            
+            // Save current values when exiting edit mode
+            const saveChanges = () => {
+                const inputs = document.querySelectorAll('.reward-suggestions input[type="text"]');
+                rewardSuggestions = Array.from(inputs).map(input => input.value.trim()).filter(reward => reward);
+                saveRewardSuggestions();
+                toggleRewardEditMode(); // This will call renderRewardSuggestions()
+            };
+            
+            button.onclick = saveChanges;
+        } else {
+            button.textContent = 'Edit Suggestions';
+            button.style.backgroundColor = '#ff9800'; // Orange color
+            button.onclick = toggleRewardEditMode;
+        }
+        
+        renderRewardSuggestions();
+    }
+    
+    // Add new reward suggestion
+    function addNewRewardSuggestion() {
+        const input = document.getElementById('new-reward-suggestion');
+        const newReward = input.value.trim();
+        
+        if (newReward && !rewardSuggestions.includes(newReward)) {
+            rewardSuggestions.push(newReward);
+            saveRewardSuggestions();
+            renderRewardSuggestions();
+            input.value = '';
+        }
+    }
+    
+    // Save reward suggestions to localStorage
+    function saveRewardSuggestions() {
+        localStorage.setItem('rewardSuggestions', JSON.stringify(rewardSuggestions));
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeRewardSuggestions();
+        renderRewardSuggestions();
+    });
+    </script>
+</section>
+<section class="completed-rewards">
+    <h2 style="text-align: center; color: #4CAF50;">
+        <i class="fas fa-trophy" style="color: #4CAF50;"></i> Redeemed Rewards
+    </h2>
+    <div id="redeemed-rewards-container" class="completed-rewards-container">
+        {% for reward in rewards %}
+        {% if reward.completed %}
+        <div class="completed-reward-item" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward.assigned_to }}" data-assigned-to-id="{{ get_person_by_name(reward.assigned_to).id }}">
+            <div class="completed-reward-content">
+                <div class="reward-header">
+                    <div class="reward-icon">
+                        {% if reward.title == "Millhouse Canteen" %}
+                            <i class="fas fa-utensils"></i>
+                        {% elif reward.title == "MiniGolf" %}
+                            <i class="fas fa-golf-ball"></i>
+                        {% elif reward.title == "1 hour of ipad" %}
+                            <i class="fas fa-tablet-alt"></i>
+                        {% elif reward.title == "1 hour of TV" %}
+                            <i class="fas fa-tv"></i>
+                        {% elif reward.title == "A Movie" %}
+                            <i class="fas fa-film"></i>
+                        {% elif reward.title == "Baking Something Yum" %}
+                            <i class="fas fa-birthday-cake"></i>
+                        {% else %}
+                            <i class="fas fa-gift"></i>
+                        {% endif %}
+                    </div>
+                    <div class="reward-title">{{ reward.title }}</div>
+                </div>
+                <div class="reward-details">
+                    <div class="reward-points">({{ reward.points_required }} points required)</div>
+                    <div class="reward-redeemer">
+                        <img src="{{ url_for('static', filename='uploads/' + get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to).avatar else 'uploads/default_avatar.png') }}" 
+                             alt="{{ reward.assigned_to }}" 
+                             class="redeemer-avatar"
+                             title="{{ reward.assigned_to }}">
+                        <span class="completed-status">✅ Redeemed</span>
+                    </div>
+                    <div class="completion-date">
+                        Redeemed on: {{ reward.date_completed.strftime("%d %B %Y at %H:%M") }}
+                    </div>
+                </div>
+                <button class="delete-reward-btn" 
+                        data-reward-id="{{ reward.id }}" 
+                        onclick="confirmDeleteReward({{ reward.id }})"
+                        aria-label="Delete reward">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</section>
+<!--  Summary Section -->
+<section id="weekly-summary">
+    <h2 style="text-align: center; color: #ffd900; margin-bottom: 18px;">
+        <i class="fa-solid fa-crown" style="color: #ffd000;"></i> Weekly Summary
+    </h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; justify-content: center;">
+        {% for person in family %}
+        <div class="summary-card" style="background: #fffbe7; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px 20px; min-width: 260px; max-width: 320px; display: flex; flex-direction: column; align-items: center; position: relative;">
+            <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 10px;">
+                <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'uploads/default_avatar.png') }}" alt="{{ person.name }}" style="width: 56px; height: 56px; border-radius: 50%; border: 3px solid #ffd900; object-fit: cover;">
+                <span style="font-size: 1.35em; font-weight: 700; color: #222;">{{ person.name }}</span>
+            </div>
+            <div style="font-size: 1.1em; color: #333; margin-bottom: 8px;">
+                <b>Total Points This Week:</b> <span class="weekly-points" data-person="{{ person.name }}">0</span>
+            </div>
+            <div style="font-size: 1em; color: #444; margin-bottom: 8px;">
+                <b>Average Points/Week:</b> <span class="average-points" data-person="{{ person.name }}">0</span>
+            </div>
+            <div style="font-size: 0.98em; color: #666; margin-bottom: 8px;">
+                <b>All-Time Points:</b> <span class="alltime-points" data-person="{{ person.name }}">{{ person.points + person.bonus_points }}</span>
+            </div>
+            <div style="font-size: 0.95em; color: #888;">Week Ending: {{ end_of_week_date }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    <div id="weekly-summary-total"></div>
+</section>
+
+<script>
+// --- Add/Delete Person Logic ---
+function confirmDeletePerson(personId, personName) {
+    showUnifiedModal({
+        icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+        message: `Are you sure you want to delete <b>${personName}</b>? This action cannot be undone.`,
+        buttons: [
+            {text: 'Delete', color: '#e53935', onClick: function() { deletePerson(personId); }},
+            {text: 'Cancel', color: '#888', onClick: null}
+        ]
+    });
+}
+function deletePerson(personId) {
+    fetch('/delete_person', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person_id: personId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            showUnifiedModal({
+                icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+                message: data.error || 'Failed to delete person',
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+        }
+    });
+}
+// Add Person Modal Logic
+function openAddPersonModal() {
+    document.getElementById('add-person-modal').style.display = 'flex';
+    setTimeout(() => {
+        document.getElementById('add-person-input').focus();
+    }, 100);
+}
+function closeAddPersonModal() {
+    document.getElementById('add-person-modal').style.display = 'none';
+}
+function confirmAddPerson() {
+    const name = document.getElementById('add-person-input').value.trim();
+    if (!name) return;
+    fetch('/add_person', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            showUnifiedModal({
+                icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+                message: data.error || 'Failed to add person',
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+        }
+    });
+    closeAddPersonModal();
+}
+document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('add-person-btn');
+    if (addBtn) addBtn.addEventListener('click', openAddPersonModal);
+});
+// Example: You should replace this with real data from your backend if available
+// For now, we'll just fill in the weekly and average points with dummy values
+// You can update this logic to use AJAX or Jinja variables as needed
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Dummy data for demonstration
+    // Replace with real calculation if available
+    const weeklyPoints = {
+        {% for person in family %}
+        '{{ person.name }}': 0,
+        {% endfor %}
+    };
+    const averagePoints = {
+        {% for person in family %}
+        '{{ person.name }}': 0,
+        {% endfor %}
+    };
+    // Fill in the values
+    for (const name in weeklyPoints) {
+        const el = document.querySelector('.weekly-points[data-person="' + name + '"]');
+        if (el) el.textContent = weeklyPoints[name];
+    }
+    for (const name in averagePoints) {
+        const el = document.querySelector('.average-points[data-person="' + name + '"]');
+        if (el) el.textContent = averagePoints[name];
+    }
+});
+</script>
+</div> <!-- End of site-content container -->
+
+<!-- Reward Celebration Overlay -->
+<div id="reward-celebration-overlay" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:20000;background:rgba(0,0,0,0.92);justify-content:center;align-items:center;flex-direction:column;overflow:hidden;">
+    <div id="reward-celebration-message" style="color:#fff;font-size:3em;text-align:center;text-shadow:2px 2px 8px #000,0 0 40px #ffd700;font-weight:bold;z-index:2;"></div>
+    <div id="reward-celebration-graphics" style="margin-top:30px;z-index:2;">
+        <span style="font-size:5em;">🎉</span>
+        <span style="font-size:5em;">✨</span>
+        <span style="font-size:5em;">🏆</span>
+    </div>
+    <!-- Confetti, Balloons, Streamers, and Fun Elements -->
+    <div id="reward-confetti-container" style="position:absolute;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:100;"></div>
+    <div id="reward-balloons-container" style="position:absolute;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:101;"></div>
+    <div id="reward-streamers-container" style="position:absolute;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:102;"></div>
+</div>
+
+<script>
+// Global audio variables
+let celebrationSoundEnabled = true;
+let celebrationAudio; // Declare globally
+
+// --- GLOBAL MUTE BUTTON LOGIC ---
+let globalMute = localStorage.getItem('globalMute') === 'true';
+function updateMuteIcon() {
+    const icon = document.getElementById('mute-icon');
+    if (globalMute) {
+        icon.className = 'fas fa-volume-mute';
+    } else {
+        icon.className = 'fas fa-volume-up';
+    }
+}
+
+
+
+
+
+document.addEventListener('DOMContentLoaded', function() {
+
+    // Initialize audio first
+    initializeAudio();
+    
+    // Check authentication and set visibility accordingly
+    if (localStorage.getItem('isAuthenticated') === 'true') {
+        const pinOverlay = document.getElementById('pin-overlay');
+        const siteContent = document.getElementById('site-content');
+        if (pinOverlay) {
+            pinOverlay.style.display = 'none';
+        }
+        if (siteContent) {
+            siteContent.style.display = 'block';
+        }
+    } else {
+        const pinOverlay = document.getElementById('pin-overlay');
+        const siteContent = document.getElementById('site-content');
+        if (pinOverlay) {
+            pinOverlay.style.display = 'flex';
+        }
+        if (siteContent) {
+            siteContent.style.display = 'none';
+        }
+    }
+    
+    // Initialize column colors
+    const columns = document.querySelectorAll('.column');
+    columns.forEach(column => {
+        const colorInput = column.querySelector('.color-input');
+        const personId = colorInput.getAttribute('id').replace('color-picker-', '');
+        fetch(`/get_column_color/${personId}`, { method: 'GET' })
+        .then(response => response.json())
+        .then(data => {
+            let color = (data.success && data.color) ? data.color : '#cccccc';
+            column.style.backgroundColor = color;
+            colorInput.value = color;
+        })
+        .catch(error => {
+            column.style.backgroundColor = '#cccccc';
+            colorInput.value = '#cccccc';
+        });
+    });
+
+    // Initialize weekly summary
+    updateWeeklySummary();
+    
+    // Set up a MutationObserver to watch for changes to points displays
+    const pointsDisplays = document.querySelectorAll('.points-display');
+    const observer = new MutationObserver(updateWeeklySummary);
+    const config = { childList: true, characterData: true, subtree: true };
+    
+    pointsDisplays.forEach(display => {
+        observer.observe(display, config);
+    });
+});
+
+// Initialize audio objects
+function initializeAudio() {
+    try {
+        celebrationAudio = new Audio("https://www.myinstants.com/media/sounds/kids_cheering.mp3");
+        celebrationAudio.volume = 0.7;
+        celebrationAudio.preload = 'auto';
+        console.log('Celebration audio initialized successfully');
+    } catch (error) {
+        console.log('Celebration audio not supported or blocked:', error);
+    }
+}
+
+/* PIN check function removed as PIN setup moved to setup wizard */
+// function checkPin() {
+//     const pinInput = document.getElementById('pin-input').value;
+//     if (pinInput === '3701') {
+//         localStorage.setItem('isAuthenticated', 'true');
+//         document.getElementById('pin-error').style.display = 'none';
+//         document.getElementById('pin-overlay').style.display = 'none';
+//         document.getElementById('site-content').style.display = 'block';
+//     } else {
+//         document.getElementById('pin-error').style.display = 'block';
+//     }
+// }
+
+// Theme toggle
+const themeToggle = document.getElementById('theme-toggle');
+const body = document.body;
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme) {
+    body.setAttribute('data-theme', savedTheme);
+}
+themeToggle.addEventListener('click', () => {
+    const currentTheme = body.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    body.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+});
+
+// Add chore function
+function addChore(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const isDaily = form.querySelector('input[name="is_daily"]').checked;
+    formData.append('is_daily', isDaily);
+    fetch("{{ url_for('routes.add_chore') }}", { method: 'POST', body: formData })
+    .then(response => response.json())
+    .then(data => { if (data.success) window.location.reload(); })
+    .catch(error => console.error('Error:', error));
+}
+
+// Complete chore function with slot machine and sparkle animation
+function completeChore(choreId) {
+    fetch("{{ url_for('routes.complete_chore') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chore_id: choreId }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Sparkle animation and achievement sound
+            const choreElem = document.querySelector(`.chore[data-chore-id="${choreId}"]`);
+            if (choreElem) {
+                // Update points immediately in the UI
+                const column = choreElem.closest('.column');
+                const pointsDisplay = column.querySelector('.points-display');
+                if (pointsDisplay) {
+                    // Add the points for this chore
+                    const pointsMatch = choreElem.textContent.match(/\((\d+) points\)/);
+                    const points = pointsMatch ? parseInt(pointsMatch[1]) : 0;
+                    const currentPointsText = pointsDisplay.textContent.replace(' points', '');
+                    const currentPoints = parseInt(currentPointsText) || 0;
+                    pointsDisplay.textContent = (currentPoints + points) + " points";
+                }
+                triggerSparkleAnimation(choreElem);
+                playAchievementSound();
+            }
+            // Remove the completed chore from the DOM after animation
+            setTimeout(() => {
+                if (choreElem) {
+                    const column = choreElem.closest('.column');
+                    const personName = column.getAttribute('data-person');
+                    const avatarImg = column.querySelector('.avatar');
+                    const avatarUrl = avatarImg ? avatarImg.src : '';
+                    // Get person ID from the person-name element
+                    const personNameElem = column.querySelector('.person-name');
+                    const personId = personNameElem ? personNameElem.getAttribute('data-person-id') : null;
+                    choreElem.remove();
+                    // Check if there are any incomplete chores left
+                    const incompleteChores = column.querySelectorAll('.incomplete-chores-list .chore');
+                    if (incompleteChores.length === 0) {
+                        showCelebrationWithBonus(personName, avatarUrl, personId);
+                    }
+                }
+            }, 900); // Wait for sparkle animation
+        }
+    })
+    .catch(error => {
+        console.error('Error completing chore:', error);
+    });
+}
+
+// Star sparkle animation function
+function triggerSparkleAnimation(targetElem) {
+    let sparkleContainer = document.createElement('div');
+    sparkleContainer.className = 'sparkle-anim-container';
+    const rect = targetElem.getBoundingClientRect();
+    sparkleContainer.style.position = 'fixed';
+    sparkleContainer.style.left = rect.left + 'px';
+    sparkleContainer.style.top = rect.top + 'px';
+    sparkleContainer.style.width = rect.width + 'px';
+    sparkleContainer.style.height = rect.height + 'px';
+    sparkleContainer.style.pointerEvents = 'none';
+    sparkleContainer.style.zIndex = 1000;
+    // Add star sparkles
+    for (let i = 0; i < 12; i++) {
+        let star = document.createElement('div');
+        star.className = 'star-sparkle-anim';
+        const angle = Math.random() * 360;
+        const distance = Math.random() * 40 + 10;
+        const x = 50 + Math.cos(angle * Math.PI / 180) * distance;
+        const y = 50 + Math.sin(angle * Math.PI / 180) * distance;
+        star.style.left = x + '%';
+        star.style.top = y + '%';
+        star.style.transform = `scale(${Math.random() * 0.6 + 0.7}) rotate(${Math.random() * 360}deg)`;
+        sparkleContainer.appendChild(star);
+    }
+    document.body.appendChild(sparkleContainer);
+    setTimeout(() => {
+        sparkleContainer.remove();
+    }, 1100);
+}
+
+function playAchievementSound() {
+    try {
+        fetch('/api/sounds')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.sounds && data.sounds.length > 0) {
+                    const sounds = data.sounds.map(sound => '/static/sounds/' + sound);
+                    const soundUrl = sounds[Math.floor(Math.random() * sounds.length)];
+                    const audio = new Audio(soundUrl);
+                    audio.volume = 0.8;
+                    audio.play().catch((err) => {
+                        console.warn('Audio play failed:', err);
+                    });
+                } else {
+                    console.warn('No sounds found in /api/sounds response');
+                }
+            })
+            .catch(err => {
+                console.warn('Error fetching sounds list:', err);
+            });
+    } catch (e) {
+        console.warn('Audio error:', e);
+    }
+}
+
+function showCelebrationWithBonus(personName, avatarUrl, personId) {
+    console.log('Starting celebration with bonus for:', personName, 'ID:', personId);
+    
+    // Fetch bonus settings from backend
+    fetch('/api/bonus_settings')
+    .then(response => response.json())
+    .then(settings => {
+        const bonusMode = settings.bonus_mode || 'static';
+        const bonusStatic = parseInt(settings.bonus_static) || 10;
+        const bonusMin = parseInt(settings.bonus_min) || 2;
+        const bonusMax = parseInt(settings.bonus_max) || 8;
+
+        document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+        document.getElementById('celebration-avatar').src = avatarUrl;
+        document.getElementById('celebration-overlay').style.display = 'flex';
+        playCelebrationSound(); // Play the kids cheering sound
+
+        // Show slot machine container
+        const slotContainer = document.getElementById('slot-machine-container');
+        const slotDisplay = document.getElementById('slot-machine-display');
+        const slotResult = document.getElementById('slot-machine-result');
+        const awesomeButton = document.querySelector('.celebration-close');
+        
+        if (!slotContainer || !slotDisplay || !slotResult || !awesomeButton) {
+            console.error('Slot machine elements or Awesome button not found!');
+            return;
+        }
+        
+        slotContainer.style.display = 'block';
+        slotDisplay.textContent = '?';
+        slotResult.style.display = 'none';
+        slotResult.textContent = '';
+
+        console.log('Slot machine elements found and initialized');
+
+        // Determine the range of bonus points for the slot machine animation
+        let animationMin = 2;
+        let animationMax = 8;
+        if (bonusMode === 'static') {
+            animationMin = bonusStatic;
+            animationMax = bonusStatic;
+            // Enable the Awesome button immediately for static mode
+            awesomeButton.disabled = false;
+        } else if (bonusMode === 'range') {
+            animationMin = bonusMin;
+            animationMax = bonusMax;
+            // Disable the Awesome button during animation
+            awesomeButton.disabled = true;
+        }
+
+        // Slot machine animation for 5 seconds with sound
+        let elapsed = 0;
+        const duration = 5000;
+        const intervalTime = 100;
+        
+        let slotInterval = setInterval(() => {
+            // Random number between animationMin and animationMax
+            const randomNum = Math.floor(Math.random() * (animationMax - animationMin + 1)) + animationMin;
+            slotDisplay.textContent = randomNum;
+            
+            // Play slot machine sound every few intervals
+            if (elapsed % 300 === 0) { // Play sound every 300ms
+                playSlotMachineSound();
+            }
+            
+            elapsed += intervalTime;
+            
+            if (elapsed >= duration) {
+                clearInterval(slotInterval);
+                
+                // Final bonus points consistent with settings
+                let bonusPoints = 0;
+                if (bonusMode === 'static') {
+                    bonusPoints = bonusStatic;
+                } else if (bonusMode === 'range') {
+                    bonusPoints = Math.floor(Math.random() * (bonusMax - bonusMin + 1)) + bonusMin;
+                } else {
+                    bonusPoints = bonusStatic; // fallback
+                }
+                slotDisplay.textContent = bonusPoints;
+                slotResult.textContent = `You earned ${bonusPoints} bonus points!`;
+                slotResult.style.display = 'block';
+
+                // Enable the Awesome button after animation completes
+                awesomeButton.disabled = false;
+
+                // Play a final "win" sound
+                setTimeout(() => {
+                    try {
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        
+                        // Play a victory chord
+                        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+                        oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.2); // E5
+                        oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.4); // G5
+                        
+                        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+                        
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + 0.8);
+                    } catch (error) {
+                        console.log('Victory sound not supported');
+                    }
+                }, 200);
+
+                console.log('Awarding bonus points:', bonusPoints, 'to person ID:', personId);
+
+                // Award the bonus points via backend
+                fetch('/award_bonus_points', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        person_id: parseInt(personId, 10), 
+                        bonus_points: bonusPoints 
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Backend response:', data);
+                    // Always update points display in the UI, regardless of backend response
+                    const column = document.querySelector(`.column[data-person="${personName}"]`);
+                    if (column) {
+                        const pointsDisplay = column.querySelector('.points-display');
+                        if (pointsDisplay) {
+                            // Add bonus to the current points in the DOM (ensures all completed chores are included)
+                            const currentPointsText = pointsDisplay.textContent.replace(' points', '');
+                            const currentPoints = parseInt(currentPointsText) || 0;
+                            pointsDisplay.textContent = (currentPoints + bonusPoints) + " points";
+                            console.log('Updated points display:', currentPoints + bonusPoints);
+                        }
+                    }
+                    if (!data.success) {
+                        console.error("Failed to award bonus points:", data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error("Error awarding bonus points:", err);
+                });
+            }
+        }, intervalTime);
+    })
+    .catch(error => {
+        console.error('Error fetching bonus settings:', error);
+        // Fallback to original behavior with random bonus points 2-8
+        showCelebrationWithBonusFallback(personName, avatarUrl, personId);
+    });
+}
+
+// Backup celebration function (without slot machine)
+function showCelebration(personName, avatarUrl) {
+    document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+    document.getElementById('celebration-avatar').src = avatarUrl;
+    document.getElementById('celebration-overlay').style.display = 'flex';
+    playCelebrationSound();
+}
+
+// Close celebration function
+function closeCelebration() {
+    document.getElementById('celebration-overlay').style.display = 'none';
+    // Hide slot machine container when closing
+    const slotContainer = document.getElementById('slot-machine-container');
+    if (slotContainer) {
+        slotContainer.style.display = 'none';
+    }
+    // --- Ensure points are up-to-date after celebration ---
+    // Find the celebrated person name from the message
+    const message = document.getElementById('celebration-message').textContent;
+    const match = message.match(/^(.*?) completed all their chores/);
+    if (match && match[1]) {
+        const personName = match[1];
+        // Find the column for this person
+        const column = document.querySelector(`.column[data-person="${personName}"]`);
+        if (column) {
+            // Optionally, you could fetch the latest points from the backend here
+            // For now, just trigger a UI update in case points were missed
+            // (If you have an endpoint to get points, you could fetch and update here)
+            // updateWeeklySummary() will update the summary table as well
+            updateWeeklySummary();
+        }
+    }
+}
+
+// Audio functions
+function playCelebrationSound() {
+    if (celebrationSoundEnabled) {
+        try {
+            if (celebrationAudio) {
+                celebrationAudio.currentTime = 0; // Reset to beginning
+                celebrationAudio.play().then(() => {
+                    console.log('Kids cheering sound played successfully');
+                }).catch(error => {
+                    console.log('Audio play failed:', error);
+                    // Fallback to Web Audio API if external audio fails
+                    playFallbackCelebrationSound();
+                });
+            } else {
+                console.log('celebrationAudio not initialized, using fallback');
+                playFallbackCelebrationSound();
+            }
+        } catch (error) {
+            console.log('Audio not supported or blocked:', error);
+            playFallbackCelebrationSound();
+        }
+    }
+}
+
+function playFallbackCelebrationSound() {
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+        oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1); // E5
+        oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.2); // G5
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+    } catch (error) {
+        console.log('Fallback audio not supported');
+    }
+}
+
+function playSlotMachineSound() {
+    if (celebrationSoundEnabled) {
+        try {
+            // Create a quick beep sound for slot machine
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // High beep
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (error) {
+            console.log('Slot audio not supported or blocked');
+        }
+    }
+}
+
+function toggleCelebrationSound() {
+    celebrationSoundEnabled = !celebrationSoundEnabled;
+    const soundIcon = document.getElementById('sound-icon');
+    if (celebrationSoundEnabled) {
+        soundIcon.className = 'fas fa-volume-up';
+    } else {
+        soundIcon.className = 'fas fa-volume-mute';
+    }
+}
+
+// Upload avatar function
+function uploadAvatar(event, personId) {
+    event.preventDefault();
+    const form = event.target.closest('form');
+    const fileInput = form.querySelector('input[type="file"]');
+    const file = fileInput.files[0];
+    if (!file) {
+        alert("Please select a file to upload.");
+        return;
+    }
+    const formData = new FormData(form);
+    fetch(`/upload_avatar/${personId}`, { method: 'POST', body: formData })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const avatarContainer = form.closest('.column').querySelector('.avatar-container');
+            const avatar = avatarContainer.querySelector('img');
+            avatar.src = data.avatar_url;
+        } else { alert(data.message || "Failed to upload avatar"); }
+    })
+    .catch(error => console.error("Error uploading avatar:", error));
+}
+
+// Change kanban color function
+function changeKanbanColor(event, personId) {
+    const colorInput = event.target;
+    const selectedColor = colorInput.value;
+    const column = colorInput.closest('.column');
+    column.style.backgroundColor = selectedColor;
+    fetch('/save_column_color', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person_id: personId, color: selectedColor }),
+    })
+    .then(response => response.json())
+    .then(data => { if (!data.success) console.error("Failed to save color preference"); })
+    .catch(error => console.error("Error saving color preference:", error));
+}
+
+// Delete reward function
+function deleteReward(rewardId) {
+    fetch("{{ url_for('routes.delete_reward') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reward_id: rewardId }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) window.location.reload();
+        else alert('Error deleting reward: ' + (data.message || 'Unknown error'));
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while deleting the reward');
+    });
+}
+
+// Delete chore function
+function deleteChore(choreId) {
+    fetch("{{ url_for('routes.delete_chore') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chore_id: choreId }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const choreElements = document.querySelectorAll(`[data-chore-id="${choreId}"]`);
+            choreElements.forEach(choreElement => {
+                if (choreElement.classList.contains('completed')) {
+                    const pointsMatch = choreElement.textContent.match(/\((\d+) points\)/);
+                    const points = pointsMatch ? parseInt(pointsMatch[1]) : 0;
+                    const personColumn = choreElement.closest('.column');
+                    const pointsDisplay = personColumn.querySelector('.points-display');
+                    if (pointsDisplay) {
+                        const currentPoints = parseInt(pointsDisplay.textContent.replace(' points', ''));
+                        pointsDisplay.textContent = `${currentPoints - points} points`;
+                    }
+                }
+                choreElement.remove();
+            });
+        } else { alert(data.message || "Failed to delete chore"); }
+    })
+    .catch(error => console.error("Error deleting chore:", error));
+}
+
+// Reset points function
+function resetPoints(personId) {
+    let newPoints = prompt("Enter new points value (default is 0):", "0");
+    if (newPoints === null) return;
+    newPoints = parseInt(newPoints, 10);
+    if (isNaN(newPoints)) {
+        alert("Invalid number entered. Please try again.");
+        return;
+    }
+    fetch("/reset_points", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person_id: personId, new_points: newPoints }),
+    })
+    .then(response => response.json())
+    .then(data => { if (data.success) window.location.reload(); else alert(data.message || "Failed to reset points"); })
+    .catch(error => console.error("Error resetting points:", error));
+}
+
+// Update column order function
+function updateColumnOrder(personId, newOrder) {
+    fetch("/update_order", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ person_id: personId, order: newOrder })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || "Failed to update order.");
+        }
+    })
+    .catch(error => {
+        console.error("Error updating order:", error);
+    });
+}
+
+// Toggle completed chores function
+function toggleCompletedChores(btn) {
+    const container = btn.closest('.completed-chores-toggle-container');
+    const completedList = container.querySelector('.completed-chores-list');
+    const icon = btn.querySelector('.fa-chevron-down, .fa-chevron-up');
+    if (completedList.style.display === "none" || completedList.style.display === "") {
+        completedList.style.display = "block";
+        icon.classList.remove("fa-chevron-down");
+        icon.classList.add("fa-chevron-up");
+        btn.querySelector("span").textContent = btn.querySelector("span").textContent.replace("Show", "Hide");
+    } else {
+        completedList.style.display = "none";
+        icon.classList.remove("fa-chevron-up");
+        icon.classList.add("fa-chevron-down");
+        btn.querySelector("span").textContent = btn.querySelector("span").textContent.replace("Hide", "Show");
+    }
+}
+
+
+// Reward celebration overlay
+function showRewardCelebration(personName, pointsSpent) {
+    const overlay = document.getElementById('reward-celebration-overlay');
+    const message = document.getElementById('reward-celebration-message');
+    if (overlay && message) {
+        message.innerHTML = `<span style='font-size:2em;'>🏆</span> ${personName} redeemed a reward!<br><span style='font-size:1.5em;'>-${pointsSpent} points</span>`;
+        overlay.style.display = 'flex';
+        // Play sound effect
+        try {
+            const audio = new Audio('https://www.myinstants.com/media/sounds/tada-fanfare.mp3');
+            audio.volume = 0.8;
+            audio.play();
+        } catch (e) {}
+        // Animate confetti, balloons, streamers
+        launchRewardCelebrationEffects();
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            clearRewardCelebrationEffects();
+        }, 3500);
+    }
+}
+
+// Animate confetti, balloons, streamers, and fun elements
+function launchRewardCelebrationEffects() {
+    // Confetti
+    const confettiContainer = document.getElementById('reward-confetti-container');
+    confettiContainer.innerHTML = '';
+    for (let i = 0; i < 60; i++) {
+        const conf = document.createElement('div');
+        conf.className = 'reward-confetti';
+        conf.style.left = Math.random() * 100 + 'vw';
+        conf.style.background = randomConfettiColor();
+        conf.style.animationDelay = (Math.random() * 1.5) + 's';
+        confettiContainer.appendChild(conf);
+    }
+    // Balloons
+    const balloonsContainer = document.getElementById('reward-balloons-container');
+    balloonsContainer.innerHTML = '';
+    for (let i = 0; i < 8; i++) {
+        const balloon = document.createElement('div');
+        balloon.className = 'reward-balloon';
+        balloon.style.left = Math.random() * 90 + 'vw';
+        balloon.style.background = randomBalloonColor();
+        balloon.style.animationDelay = (Math.random() * 1.5) + 's';
+        balloonsContainer.appendChild(balloon);
+    }
+    // Streamers
+    const streamersContainer = document.getElementById('reward-streamers-container');
+    streamersContainer.innerHTML = '';
+    for (let i = 0; i < 10; i++) {
+        const streamer = document.createElement('div');
+        streamer.className = 'reward-streamer';
+        streamer.style.left = Math.random() * 100 + 'vw';
+        streamer.style.borderColor = randomStreamerColor();
+        streamer.style.animationDelay = (Math.random() * 1.5) + 's';
+        streamersContainer.appendChild(streamer);
+    }
+}
+function clearRewardCelebrationEffects() {
+    document.getElementById('reward-confetti-container').innerHTML = '';
+    document.getElementById('reward-balloons-container').innerHTML = '';
+    document.getElementById('reward-streamers-container').innerHTML = '';
+}
+function randomConfettiColor() {
+    const colors = ['#FFD700','#FF69B4','#00CFFF','#4CAF50','#FF9800','#9C27B0','#fff','#f00','#0ff','#0f0','#f0f'];
+    return colors[Math.floor(Math.random()*colors.length)];
+}
+function randomBalloonColor() {
+    const colors = ['#FFD700','#FF69B4','#00CFFF','#4CAF50','#FF9800','#9C27B0','#fff','#f00','#0ff','#0f0','#f0f'];
+    return colors[Math.floor(Math.random()*colors.length)];
+}
+function randomStreamerColor() {
+    const colors = ['#FFD700','#FF69B4','#00CFFF','#4CAF50','#FF9800','#9C27B0','#fff','#f00','#0ff','#0f0','#f0f'];
+    return colors[Math.floor(Math.random()*colors.length)] + ' transparent transparent transparent';
+}
+
+// Update weekly summary function
+function updateWeeklySummary() {
+    const columns = document.querySelectorAll('.column');
+    let totalWeeklyPoints = 0;
+    
+    columns.forEach(column => {
+        const personName = column.getAttribute('data-person');
+        const pointsDisplay = column.querySelector('.points-display');
+        const pointsText = pointsDisplay ? pointsDisplay.textContent : '0 points';
+        const points = parseInt(pointsText) || 0;
+        
+        // Update the corresponding cell in the summary table
+        const pointsCell = document.querySelector(`.weekly-points[data-person="${personName}"]`);
+        if (pointsCell) {
+            pointsCell.textContent = points;
+            totalWeeklyPoints += points;
+        }
+    });
+    
+    // Update the total points display
+    const totalDisplay = document.getElementById("weekly-summary-total");
+    if (totalDisplay) {
+        totalDisplay.textContent = "Total Family Points : " + totalWeeklyPoints;
+    }
+}
+
+// Name editing functions
+let currentEditingPersonId = null;
+function openEditNameModal(personId, currentName) {
+    currentEditingPersonId = personId;
+    document.getElementById('edit-name-input').value = currentName;
+    document.getElementById('edit-name-modal').style.display = 'flex';
+}
+function closeEditNameModal() {
+    document.getElementById('edit-name-modal').style.display = 'none';
+    currentEditingPersonId = null;
+}
+function confirmEditName() {
+    const newName = document.getElementById('edit-name-input').value.trim();
+    if (!newName) {
+        alert("Name cannot be empty.");
+        return;
+    }
+    fetch("/update_name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ person_id: currentEditingPersonId, new_name: newName })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("HTTP error " + response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if(data.success) {
+            const nameSpans = document.querySelectorAll(`.person-name[data-person-id="${currentEditingPersonId}"]`);
+            nameSpans.forEach(span => {
+                span.textContent = newName;
+            });
+            const column = document.querySelector(`.column [data-person-id="${currentEditingPersonId}"]`);
+            if (column) {
+                column.closest('.column').setAttribute('data-person', newName);
+            }
+            closeEditNameModal();
+        } else {
+            alert(data.message || "Failed to update the name. Please try again.");
+        }
+    })
+    .catch(error => {
+        console.error("Error updating name:", error);
+        alert("An error occurred while updating the name. See the console for details.");
+    });
+}
+</script>
+<style>
+/* Star sparkle animation for chore completion */
+.sparkle-anim-container {
+    pointer-events: none;
+    position: fixed;
+    z-index: 1000;
+}
+.star-sparkle-anim {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    opacity: 0.92;
+    animation: star-sparkle-fly 1.1s cubic-bezier(.5,0,.5,1) forwards;
+    pointer-events: none;
+}
+.star-sparkle-anim::before, .star-sparkle-anim::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(0deg);
+    width: 22px;
+    height: 4px;
+    background: linear-gradient(90deg, #fff 60%, #ffe066 100%, transparent 100%);
+    border-radius: 2px;
+}
+.star-sparkle-anim::after {
+    transform: translate(-50%, -50%) rotate(90deg);
+}
+.star-sparkle-anim {
+    filter: drop-shadow(0 0 6px #fff7b2) drop-shadow(0 0 12px #ffe066);
+}
+@keyframes star-sparkle-fly {
+    0% {
+        opacity: 1;
+        transform: scale(0.5) translateY(0) rotate(0deg);
+    }
+    60% {
+        opacity: 1;
+        transform: scale(1.2) translateY(-18px) rotate(180deg);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.7) translateY(-50px) rotate(360deg);
+    }
+}
+.chore {
+    font-size: 1.15em;
+    line-height: 1.5;
+}
+.chore .chore-title {
+    font-size: 1.1em;
+    font-weight: 600;
+}
+/* Reward Celebration Animations */
+#reward-confetti-container {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none;
+    z-index: 3;
+}
+.reward-confetti {
+    position: absolute;
+    top: -30px;
+    width: 14px;
+    height: 24px;
+    border-radius: 4px;
+    opacity: 0.85;
+    animation: reward-confetti-fall 2.2s cubic-bezier(.5,0,.5,1) forwards;
+}
+@keyframes reward-confetti-fall {
+    0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateY(100vh) rotate(360deg) scale(0.7); opacity: 0; }
+}
+#reward-balloons-container {
+    position: fixed;
+    bottom: -120px; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none;
+    z-index: 3;
+}
+.reward-balloon {
+    position: absolute;
+    bottom: -120px;
+    width: 48px;
+    height: 64px;
+    border-radius: 24px 24px 32px 32px / 32px 32px 48px 48px;
+    opacity: 0.92;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    animation: reward-balloon-rise 2.8s cubic-bezier(.4,0,.5,1) forwards;
+}
+@keyframes reward-balloon-rise {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateY(-110vh) scale(1.1); opacity: 0; }
+}
+#reward-streamers-container {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none;
+    z-index: 3;
+}
+.reward-streamer {
+    position: absolute;
+    top: -40px;
+    width: 0;
+    height: 60px;
+    border-width: 0 8px 60px 8px;
+    border-style: solid;
+    border-radius: 0 0 16px 16px;
+    opacity: 0.7;
+    animation: reward-streamer-fall 2.5s cubic-bezier(.5,0,.5,1) forwards;
+}
+@keyframes reward-streamer-fall {
+    0% { transform: translateY(0) scaleX(1) rotate(0deg); opacity: 1; }
+    60% { transform: translateY(60vh) scaleX(1.2) rotate(20deg); }
+    100% { transform: translateY(100vh) scaleX(0.8) rotate(-20deg); opacity: 0; }
+}
+</style>
+<script>
+let pendingDeleteChoreId = null;
+let pendingDeleteChoreIsDaily = false;
+let unifiedModalCallback = null;
+
+function showUnifiedModal({icon, message, buttons}) {
+    const modal = document.getElementById('unified-modal');
+    const iconDiv = document.getElementById('unified-modal-icon');
+    const msg = document.getElementById('unified-modal-message');
+    const btns = document.getElementById('unified-modal-buttons');
+    iconDiv.innerHTML = icon || '';
+    msg.innerHTML = message;
+    btns.innerHTML = '';
+    buttons.forEach(btn => {
+        const b = document.createElement('button');
+        b.textContent = btn.text;
+        b.style.background = btn.color;
+        b.style.color = '#fff';
+        b.style.border = 'none';
+        b.style.padding = '10px 18px';
+        b.style.borderRadius = '6px';
+        b.style.fontWeight = '600';
+        b.style.cursor = 'pointer';
+        b.onclick = function() {
+            closeUnifiedModal();
+            if (btn.onClick) btn.onClick();
+        };
+        btns.appendChild(b);
+    });
+    modal.style.display = 'flex';
+}
+function closeUnifiedModal() {
+    document.getElementById('unified-modal').style.display = 'none';
+    pendingDeleteChoreId = null;
+    pendingDeleteChoreIsDaily = false;
+    unifiedModalCallback = null;
+}
+
+function confirmDeleteChore(choreId, isDaily) {
+    pendingDeleteChoreId = choreId;
+    pendingDeleteChoreIsDaily = isDaily;
+    if (isDaily) {
+        showUnifiedModal({
+            icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+            message: 'Do you want to delete this daily chore permanently, or just for today?',
+            buttons: [
+                {text: 'Delete Permanently', color: '#e53935', onClick: function() { deleteChore(choreId, true); }},
+                {text: 'Delete for Today', color: '#fbc02d', onClick: function() { deleteChore(choreId, false); }},
+                {text: 'Cancel', color: '#888', onClick: null}
+            ]
+        });
+    } else {
+        showUnifiedModal({
+            icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+            message: 'Are you sure you want to delete this chore?',
+            buttons: [
+                {text: 'Delete', color: '#e53935', onClick: function() { deleteChore(choreId, true); }},
+                {text: 'Cancel', color: '#888', onClick: null}
+            ]
+        });
+    }
+}
+
+function deleteChore(choreId, permanent) {
+    fetch("{{ url_for('routes.delete_chore') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chore_id: choreId, permanent: permanent }),
+    })
+    .then(async response => {
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = { success: false, message: 'Invalid server response' };
+        }
+        if (data.success) {
+            window.location.reload();
+        } else {
+            showUnifiedModal({
+                icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+                message: data.message || data.error || "Failed to delete chore",
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+        }
+    })
+    .catch(error => {
+        showUnifiedModal({
+            icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+            message: 'Error deleting chore: ' + error,
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+    });
+}
+</script>
+</script>
+<script>
+// Ensure reward functions are globally available
+function confirmDeleteReward(rewardId) {
+    // Find the reward element and get reward details
+    const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+    if (!rewardElem) {
+        showUnifiedModal({
+            icon: '😢',
+            message: 'Reward not found!',
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+        return;
+    }
+    const rewardTitle = rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : 'this reward';
+    const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
+    showUnifiedModal({
+        icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+        message: `Are you sure you want to delete "${rewardTitle}" for <b>${assignedTo}</b>?`,
+        buttons: [
+            {text: 'Delete', color: '#e53935', onClick: function() { deleteReward(rewardId); }},
+            {text: 'Cancel', color: '#888', onClick: null}
+        ]
+    });
+}
+function completeReward(rewardId) {
+    // Find the reward element and get reward details
+    const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+    if (!rewardElem) {
+        showUnifiedModal({
+            icon: '😢',
+            message: 'Reward not found!',
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+        return;
+    }
+    const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
+    const rewardTitle = rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : 'this reward';
+    const pointsMatch = rewardElem.querySelector('.reward-points').textContent.match(/(\d+)/);
+    const pointsRequired = pointsMatch ? parseInt(pointsMatch[1]) : 0;
+    // Get person's current points from the points display in their column
+    const personColumn = document.querySelector(`.column[data-person="${assignedTo}"]`);
+    const pointsDisplay = personColumn ? personColumn.querySelector('.points-display') : null;
+    const currentPointsText = pointsDisplay ? pointsDisplay.textContent.replace(' points', '') : '0';
+    const currentPoints = parseInt(currentPointsText) || 0;
+    if (currentPoints < pointsRequired) {
+        showUnifiedModal({
+            icon: '😢',
+            message: `Not enough points to redeem "${rewardTitle}"! You need ${pointsRequired} points but only have ${currentPoints} points.`,
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+        return;
+    }
+    // Confirmation modal using unified style
+    showUnifiedModal({
+        icon: '<i class="fas fa-check-circle" style="color:#4CAF50;"></i>',
+        message: `Redeem "${rewardTitle}" for <b>${assignedTo}</b> costing ${pointsRequired} points?`,
+        buttons: [
+            {text: 'Redeem', color: '#4CAF50', onClick: function() { doRedeemReward(rewardId); }},
+            {text: 'Cancel', color: '#888', onClick: null}
+        ]
+    });
+}
+</script>
+<script>
+function doRedeemReward(rewardId) {
+    const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+    const assignedToId = rewardElem.getAttribute('data-assigned-to-id');
+    fetch("{{ url_for('routes.complete_reward') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            reward_id: rewardId,
+            assigned_to_id: assignedToId 
+        }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show reward celebration overlay and animation instead of immediate reload
+            const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+            const rewardTitle = rewardElem ? (rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : '') : '';
+            const assignedTo = rewardElem ? rewardElem.getAttribute('data-assigned-to') : '';
+            // Show celebration with points spent
+            showRewardCelebration(assignedTo, rewardTitle ? `-${rewardTitle}` : '');
+            // Reload page after celebration animation duration (3.5s + buffer)
+            setTimeout(() => {
+                window.location.reload();
+            }, 4000);
+        } else {
+            showUnifiedModal({
+                icon: '😢',
+                message: data.error || 'Could not redeem reward',
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+        }
+    })
+    .catch(error => {
+        showUnifiedModal({
+            icon: '😢',
+            message: 'Error redeeming reward',
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+    });
+}
+</script>
+</body>
+</html>

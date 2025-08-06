@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  choresawards:
+    build: .
+    ports:
+      - "3112:3000"
+    volumes:
+      - .:/app
+    restart: always

@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Settings - ChoresAwards</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        [data-theme="dark"] .stat-number {
+            color: #4CAF50 !important;
+        }
+        [data-theme="dark"] .stat-label {
+            color: #222222 !important;
+            opacity: 0.9;
+        }
+
+        .theme-toggle-container {
+            margin-left: 2em;
+        }
+        .theme-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.7em;
+            padding: 8px;
+        }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--section-background, #222);
+            padding: 1em 2em;
+            border-radius: var(--border-radius, 12px);
+            margin-bottom: 1.5em;
+        }
+        .header-content nav {
+            margin-right: 4em;
+        }
+        .header-content nav a {
+            color: #fff;
+            margin-right: 1.5em;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .header-content nav a:last-child {
+            margin-right: 0;
+        }
+        .header-content h2 {
+            margin: 0;
+            color: #fff;
+        }
+        .settings-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: var(--section-background, #222);
+            border-radius: var(--border-radius, 12px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            color: #fff;
+        }
+        .settings-section-settings {
+            margin-bottom: 2.5rem;
+            padding-bottom: 2rem;
+            background: var(--section-background, #222);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+        .settings-section:last-child {
+            border-bottom: none;
+            color: #fff;
+        }
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: #fff;
+        }
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+            color: #fff;
+        }
+        .sleek-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg, #181818);
+            border-radius: var(--border-radius, 12px);
+            overflow: hidden;
+            color: #fff;
+        }
+        .sleek-table th,
+        .sleek-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+        .sleek-table th {
+            background: rgba(255, 255, 255, 0.05);
+            font-weight: 600;
+            color: #4CAF50;
+        }
+        .sleek-table tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .no-chores {
+            text-align: center;
+            color: #bbb;
+            padding: 1rem;
+        }
+        .actions-cell {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .person-btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .person-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius, 12px);
+            color: #fff;
+            cursor: pointer;
+            transition: var(--transition, all 0.2s);
+        }
+        .person-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .person-btn.selected {
+            background: #4CAF50;
+            color: #222;
+            border-color: #4CAF50;
+        }
+        .edit-btn, .save-btn, .cancel-btn, .delete-btn {
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius, 12px);
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: var(--transition, all 0.2s);
+        }
+        .edit-btn {
+            background: rgba(33, 150, 243, 0.1);
+            color: #2196F3;
+        }
+        .edit-btn:hover {
+            background: rgba(33, 150, 243, 0.2);
+        }
+        .save-btn {
+            background: #4CAF50;
+            color: white;
+        }
+        .save-btn:hover {
+            background: #388e3c;
+        }
+        .cancel-btn {
+            background: rgba(136, 136, 136, 0.1);
+            color: #fff;
+        }
+        .cancel-btn:hover {
+            background: rgba(136, 136, 136, 0.2);
+        }
+        .delete-btn {
+            background: rgba(244, 67, 54, 0.1);
+            color: #f44336;
+        }
+        .delete-btn:hover {
+            background: rgba(244, 67, 54, 0.2);
+        }
+        .success-message {
+            color: #4CAF50;
+            font-weight: 500;
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: rgba(148, 220, 96, 0.1);
+            border-radius: var(--border-radius, 12px);
+        }
+        .error-message {
+            color: #f44336;
+            font-weight: 500;
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: var(--border-radius, 12px);
+        }
+        .back-link {
+            margin-top: 2rem;
+            text-align: center;
+        }
+        .back-btn {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius, 12px);
+            transition: var(--transition, all 0.2s);
+            display: inline-block;
+        }
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .chore-title input,
+        .chore-points input {
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: #fff !important;
+            padding: 0.5rem !important;
+            border-radius: var(--border-radius, 12px) !important;
+            width: 100% !important;
+        }
+        .edit-person-btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        @media (max-width: 640px) {
+            .settings-container {
+                padding: 1.5rem;
+                margin: 1rem;
+                color: #070707;
+            }
+            .person-btn-group,
+            .edit-person-btn-group {
+                flex-direction: column;
+            }
+            .person-btn {
+                width: 100%;
+            }
+            .actions-cell {
+                flex-direction: column;
+            }
+            .edit-btn, .delete-btn, .save-btn, .cancel-btn {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+    <header>
+        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background: var(--section-background, #222);">
+            <h2 style="color: white;">Chores and Rewards - Settings</h2>
+        </div>
+        <nav style="margin: 0 0 28px 0; display: flex; justify-content: flex-start; gap: 12px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 16px;">
+            <a href="{{ url_for('routes.index') }}" style="color: #8b8b8b; padding: 8px 16px; text-decoration: none; font-size: 1em; font-weight: 500; transition: all 0.3s ease; border-radius: 4px; position: relative;">
+                Home
+                <span style="position: absolute; bottom: -17px; left: 0; width: 100%; height: 2px; background: #4CAF50; transform: scaleX(0); transition: transform 0.3s ease; transform-origin: left;"></span>
+            </a>
+            <a href="{{ url_for('routes.activity_log') }}" style="color: #7e7e7e; padding: 8px 16px; text-decoration: none; font-size: 1em; font-weight: 500; transition: all 0.3s ease; border-radius: 4px; position: relative;">
+                Activity Log
+                <span style="position: absolute; bottom: -17px; left: 0; width: 100%; height: 2px; background: #4CAF50; transform: scaleX(0); transition: transform 0.3s ease; transform-origin: left;"></span>
+            </a>
+        </nav>
+    </header>
+    <style>
+    nav a:hover {
+        color: #4CAF50;
+        background: rgba(76, 175, 80, 0.1);
+    }
+    nav a:hover span {
+        transform: scaleX(1);
+    }
+    </style>
+    <main>
+        <div id="site-content">
+        <div class="settings-container">
+            <h2 class="setup-title" style="color:#5f5f5f;">Settings</h2>
+            <div class="tabs">
+                <button class="tab-button active" data-tab="general">General Settings</button>
+                <button class="tab-button" data-tab="audio">Audio</button>
+            </div>
+            <div class="tab-content" id="general" style="display: block;">
+                <section class="settings-section">
+                    <h3 class="section-title">Family Members</h3>
+                    <p> this Section allows you to delete, edit family members names and add family members</p>
+                    {% if family %}
+                    <div class="existing-people-list" style="margin-bottom:2em; display: flex; flex-wrap: wrap; gap: 24px; justify-content: center;">
+                        {% for person in family %}
+                        <div class="existing-person-card" style="position:relative; background:var(--card-bg,#1e293b); border-radius:12px; padding:18px 18px 12px 18px; display:flex; flex-direction:column; align-items:center; min-width:140px; max-width:180px; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                            <div style="position:relative;">
+                                <img src="{{ url_for('static', filename='uploads/' + (person.avatar if person.avatar else 'default_avatar.png')) }}" alt="{{ person.name }}" class="avatar" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid #4CAF50;">
+                                <!-- Delete person button removed as per user request -->
+                                <!-- <button class="delete-person-btn" title="Delete Person" style="position:absolute; bottom:-8px; right:-8px; background:#e53935; color:#fff; border:none; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,0.18); font-size:1.1em; cursor:pointer;">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button> -->
+                            </div>
+                            <div style="margin-top:10px; font-weight:600; color:var(--text-light); text-align:center;">
+                                <span class="person-name" data-person-id="{{ person.id }}" contenteditable="true" onblur="renamePerson(this, '{{ person.id }}')">{{ person.name }}</span>
+                                <div style="font-size: 0.9em; color: #ccc; margin-top: 4px;">Points: {{ person.points + person.bonus_points }}</div>
+                            </div>
+                            <button class="reset-points-btn" style="margin-top: 6px; background: #4CAF50; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; align-self: center;" onclick="return confirm('Are you sure you want to reset points for this person?') && resetPoints({{ person.id }})">Change # Points</button>
+                            <button class="delete-person-btn" style="margin-top: 6px; background: #e53935; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; align-self: center;" onclick="return confirm('Are you sure you want to delete this person?') && confirmDeletePerson('{{ person.id }}', '{{ person.name }}')">Delete Person</button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p style="text-align:center; color: var(--text-muted);">No family members found.</p>
+                    {% endif %}
+                    <div style="text-align:center; margin-top: 1rem;">
+                        <button id="add-person-btn" style="background: rgba(255, 255, 255, 0.05); color: var(--text-light); border: none; padding: 0.75rem 1.5rem; border-radius: var(--border-radius); cursor: pointer; font-weight: 500;">
+                            <i class="fas fa-user-plus" style="margin-right: 0.5rem;"></i> Add Family Member
+                        </button>
+                    </div>
+                </section>
+                <section class="settings-section">
+                    <h3 class="section-title">Daily Chores</h3>
+                    <p> This section allows you to edit, reassign or delete daily tasks</p>
+                    <div class="table-container">
+                        <table class="sleek-table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Assigned To</th>
+                                    <th>Points</th>
+                                    <th>Completed</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="daily-chores-tbody">
+                                {% for chore in daily_chores %}
+                                <tr id="chore-row-{{ chore.id }}">
+                                    <td class="chore-title">{{ chore.title }}</td>
+                                    <td class="chore-assigned-to">{{ chore.assigned_to }}</td>
+                                    <td class="chore-points">{{ chore.points }}</td>
+                                    <td>{% if chore.completed %}Yes{% else %}No{% endif %}</td>
+                                    <td class="actions-cell">
+                                        <button class="edit-btn" onclick="editChore({{ chore.id }})">Edit</button>
+                                        <button class="delete-btn" onclick="deleteDailyChore({{ chore.id }})">Delete</button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="no-chores">No daily chores found.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <section class="settings-section">
+                    <h3 class="section-title">Bonus Points for Completing All Chores</h3>
+                    <p> this section allows you to configure the bonus points section so you can either have a static bonus point awarded or a jackpot\slot style range</p>
+                    <form method="POST" action="/settings" id="bonus-points-form">
+                        <label>
+                            <input type="radio" name="bonus_mode" value="static" {% if bonus_mode == 'static' %}checked{% endif %}> Static
+                        </label>
+                        <input type="number" name="bonus_static" min="0" value="{{ bonus_static or '' }}" placeholder="Static Points" {% if bonus_mode != 'static' %}style="display:none;"{% endif %} id="bonus-static-input">
+                        <br>
+                        <label>
+                            <input type="radio" name="bonus_mode" value="range" {% if bonus_mode == 'range' %}checked{% endif %}> Range
+                        </label>
+                        <input type="number" name="bonus_min" min="0" value="{{ bonus_min or '' }}" placeholder="Min Points" {% if bonus_mode != 'range' %}style="display:none;"{% endif %} id="bonus-min-input">
+                        <input type="number" name="bonus_max" min="0" value="{{ bonus_max or '' }}" placeholder="Max Points" {% if bonus_mode != 'range' %}style="display:none;"{% endif %} id="bonus-max-input">
+                        <br>
+                        <button type="submit" class="save-btn">Save Bonus Points Setting</button>
+                    </form>
+                </section>
+                <section class="settings-section" id="pin-change-section">
+                    <h3 class="section-title">Change Master PIN</h3>
+                    <p>Change your current master PIN to a new PIN.</p>
+                    <form id="pin-change-form" method="POST" action="/settings">
+                        <input type="hidden" name="change_pin" value="1" />
+                        <label for="current_pin">Current PIN:</label><br />
+                        <input type="password" id="current_pin" name="current_pin" maxlength="4" pattern="\d{4}" placeholder="Enter current 4-digit PIN" required style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid #555; background: #333; color: white;" /><br />
+                        <label for="new_pin">New PIN:</label><br />
+                        <input type="password" id="new_pin" name="new_pin" maxlength="4" pattern="\d{4}" placeholder="Enter new 4-digit PIN" required style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid #555; background: #333; color: white;" /><br />
+                        <label for="confirm_pin">Confirm New PIN:</label><br />
+                        <input type="password" id="confirm_pin" name="confirm_pin" maxlength="4" pattern="\d{4}" placeholder="Confirm new 4-digit PIN" required style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid #555; background: #333; color: white;" /><br />
+                        <button type="submit" class="save-btn">Change PIN</button>
+                    </form>
+                    <div id="pin-change-message" style="margin-top: 1rem;"></div>
+                </section>
+            </div>
+            <div class="tab-content" id="audio" style="display: none; color: #fff;">
+                <section class="settings-section">
+                    <h3 class="section-title">Audio Settings</h3>
+                    <p> These settings are related to the sound effects played when a family member completes a chore. when a chore is completed one of these sound effects will be randomly selected and will play</p>
+                    <p>To add a new sound effect, upload an audio file in MP3, WAV, or OGG format. The sound will be available for selection when a chore is completed.</p>
+                    <div id="audio-sounds-list" style="margin-bottom: 1rem;">
+                        <!-- Sounds will be dynamically loaded here -->
+                    </div>
+                    <form id="upload-sound-form" enctype="multipart/form-data" style="margin-top: 1rem;">
+                        <input type="file" id="sound-file-input" name="sound_file" accept=".mp3,.wav,.ogg" required>
+                        <button type="submit" class="save-btn" style="margin-left: 0.5rem;">Upload Sound</button>
+                    </form>
+                </section>
+            </div>
+            <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+        </div>
+    </main>
+    <style>
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #4CAF50;
+            margin-bottom: 1rem;
+        }
+        .tab-button {
+            background: none;
+            border: none;
+            color: #bbb;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: color 0.3s ease, border-bottom-color 0.3s ease;
+        }
+        .tab-button:hover {
+            color: #4CAF50;
+        }
+        .tab-button.active {
+            color: #4CAF50;
+            border-bottom-color: #4CAF50;
+        }
+        /* Audio list styles */
+        #audio-sounds-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .sound-item {
+            background: var(--card-bg, #181818);
+            border-radius: var(--border-radius, 12px);
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            color: #fff;
+        }
+        .sound-name {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left;
+        }
+        .sound-controls button {
+            background: none;
+            border: none;
+            color: #4CAF50;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 4px 6px;
+            transition: color 0.3s ease;
+        }
+        .sound-controls button:hover {
+            color: #81c784;
+        }
+        .sound-controls button:disabled {
+            color: #555;
+            cursor: default;
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const target = button.getAttribute('data-tab');
+
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+
+                    tabContents.forEach(content => {
+                        if (content.id === target) {
+                            content.style.display = 'block';
+                        } else {
+                            content.style.display = 'none';
+                        }
+                    });
+                });
+            });
+
+            // Audio tab functionality
+            const audioListContainer = document.getElementById('audio-sounds-list');
+            const uploadForm = document.getElementById('upload-sound-form');
+            const soundFileInput = document.getElementById('sound-file-input');
+            let currentAudio = null;
+
+            // Fetch and display sounds
+            function loadSounds() {
+                fetch('/api/sounds')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            renderSounds(data.sounds);
+                        } else {
+                            audioListContainer.innerHTML = `<p>Error loading sounds: ${data.error}</p>`;
+                        }
+                    })
+                    .catch(err => {
+                        audioListContainer.innerHTML = `<p>Error loading sounds: ${err.message}</p>`;
+                    });
+            }
+
+            // Render sounds list
+            function renderSounds(sounds) {
+                audioListContainer.innerHTML = '';
+                if (sounds.length === 0) {
+                    audioListContainer.innerHTML = '<p>No sounds found.</p>';
+                    return;
+                }
+                sounds.forEach(sound => {
+                    const soundItem = document.createElement('div');
+                    soundItem.className = 'sound-item';
+
+                    const soundName = document.createElement('div');
+                    soundName.className = 'sound-name';
+                    soundName.textContent = sound;
+
+                    const controls = document.createElement('div');
+                    controls.className = 'sound-controls';
+
+                    // Play/Stop button
+                    const playBtn = document.createElement('button');
+                    playBtn.classList.add('play-btn');
+                    playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    playBtn.title = 'Play';
+                    playBtn.addEventListener('click', () => {
+                        if (currentAudio && !currentAudio.paused) {
+                            currentAudio.pause();
+                            currentAudio.currentTime = 0;
+                            if (currentPlayBtn) {
+                                currentPlayBtn.innerHTML = '<i class="fas fa-play"></i>';
+                                currentPlayBtn.title = 'Play';
+                            }
+                            if (currentAudio.src.endsWith(sound)) {
+                                // Clicking the same play button stops the audio
+                                currentAudio = null;
+                                currentPlayBtn = null;
+                                return;
+                            }
+                        }
+                        if (currentAudio) {
+                            currentAudio.pause();
+                            currentAudio.currentTime = 0;
+                            if (currentPlayBtn) {
+                                currentPlayBtn.innerHTML = '<i class="fas fa-play"></i>';
+                                currentPlayBtn.title = 'Play';
+                            }
+                        }
+                        currentAudio = new Audio(`/static/sounds/${sound}`);
+                        currentAudio.play();
+                        playBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                        playBtn.title = 'Stop';
+                        currentPlayBtn = playBtn;
+                        currentAudio.onended = () => {
+                            playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                            playBtn.title = 'Play';
+                            currentAudio = null;
+                            currentPlayBtn = null;
+                        };
+                    });
+
+                    // Download button
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
+                    downloadBtn.title = 'Download';
+                    downloadBtn.addEventListener('click', () => {
+                        const link = document.createElement('a');
+                        link.href = `/static/sounds/${sound}`;
+                        link.download = sound;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    });
+
+                    // Delete button
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                    deleteBtn.title = 'Delete';
+                    deleteBtn.addEventListener('click', () => {
+                        if (confirm(`Are you sure you want to delete "${sound}"?`)) {
+                            fetch('/api/sounds/delete', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ filename: sound })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    if (currentAudio && !currentAudio.paused && currentAudio.src.includes(sound)) {
+                                        currentAudio.pause();
+                                        currentAudio = null;
+                                    }
+                                    loadSounds();
+                                } else {
+                                    alert('Failed to delete sound: ' + data.error);
+                                }
+                            })
+                            .catch(err => alert('Error deleting sound: ' + err.message));
+                        }
+                    });
+
+                    controls.appendChild(playBtn);
+                    controls.appendChild(downloadBtn);
+                    controls.appendChild(deleteBtn);
+
+                    soundItem.appendChild(soundName);
+                    soundItem.appendChild(controls);
+
+                    audioListContainer.appendChild(soundItem);
+                });
+            }
+
+            // Handle upload form submission
+            uploadForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const file = soundFileInput.files[0];
+                if (!file) {
+                    alert('Please select a sound file to upload.');
+                    return;
+                }
+                const formData = new FormData();
+                formData.append('sound_file', file);
+                fetch('/api/sounds/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        soundFileInput.value = '';
+                        loadSounds();
+                    } else {
+                        alert('Upload failed: ' + data.error);
+                    }
+                })
+                .catch(err => alert('Upload error: ' + err.message));
+            });
+
+            // Initial load of sounds
+            loadSounds();
+
+            // Add periodic refresh every 30 seconds to update sounds list automatically
+            setInterval(() => {
+                // Only refresh if the audio tab is visible
+                const audioTab = document.getElementById('audio');
+                if (audioTab.style.display === 'block') {
+                    loadSounds();
+                }
+            }, 30000); // 30000 ms = 30 seconds
+        });
+    </script>
+
+    <!-- Edit Chore Modal -->
+    <div id="editChoreModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+        <div class="modal-content" style="background-color: #222; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 400px; border-radius: 12px; color: white;">
+            <h3>Edit Daily Chore</h3>
+            <form id="editChoreForm">
+                <input type="hidden" id="editChoreId" name="chore_id" />
+                <label for="editChoreTitle">Title:</label><br />
+                <input type="text" id="editChoreTitle" name="title" required style="width: 100%; margin-bottom: 10px; padding: 5px; border-radius: 6px; border: 1px solid #555; background: #333; color: white;" /><br />
+                <label for="editChoreAssignedTo">Assigned To:</label><br />
+                <select id="editChoreAssignedTo" name="assigned_to" required style="width: 100%; margin-bottom: 10px; padding: 5px; border-radius: 6px; border: 1px solid #555; background: #333; color: white;">
+                    {% for person in family %}
+                    <option value="{{ person.name }}">{{ person.name }}</option>
+                    {% endfor %}
+                </select><br />
+                <label for="editChorePoints">Points:</label><br />
+                <input type="number" id="editChorePoints" name="points" min="0" required style="width: 100%; margin-bottom: 10px; padding: 5px; border-radius: 6px; border: 1px solid #555; background: #333; color: white;" /><br />
+                <div style="text-align: right;">
+                    <button type="button" id="cancelEditChoreBtn" style="background: rgba(136, 136, 136, 0.1); color: #fff; border: none; padding: 8px 12px; border-radius: 12px; cursor: pointer; margin-right: 10px;">Cancel</button>
+                    <button type="submit" class="save-btn" style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 12px; cursor: pointer;">Save</button>
+                </div>
+                <div id="editChoreError" style="color: #f44336; margin-top: 10px; display: none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Modal elements
+        const editChoreModal = document.getElementById('editChoreModal');
+        const editChoreForm = document.getElementById('editChoreForm');
+        const editChoreIdInput = document.getElementById('editChoreId');
+        const editChoreTitleInput = document.getElementById('editChoreTitle');
+        const editChoreAssignedToSelect = document.getElementById('editChoreAssignedTo');
+        const editChorePointsInput = document.getElementById('editChorePoints');
+        const editChoreError = document.getElementById('editChoreError');
+        const cancelEditChoreBtn = document.getElementById('cancelEditChoreBtn');
+
+        // Open modal and populate fields
+        async function editChore(choreId) {
+            const row = document.getElementById(`chore-row-${choreId}`);
+            if (!row) {
+                alert('Chore row not found');
+                return;
+            }
+            const title = row.querySelector('.chore-title').textContent.trim();
+            const assignedTo = row.querySelector('.chore-assigned-to').textContent.trim();
+            const points = row.querySelector('.chore-points').textContent.trim();
+
+            editChoreIdInput.value = choreId;
+            editChoreTitleInput.value = title;
+            // Set the selected option in the dropdown
+            for (let option of editChoreAssignedToSelect.options) {
+                option.selected = (option.value === assignedTo);
+            }
+            editChorePointsInput.value = points;
+            editChoreError.style.display = 'none';
+            editChoreError.textContent = '';
+
+            editChoreModal.style.display = 'block';
+        }
+
+        // Close modal
+        cancelEditChoreBtn.addEventListener('click', () => {
+            editChoreModal.style.display = 'none';
+        });
+
+        // Handle form submission
+        editChoreForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            editChoreError.style.display = 'none';
+            editChoreError.textContent = '';
+
+            const choreId = editChoreIdInput.value;
+            const title = editChoreTitleInput.value.trim();
+            const assignedTo = editChoreAssignedToSelect.value;
+            const points = parseInt(editChorePointsInput.value, 10);
+
+            if (!title || !assignedTo || isNaN(points) || points < 0) {
+                editChoreError.textContent = 'Please fill in all fields correctly.';
+                editChoreError.style.display = 'block';
+                return;
+            }
+
+            const data = {
+                chore_id: choreId,
+                title: title,
+                assigned_to: assignedTo,
+                points: points
+            };
+
+            try {
+                const response = await fetch('/edit_daily_chore', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Update the row with new values
+                    const row = document.getElementById(`chore-row-${choreId}`);
+                    if (row) {
+                        row.querySelector('.chore-title').textContent = title;
+                        row.querySelector('.chore-assigned-to').textContent = assignedTo;
+                        row.querySelector('.chore-points').textContent = points;
+                    }
+                    editChoreModal.style.display = 'none';
+                    alert('Chore updated successfully');
+                } else {
+                    editChoreError.textContent = result.error || 'Unknown error';
+                    editChoreError.style.display = 'block';
+                }
+            } catch (error) {
+                editChoreError.textContent = error.message;
+                editChoreError.style.display = 'block';
+            }
+        });
+
+        // Delete chore function with corrected payload key
+        async function deleteDailyChore(choreId) {
+            if (!confirm('Are you sure you want to delete this daily chore?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/delete_daily_chore', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ chore_id: choreId })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Remove the row from the table
+                    const row = document.getElementById(`chore-row-${choreId}`);
+                    if (row) {
+                        row.remove();
+                    }
+                    alert('Chore deleted successfully');
+                } else {
+                    alert('Failed to delete chore: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error deleting chore: ' + error.message);
+            }
+        }
+    </script>
+
+<!-- Add missing modal elements expected by auth.js -->
+
+<!-- PIN Authorization Overlay Start -->
+<div id="pin-overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center; flex-direction: column;">
+    <div style="background: #222; padding: 2rem; border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.8); width: 320px; max-width: 90%;">
+        <h2 style="color: white; margin-bottom: 1rem; text-align: center;">Enter Master PIN</h2>
+        <input id="master-pin-input" type="password" maxlength="4" pattern="\d{4}" placeholder="4-digit PIN" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; border: none; margin-bottom: 1rem; text-align: center;">
+        <div id="master-pin-error" style="color: #f44336; font-weight: 600; margin-bottom: 1rem; display: none; text-align: center;"></div>
+        <button id="master-pin-submit" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; background-color: #4CAF50; color: white; border: none; cursor: pointer;">Submit</button>
+    </div>
+</div>
+<!-- PIN Authorization Overlay End -->
+
+<!-- Add Person Modal -->
+<div id="add-person-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#464646; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+    <h3>Add Family Member</h3>
+    <input type="text" id="add-person-input" placeholder="Enter name" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:80%; margin-bottom:18px;">
+    <div style="margin-top:10px; display:flex; gap:16px; justify-content:center;">
+      <button class="confirm-btn" onclick="confirmAddPerson()" style="background:#2d2d2d; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Add</button>
+      <button class="cancel-btn" onclick="closeAddPersonModal()" style="background:#888; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Person Modal -->
+<div id="delete-person-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#676665; color:#222; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+    <h3 style="margin-bottom:18px;">Are you sure you want to delete this person?</h3>
+    <h3 style="margin-bottom:24px;">This cannot be undone.</h3>
+    <div style="display:flex; gap:18px; justify-content:center;">
+      <button id="confirm-delete-btn" style="background:#e53935; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Yes</button>
+      <button id="cancel-delete-btn" style="background:#888; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">No</button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+</body>
+</html>
