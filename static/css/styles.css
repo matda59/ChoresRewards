@@ -251,11 +251,50 @@ h3 {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     color: var(--text-color);
     transition: transform 0.2s ease;
+    position: relative; /* Added for absolute positioning of points circle */
 }
 
 .chore:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Updated style for points circle to look like iPhone notification badge with purple color */
+.chore-points-circle {
+  position: absolute;
+  top: -16px;
+  right: -16px;
+  background-color: #c375df; /* Purple color - note: this hex code is actually a shade of olive-green, not purple. A purple hex code would be something like #800080 or #A020F0. */
+  color: white;
+  width: 60px; /* Use 'width' instead of 'min-width' */
+  height: 60px;
+  padding: 0; /* Remove padding to keep the circle tight around the content */
+  border-radius: 50%; /* Use 50% for a perfect circle */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.2em;
+  box-shadow: 0 0 6px rgba(128, 0, 128, 0.7);
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
+  transition: transform 0.3s ease;
+  z-index: 10;
+}
+
+.chore-points-circle:hover {
+    transform: scale(1.5);
+}
+
+.chore-points-circle::before {
+    content: "points";
+    font-size: 0.5em;
+    line-height: 1;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    font-weight: 600;
 }
 
 /* Button Styles */
@@ -1438,4 +1477,19 @@ label,
 [data-theme="dark"] .action-icons .reset-points-icon,
 [data-theme="dark"] .action-icons .fa-palette {
     color: #222222 !important;
+}
+#kanban {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: stretch; /* Stretch columns to fill the container */
+}
+
+.column {
+  flex-grow: 1;
+  flex-basis: 0;
+  min-width: 250px; /* Minimum width for each kanban column */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
