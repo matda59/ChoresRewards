@@ -1,0 +1,26 @@
+<Container version="2">
+<Name>ChoresRewards</Name>
+<Repository>ghcr.io/matda59/choresrewards:latest</Repository>
+<Registry/>
+<Network>bridge</Network>
+<MyIP/>
+<Shell>sh</Shell>
+<Privileged>false</Privileged>
+<Support/>
+<Project/>
+<Overview> </Overview>
+<Category/>
+<WebUI>http://[IP]:[PORT:3000]</WebUI>
+<TemplateURL/>
+<Icon>https://raw.githubusercontent.com/matda59/ChoresRewards/refs/heads/main/favicon-32x32.png</Icon>
+<ExtraParams/>
+<PostArgs/>
+<CPUset/>
+<DateInstalled>1754551432</DateInstalled>
+<DonateText/>
+<DonateLink/>
+<Requires/>
+<Config Name="Database" Target="/app/instance" Default="" Mode="rw" Description="" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/choresrewards/</Config>
+<Config Name="Web" Target="3000" Default="" Mode="tcp" Description="" Type="Port" Display="always" Required="false" Mask="false">3112</Config>
+<TailscaleStateDir/>
+</Container>
