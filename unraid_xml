@@ -6,9 +6,9 @@
 <MyIP/>
 <Shell>sh</Shell>
 <Privileged>false</Privileged>
-<Support/>
-<Project/>
-<Overview> </Overview>
+<Support/>https://forums.unraid.net/topic/192603-choresrewards-support-thread/<Support/>
+<Project/>https://github.com/matda59/ChoresRewards<Project/>
+<Overview> ChoresAwards is a user-friendly, point-based system designed to help families manage chores and earn rewards. Its intuitive interface and customisable features make it easy to set up and use. </Overview>
 <Category/>
 <WebUI>http://[IP]:[PORT:3000]</WebUI>
 <TemplateURL/>
