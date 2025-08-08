@@ -55,7 +55,8 @@ Progress Reports
 View detailed reports on chore completion and reward progress.
 
 <img width="1891" alt="image" src="https://github.com/user-attachments/assets/db013199-a8ad-411f-b537-a3eebab6e92e" />
-<img width="1891" alt="image" src="https://github.com/user-attachments/assets/10c2a584-6bf1-451b-b475-754048a49d4f" />
+<img width="3657" height="1794" alt="choresrewards-pic" src="https://github.com/user-attachments/assets/ac71831d-392f-4d33-a30e-39d45164f9c9" />
+
 
 
 
