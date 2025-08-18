@@ -1,6 +1,6 @@
-# ChoresAwards (Alpha)
+# Choresrwards (Alpha)
 
-ChoresAwards is a user-friendly, point-based system designed to help families manage chores and earn rewards. Its intuitive interface and customisable features make it easy to set up and use.
+Choresrwards is a user-friendly, point-based system designed to help families manage chores and earn rewards. Its intuitive interface and customisable features make it easy to set up and use.
 
 Main Features of ChoresRewards
 
