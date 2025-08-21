@@ -12,8 +12,15 @@ from flask import session, redirect, url_for
 from flask import session
 from collections import defaultdict
 
+
 # Create a single Blueprint for all routes
 routes_bp = Blueprint('routes', __name__)
+
+# --- API: Check Auth ---
+@routes_bp.route('/api/check_auth', methods=['GET'])
+def api_check_auth():
+    # Returns whether the user is authenticated in the Flask session
+    return jsonify({'authenticated': session.get('authenticated', False)})
 
 @routes_bp.route('/api/bonus_settings', methods=['GET'])
 def api_bonus_settings():
@@ -125,6 +132,8 @@ def index():
     celebrate_person = session.pop('celebrate_person', None)
     celebrate_avatar = session.pop('celebrate_avatar', None)
 
+    reward_system = AppSetting.get_reward_system()
+    from datetime import timedelta, date
     return render_template(
         'index.html',
         chores=chores,
@@ -134,7 +143,10 @@ def index():
         get_person_by_name=get_person_by_name,
         celebrate_person=celebrate_person,
         celebrate_avatar=celebrate_avatar,
-        master_pin_set=bool(master_pin)
+        master_pin_set=bool(master_pin),
+        reward_system=reward_system,
+        timedelta=timedelta,
+        current_date=date.today()
     )
 
 @routes_bp.route('/setup', methods=['GET', 'POST'])
@@ -149,15 +161,33 @@ def setup_wizard():
 
     if request.method == 'POST':
         people = request.form.getlist('people[]')
+        person_colors = request.form.getlist('person_color[]')
         master_pin = request.form.get('master_pin')
+        reward_system = request.form.get('reward_system', 'points')
+        bonus_mode = request.form.get('bonus_mode', 'static')
+        bonus_static = request.form.get('bonus_static', '')
+        bonus_min = request.form.get('bonus_min', '')
+        bonus_max = request.form.get('bonus_max', '')
+        bonus_once_per_day = 'bonus_once_per_day' in request.form
+        timezone = request.form.get('timezone', 'UTC')
+
         # Hash the master pin before saving
         hashed_pin = bcrypt.hashpw(master_pin.encode('utf-8'), bcrypt.gensalt())
         hashed_pin_str = hashed_pin.decode('utf-8')
-        for name in people:
-            person = Person(name=name)
+        for idx, name in enumerate(people):
+            color = person_colors[idx] if idx < len(person_colors) else '#cccccc'
+            person = Person(name=name, color=color)
             db.session.add(person)
         # Save hashed master PIN in app settings
         AppSetting.set('master_pin', hashed_pin_str)
+        # Save new settings
+        AppSetting.set('reward_system', reward_system)
+        AppSetting.set('bonus_mode', bonus_mode)
+        AppSetting.set('bonus_static', bonus_static)
+        AppSetting.set('bonus_min', bonus_min)
+        AppSetting.set('bonus_max', bonus_max)
+        AppSetting.set('bonus_once_per_day', str(bonus_once_per_day))
+        AppSetting.set('timezone', timezone)
         db.session.commit()
         return redirect(url_for('routes.index'))
     # Pass existing people to the template
@@ -201,21 +231,38 @@ def complete_chore():
 
         points_awarded = 0
         bonus_awarded = 0
+        overdue = False
         if person:
-            person.points += chore.points
-            points_awarded = chore.points
-            db.session.commit()
-            session['celebrate_person'] = chore.assigned_to
-            if person.avatar:
-                session['celebrate_avatar'] = person.avatar
+            now = datetime.utcnow()
+            # Check if overdue for chores with due_datetime or due_date
+            if chore.due_datetime:
+                overdue = now > chore.due_datetime
+            elif chore.due_date:
+                overdue = now.date() > chore.due_date
             else:
-                session['celebrate_avatar'] = 'default_avatar.png'
-            log_activity(
-                'chore_completed',
-                f"Chore '{chore.title}' was completed and {chore.points} points were awarded",
-                user_name=chore.assigned_to
-            )
-        db.session.commit()
+                overdue = False
+
+            if not overdue:
+                person.points += chore.points
+                points_awarded = chore.points
+                db.session.commit()
+                session['celebrate_person'] = chore.assigned_to
+                if person.avatar:
+                    session['celebrate_avatar'] = person.avatar
+                else:
+                    session['celebrate_avatar'] = 'default_avatar.png'
+                log_activity(
+                    'chore_completed',
+                    f"Chore '{chore.title}' was completed and {points_awarded} points were awarded",
+                    user_name=chore.assigned_to
+                )
+            else:
+                db.session.commit()
+                log_activity(
+                    'chore_completed',
+                    f"Chore '{chore.title}' was completed but was overdue. No points awarded.",
+                    user_name=chore.assigned_to
+                )
 
         completed, total = Chore.calculate_weekly_progress(chore.assigned_to)
 
@@ -228,7 +275,8 @@ def complete_chore():
             },
             'new_points': (person.points + person.bonus_points) if person else 0,
             'points_awarded': points_awarded,
-            'bonus_awarded': bonus_awarded
+            'bonus_awarded': bonus_awarded,
+            'overdue': overdue
         })
 
     except Exception as e:
@@ -441,6 +489,7 @@ def activity_log():
         monthly_chores_by_person = dict(monthly_chores_by_person)
         chores_per_year = dict(chores_per_year)
 
+        reward_system = AppSetting.get_reward_system()
         return render_template(
             'activity_log.html', 
             activity_logs=logs,
@@ -452,7 +501,8 @@ def activity_log():
             monthly_chores_by_person=monthly_chores_by_person,
             top_tasks_trend=top_tasks_trend,
             trend_weeks=trend_weeks,
-            chores_per_year=chores_per_year
+            chores_per_year=chores_per_year,
+            reward_system=reward_system
         )
     except Exception as e:
         log_activity('system_error', f"Error loading activity log: {str(e)}")
@@ -474,21 +524,45 @@ def activity_log():
 
 @routes_bp.route('/add_reward', methods=['POST'])
 def add_reward():
+    import os
+    from werkzeug.utils import secure_filename
     title = request.form.get('title')
-    points_required = int(request.form.get('points_required'))
+    points_required = float(request.form.get('points_required'))
     assigned_to = request.form.get('assigned_to')
-    
-    new_reward = Reward(title=title, points_required=points_required, assigned_to=assigned_to)
+    image_url = request.form.get('image_url', '').strip()
+    description = request.form.get('description', '').strip()
+    reward_image_file = request.files.get('reward_image_file')
+
+    # Handle file upload if present
+    uploaded_image_url = None
+    if reward_image_file and reward_image_file.filename:
+        filename = secure_filename(reward_image_file.filename)
+        upload_folder = os.path.join('static', 'uploads', 'rewards')
+        os.makedirs(upload_folder, exist_ok=True)
+        file_path = os.path.join(upload_folder, filename)
+        reward_image_file.save(file_path)
+        uploaded_image_url = '/' + file_path.replace('\\', '/').replace(os.path.sep, '/')
+
+    # Prefer uploaded image over URL
+    final_image_url = uploaded_image_url or (image_url if image_url else None)
+
+    new_reward = Reward(
+        title=title,
+        points_required=points_required,
+        assigned_to=assigned_to,
+        image_url=final_image_url,
+        description=description if description else None
+    )
     db.session.add(new_reward)
     db.session.commit()
-    
+
     # Log the activity
     log_activity(
         'reward_added',
         f"Reward '{title}' worth {points_required} points was added for {assigned_to}",
         user_name=assigned_to
     )
-    
+
     return redirect(url_for('routes.index'))
 
 from models import AppSetting
@@ -508,22 +582,23 @@ def award_bonus_points():
         bonus_static = AppSetting.get('bonus_static')
         bonus_min = AppSetting.get('bonus_min')
         bonus_max = AppSetting.get('bonus_max')
+        bonus_once_per_day = AppSetting.get('bonus_once_per_day', 'true').lower() == 'true'
 
         # Validate bonus_points against settings
         if bonus_mode == 'static':
             try:
-                allowed = int(bonus_static)
+                allowed = float(bonus_static)
             except (TypeError, ValueError):
                 allowed = 10  # fallback default
-            if int(bonus_points) != allowed:
+            if float(bonus_points) != allowed:
                 return jsonify({'success': False, 'message': f'Bonus must be exactly {allowed} points.'}), 400
         elif bonus_mode == 'range':
             try:
-                min_val = int(bonus_min)
-                max_val = int(bonus_max)
+                min_val = float(bonus_min)
+                max_val = float(bonus_max)
             except (TypeError, ValueError):
                 min_val, max_val = 2, 8  # fallback default
-            if not (min_val <= int(bonus_points) <= max_val):
+            if not (min_val <= float(bonus_points) <= max_val):
                 return jsonify({'success': False, 'message': f'Bonus must be between {min_val} and {max_val} points.'}), 400
         else:
             return jsonify({'success': False, 'message': 'Invalid bonus mode.'}), 400
@@ -533,9 +608,19 @@ def award_bonus_points():
         if not person:
             return jsonify({'success': False, 'message': 'Person not found'}), 404
 
+        # Check if bonus_once_per_day is enabled and if bonus was already awarded today
+        if bonus_once_per_day and person.last_bonus_awarded:
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc)
+            last_awarded = person.last_bonus_awarded
+            if last_awarded.date() == now.date():
+                return jsonify({'success': False, 'message': 'Bonus points already awarded today.'}), 400
+
         # Add bonus points to permanent points and reset bonus_points
-        person.points += int(bonus_points)
+        person.points += float(bonus_points)
         person.bonus_points = 0
+        from datetime import datetime
+        person.last_bonus_awarded = datetime.utcnow()
         db.session.commit()
         # Log the bonus points activity
         log_activity(
@@ -559,21 +644,36 @@ def add_chore():
             data = request.get_json()
             title = data.get('title')
             assigned_to = data.get('assigned_to')
-            points = int(data.get('points', 1))
+            points = float(data.get('points', 1))
             is_daily = str(data.get('is_daily', '')).lower() in ('on', 'true', '1')
+            due_datetime_str = data.get('due_datetime')
         else:
             title = request.form.get('title')
             assigned_to = request.form.get('assigned_to')
-            points = int(request.form.get('points', 1))
+            points = float(request.form.get('points', 1))
             is_daily = request.form.get('is_daily', '').lower() in ('on', 'true', '1')
+            due_datetime_str = request.form.get('due_datetime')
         
         if not title or not assigned_to:
             return jsonify(success=False, error="Title and Assigned To are required fields.")
+        
+        # Parse due_datetime if provided
+        due_datetime = None
+        if due_datetime_str:
+            from datetime import datetime
+            try:
+                due_datetime = datetime.fromisoformat(due_datetime_str)
+            except ValueError:
+                return jsonify(success=False, error="Invalid due date/time format.")
         
         # Look up the person by name
         person = Person.query.filter_by(name=assigned_to).first()
         if not person:
             return jsonify(success=False, error="Assigned person not found.")
+
+        # Remove forced zeroing of points if due_datetime is not set
+        # if not due_datetime:
+        #     points = 0
 
         new_chore = Chore(
             title=title,
@@ -583,7 +683,8 @@ def add_chore():
             is_daily=is_daily,
             completed=False,
             date_completed=None,
-            due_date=date.today() if is_daily else None
+            due_date=due_datetime.date() if due_datetime else (date.today() if is_daily else None),
+            due_datetime=due_datetime
         )
         
         db.session.add(new_chore)
@@ -667,8 +768,17 @@ def settings():
     error = None
     success = None
     if request.method == 'POST':
+        # Save reward system setting and redirect to index for immediate effect
+        if 'reward_system' in request.form:
+            new_system = request.form.get('reward_system')
+            try:
+                AppSetting.set_reward_system(new_system)
+                db.session.commit()
+                return redirect(url_for('routes.index'))
+            except Exception as e:
+                error = f"Failed to set reward system: {e}"
         # Save bonus points settings
-        if 'bonus_mode' in request.form:
+        elif 'bonus_mode' in request.form:
             bonus_mode = request.form.get('bonus_mode', 'static')
             AppSetting.set('bonus_mode', bonus_mode)
             if bonus_mode == 'static':
@@ -679,6 +789,12 @@ def settings():
                 AppSetting.set('bonus_min', request.form.get('bonus_min', '2'))
                 AppSetting.set('bonus_max', request.form.get('bonus_max', '8'))
                 AppSetting.set('bonus_static', '')
+            # Save the new bonus_once_per_day checkbox value
+            bonus_once_per_day = request.form.get('bonus_once_per_day')
+            if bonus_once_per_day == 'on':
+                AppSetting.set('bonus_once_per_day', 'true')
+            else:
+                AppSetting.set('bonus_once_per_day', 'false')
             log_activity('settings_updated', f"Bonus points configuration was updated")
         elif 'chores' in request.form:
             chores = request.form.get('chores').split(',')
@@ -708,12 +824,21 @@ def settings():
                 db.session.commit()
                 log_activity('master_pin_changed', "Master PIN was changed")
                 success = "Master PIN changed successfully."
+        elif 'timezone' in request.form:
+            timezone = request.form.get('timezone')
+            if timezone:
+                AppSetting.set('timezone', timezone)
+                db.session.commit()
+                log_activity('settings_updated', f"Timezone was changed to {timezone}")
+                success = f"Timezone changed to {timezone}"
 
     # Load bonus points settings
     bonus_mode = AppSetting.get('bonus_mode', 'static')
     bonus_static = AppSetting.get('bonus_static', '10')
     bonus_min = AppSetting.get('bonus_min', '2')
     bonus_max = AppSetting.get('bonus_max', '8')
+    bonus_once_per_day = AppSetting.get('bonus_once_per_day', 'true').lower() == 'true'
+    timezone = AppSetting.get('timezone', 'UTC')
 
     daily_chores = Chore.query.filter_by(is_daily=True, deleted=False).all()
     family = Person.query.all()
@@ -725,6 +850,8 @@ def settings():
         bonus_static=bonus_static,
         bonus_min=bonus_min,
         bonus_max=bonus_max,
+        bonus_once_per_day=bonus_once_per_day,
+        timezone=timezone,
         family=family,
         error=error,
         success=success
@@ -1393,6 +1520,7 @@ def chore_history():
             })
         top_tasks_trend[person] = trend_list
     
+    reward_system = AppSetting.get_reward_system()
     return render_template(
         'chore_history.html',
         completed_chores=completed_chores,
@@ -1403,5 +1531,24 @@ def chore_history():
         day_keys=[d.strftime('%Y-%m-%d') for d in days],
         monthly_chores_by_person=monthly_chores_by_person,
         top_tasks_trend=top_tasks_trend,
-        trend_weeks=trend_weeks
+        trend_weeks=trend_weeks,
+        reward_system=reward_system
+    )
+    from models import AppSetting
+    reward_system = AppSetting.get_reward_system()
+    if request.method == 'POST':
+        # Handle reward system change
+        if 'reward_system' in request.form:
+            new_system = request.form.get('reward_system')
+            try:
+                AppSetting.set_reward_system(new_system)
+                reward_system = new_system
+            except Exception as e:
+                # Optionally flash error
+                pass
+    # ...existing code...
+    return render_template('settings.html',
+        # ...existing context...
+        reward_system=reward_system,
+        # ...existing context...
     )

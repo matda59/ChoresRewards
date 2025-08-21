@@ -2,6 +2,17 @@ from datetime import datetime, timedelta, date
 from extensions import db  # Import db from extensions.py
 
 class AppSetting(db.Model):
+    @staticmethod
+    def get_reward_system():
+        # Returns 'points' or 'cash', default to 'points'
+        val = AppSetting.get('reward_system', 'points')
+        return val if val in ['points', 'cash'] else 'points'
+
+    @staticmethod
+    def set_reward_system(system):
+        if system not in ['points', 'cash']:
+            raise ValueError('Invalid reward system')
+        AppSetting.set('reward_system', system)
     __tablename__ = 'app_settings'
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(100), unique=True, nullable=False)
@@ -25,9 +36,10 @@ class AppSetting(db.Model):
 class Person(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
-    points = db.Column(db.Integer, default=0)
-    bonus_points = db.Column(db.Integer, default=0)  # Track bonus points separately
+    points = db.Column(db.Float, default=0.0)
+    bonus_points = db.Column(db.Float, default=0.0)  # Track bonus points separately
     last_reset = db.Column(db.DateTime, default=datetime.utcnow)
+    last_bonus_awarded = db.Column(db.DateTime, nullable=True)  # Track last bonus awarding date
     last_daily_chores_added = db.Column(db.DateTime, default=datetime.utcnow)  # New column
     avatar = db.Column(db.String(100), default='default_avatar.png')  # Add this line
     color = db.Column(db.String(7), default='#ffffff')  # Add this line
@@ -42,12 +54,12 @@ class Person(db.Model):
     def set_points(self, new_points):
         """
         Reset points to a specified value.
-        Accepts a non-negative integer as new_points.
+        Accepts a non-negative float as new_points.
         """
         try:
-            new_points = int(new_points)
+            new_points = float(new_points)
         except (ValueError, TypeError):
-            raise ValueError("Points must be an integer value.")
+            raise ValueError("Points must be a number.")
 
         if new_points < 0:
             raise ValueError("Points cannot be negative.")
@@ -61,11 +73,12 @@ class Chore(db.Model):
     title = db.Column(db.String(100), nullable=False)
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('person.id'), nullable=True)
     assigned_to = db.Column(db.String(50))  # Keep for backward compatibility
-    points = db.Column(db.Integer, default=1)
+    points = db.Column(db.Float, default=1.0)
     completed = db.Column(db.Boolean, default=False)
     date_completed = db.Column(db.DateTime)
     is_daily = db.Column(db.Boolean, default=False)  # Properly define is_daily as a Boolean
     due_date = db.Column(db.Date, nullable=True)  # For daily chore scheduling
+    due_datetime = db.Column(db.DateTime, nullable=True)  # New field for due date and time
     deleted = db.Column(db.Boolean, default=False)  # New field to track deletion for daily chores
     
     def __init__(self, **kwargs):
@@ -125,7 +138,9 @@ class Chore(db.Model):
 class Reward(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
-    points_required = db.Column(db.Integer, nullable=False)
+    points_required = db.Column(db.Float, nullable=False)
+    image_url = db.Column(db.String(255), nullable=True)  # Added image_url field
+    description = db.Column(db.Text, nullable=True)  # Added description field
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('person.id'), nullable=True)
     assigned_to = db.Column(db.String(50))  # Keep for backward compatibility
     completed = db.Column(db.Boolean, default=False)
@@ -163,6 +178,9 @@ def log_activity(action_type, description, user_name=None):
         )
         db.session.add(log_entry)
         db.session.commit()
+        # Also print to stdout for container logs
+        log_str = f"[ActivityLog] type={action_type} user={user_name} desc={description}"
+        print(log_str, flush=True)
     except Exception as e:
         db.session.rollback()
-        print(f"Error logging activity: {e}")
+        print(f"Error logging activity: {e}", flush=True)
