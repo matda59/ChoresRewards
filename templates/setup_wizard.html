@@ -18,6 +18,10 @@
           </button>
         </div>
         <div style="margin-top:10px; font-weight:600; color:var(--text-light); text-align:center;">{{ person.name }}</div>
+        <div style="margin-top:8px; display:flex; flex-direction:column; align-items:center;">
+          <label style="font-size:0.95em; color:var(--text-light); margin-bottom:2px;">Kanban Color</label>
+          <input type="color" name="person_color[]" value="{{ person.color or '#cccccc' }}" class="sleek-input" style="width:38px;height:38px;padding:0;border-radius:6px;border:1.5px solid #bbb;background:none;display:inline-block;vertical-align:middle;">
+        </div>
       </div>
       {% endfor %}
     </div>
@@ -27,32 +31,225 @@
   <form id="setup-form" method="POST" class="sleek-form">
     <div id="people-list" class="people-list">
       <!-- Person entry template -->
-      <div class="person-entry">
-        <div class="input-group">
-          <label class="input-label">
-            <span>Family Member Name</span>
-            <input type="text" name="people[]" required maxlength="50" placeholder="Enter name" class="sleek-input">
-          </label>
-        </div>
-        <!-- Removed admin checkbox and PIN input as per new requirement -->
-        <button type="button" class="remove-person-btn" onclick="removePerson(this)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6L6 18M6 6l12 12"></path>
-          </svg>
-        </button>
-      </div>
+<div class="person-entry">
+  <div class="person-details">
+    <div class="input-group">
+      <span class="input-label">Family Member Name</span>
+      <input type="text" name="people[]" required="" maxlength="50" placeholder="Enter name">
     </div>
-    <div class="form-actions">
+    <div class="input-group color-input-group">
+      <span class="input-label">Color of Kanban Chorewall</span>
+      <input type="color" name="person_color[]" value="#cccccc">
+    </div>
+  </div>
+  <button type="button" class="remove-person-btn" onclick="removePerson(this)">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M18 6L6 18M6 6l12 12"></path>
+    </svg>
+  </button>
+</div>
+      {% if people and people|length > 0 %}
+      {% for person in people %}
+<div class="person-entry">
+  <div class="person-details">
+    <div class="input-group">
+      <span class="input-label">Family Member Name</span>
+      <input type="text" name="people[]" required="" maxlength="50" placeholder="Enter name">
+    </div>
+    <div class="input-group color-input-group">
+      <span class="input-label">Color of Kanban Chorewall</span>
+      <input type="color" name="person_color[]" value="#cccccc">
+    </div>
+  </div>
+  <button type="button" class="remove-person-btn" onclick="removePerson(this)">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M18 6L6 18M6 6l12 12"></path>
+    </svg>
+  </button>
+</div>
+      {% endfor %}
+      {% endif %}
+    </div>
+    <div class="form-actions" style="margin-bottom:2rem;">
       <button type="button" onclick="addPerson()" class="add-person-btn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 5v14M5 12h14"></path>
         </svg>
         Add Another Person
       </button>
-      <button type="submit" class="submit-btn">Finish Setup</button>
     </div>
+
+    <!-- Rewards System, Bonus Points, and Timezone Settings Section -->
+    <div class="person-entry" style="flex-direction:column; gap:2rem; margin-top:2rem;">
+      <div class="input-group">
+        <label class="input-label" style="margin-bottom:0.5rem;">
+          <span style="font-size:1.1em;font-weight:600;">Reward System</span>
+        </label>
+        <div style="margin-bottom: 1.5em; display: flex; gap: 2em; align-items: center;">
+          <label class="reward-system-label selected" id="wizard-points-label" style="margin-right: 18px; display: flex; align-items: center; gap: 0.5em; cursor:pointer;">
+            <input type="radio" class="reward-system-radio" name="reward_system" value="points" checked style="accent-color: #4CAF50;"> <i class="fas fa-certificate" style="color:#ffd700;"></i> Points
+          </label>
+          <label class="reward-system-label" id="wizard-cash-label" style="display: flex; align-items: center; gap: 0.5em; cursor:pointer;">
+            <input type="radio" class="reward-system-radio" name="reward_system" value="cash" style="accent-color: #4CAF50;"> <i class="fas fa-money-bill-wave" style="color:#388e3c;"></i> Cash
+          </label>
+        </div>
+      </div>
+  <div class="input-group">
+        <label class="input-label" style="margin-bottom:0.5rem;">
+          <span style="font-size:1.1em;font-weight:600;">Bonus Points for Completing All Chores</span>
+        </label>
+        <div style="display:flex; gap:2em; align-items:center; flex-wrap:wrap;">
+          <label class="bonus-mode-label" id="wizard-bonus-static-label" style="display:flex;align-items:center;gap:0.5em;">
+            <input type="radio" class="bonus-mode-radio" name="bonus_mode" value="static" checked> Static
+          </label>
+          <input type="number" name="bonus_static" id="wizard-bonus-static-input" min="0" step="0.01" placeholder="Static Points" style="width:180px; font-size:1.1em; padding:0.7em 1em;">
+          <label class="bonus-mode-label" id="wizard-bonus-range-label" style="display:flex;align-items:center;gap:0.5em;">
+            <input type="radio" class="bonus-mode-radio" name="bonus_mode" value="range"> Range
+          </label>
+          <input type="number" name="bonus_min" id="wizard-bonus-min-input" min="0" step="0.01" placeholder="Min Points" style="width:150px; font-size:1.1em; padding:0.7em 1em; display:none;">
+          <input type="number" name="bonus_max" id="wizard-bonus-max-input" min="0" step="0.01" placeholder="Max Points" style="width:150px; font-size:1.1em; padding:0.7em 1em; display:none;">
+        </div>
+        <div style="margin-top:0.5em;">
+          <label style="font-size:0.95em;">
+            <input type="checkbox" name="bonus_once_per_day" checked>
+            Only receive one bonus points award per day for completing all chores
+          </label>
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label" style="margin-bottom:0.5rem;">
+          <span style="font-size:1.1em;font-weight:600;">Timezone</span>
+        </label>
+        {% set timezones = [
+            'Africa/Abidjan', 'Africa/Accra', 'Africa/Addis_Ababa', 'Africa/Algiers', 'Africa/Asmara',
+            'Africa/Bamako', 'Africa/Bangui', 'Africa/Banjul', 'Africa/Bissau', 'Africa/Blantyre',
+            'Africa/Brazzaville', 'Africa/Bujumbura', 'Africa/Cairo', 'Africa/Casablanca', 'Africa/Ceuta',
+            'Africa/Conakry', 'Africa/Dakar', 'Africa/Dar_es_Salaam', 'Africa/Djibouti', 'Africa/Douala',
+            'Africa/El_Aaiun', 'Africa/Freetown', 'Africa/Gaborone', 'Africa/Harare', 'Africa/Johannesburg',
+            'Africa/Juba', 'Africa/Kampala', 'Africa/Khartoum', 'Africa/Kigali', 'Africa/Kinshasa',
+            'Africa/Lagos', 'Africa/Libreville', 'Africa/Lome', 'Africa/Luanda', 'Africa/Lubumbashi',
+            'Africa/Lusaka', 'Africa/Malabo', 'Africa/Maputo', 'Africa/Maseru', 'Africa/Mbabane',
+            'Africa/Mogadishu', 'Africa/Monrovia', 'Africa/Nairobi', 'Africa/Ndjamena', 'Africa/Niamey',
+            'Africa/Nouakchott', 'Africa/Ouagadougou', 'Africa/Porto-Novo', 'Africa/Sao_Tome', 'Africa/Tripoli',
+            'Africa/Tunis', 'Africa/Windhoek', 'America/Adak', 'America/Anchorage', 'America/Anguilla',
+            'America/Antigua', 'America/Araguaina', 'America/Argentina/Buenos_Aires', 'America/Argentina/Catamarca',
+            'America/Argentina/Cordoba', 'America/Argentina/Jujuy', 'America/Argentina/La_Rioja', 'America/Argentina/Mendoza',
+            'America/Argentina/Rio_Gallegos', 'America/Argentina/Salta', 'America/Argentina/San_Juan', 'America/Argentina/San_Luis',
+            'America/Argentina/Tucuman', 'America/Argentina/Ushuaia', 'America/Aruba', 'America/Asuncion', 'America/Atikokan',
+            'America/Bahia', 'America/Bahia_Banderas', 'America/Barbados', 'America/Belem', 'America/Belize',
+            'America/Blanc-Sablon', 'America/Boa_Vista', 'America/Bogota', 'America/Boise', 'America/Cambridge_Bay',
+            'America/Campo_Grande', 'America/Cancun', 'America/Caracas', 'America/Cayenne', 'America/Cayman',
+            'America/Chicago', 'America/Chihuahua', 'America/Costa_Rica', 'America/Creston', 'America/Cuiaba',
+            'America/Curacao', 'America/Danmarkshavn', 'America/Dawson', 'America/Dawson_Creek', 'America/Denver',
+            'America/Detroit', 'America/Dominica', 'America/Edmonton', 'America/Eirunepe', 'America/El_Salvador',
+            'America/Fort_Nelson', 'America/Fortaleza', 'America/Glace_Bay', 'America/Godthab', 'America/Goose_Bay',
+            'America/Grand_Turk', 'America/Grenada', 'America/Guadeloupe', 'America/Guatemala', 'America/Guayaquil',
+            'America/Guyana', 'America/Halifax', 'America/Havana', 'America/Hermosillo', 'America/Indiana/Indianapolis',
+            'America/Indiana/Knox', 'America/Indiana/Marengo', 'America/Indiana/Petersburg', 'America/Indiana/Tell_City',
+            'America/Indiana/Vevay', 'America/Indiana/Vincennes', 'America/Indiana/Winamac', 'America/Inuvik', 'America/Iqaluit',
+            'America/Jamaica', 'America/Juneau', 'America/Kentucky/Louisville', 'America/Kentucky/Monticello', 'America/Kralendijk',
+            'America/La_Paz', 'America/Lima', 'America/Los_Angeles', 'America/Lower_Princes', 'America/Maceio',
+            'America/Managua', 'America/Manaus', 'America/Marigot', 'America/Martinique', 'America/Matamoros',
+            'America/Mazatlan', 'America/Menominee', 'America/Merida', 'America/Metlakatla', 'America/Mexico_City',
+            'America/Miquelon', 'America/Moncton', 'America/Monterrey', 'America/Montevideo', 'America/Montserrat',
+            'America/Nassau', 'America/New_York', 'America/Nipigon', 'America/Nome', 'America/Noronha',
+            'America/North_Dakota/Beulah', 'America/North_Dakota/Center', 'America/North_Dakota/New_Salem', 'America/Ojinaga', 'America/Panama',
+            'America/Pangnirtung', 'America/Paramaribo', 'America/Phoenix', 'America/Port-au-Prince', 'America/Port_of_Spain',
+            'America/Porto_Velho', 'America/Puerto_Rico', 'America/Punta_Arenas', 'America/Rainy_River', 'America/Rankin_Inlet',
+            'America/Recife', 'America/Regina', 'America/Resolute', 'America/Rio_Branco', 'America/Santarem',
+            'America/Santiago', 'America/Santo_Domingo', 'America/Sao_Paulo', 'America/Scoresbysund', 'America/Sitka',
+            'America/St_Barthelemy', 'America/St_Johns', 'America/St_Kitts', 'America/St_Lucia', 'America/St_Thomas',
+            'America/St_Vincent', 'America/Swift_Current', 'America/Tegucigalpa', 'America/Thule', 'America/Thunder_Bay',
+            'America/Tijuana', 'America/Toronto', 'America/Tortola', 'America/Vancouver', 'America/Whitehorse',
+            'America/Winnipeg', 'America/Yakutat', 'America/Yellowknife', 'Antarctica/Casey', 'Antarctica/Davis',
+            'Antarctica/DumontDUrville', 'Antarctica/Macquarie', 'Antarctica/Mawson', 'Antarctica/Palmer', 'Antarctica/Rothera',
+            'Antarctica/Syowa', 'Antarctica/Troll', 'Antarctica/Vostok', 'Arctic/Longyearbyen', 'Asia/Aden',
+            'Asia/Almaty', 'Asia/Amman', 'Asia/Anadyr', 'Asia/Aqtau', 'Asia/Aqtobe', 'Asia/Ashgabat', 'Asia/Atyrau',
+            'Asia/Baghdad', 'Asia/Bahrain', 'Asia/Baku', 'Asia/Bangkok', 'Asia/Barnaul', 'Asia/Beirut', 'Asia/Bishkek',
+            'Asia/Brunei', 'Asia/Chita', 'Asia/Choibalsan', 'Asia/Colombo', 'Asia/Damascus', 'Asia/Dhaka', 'Asia/Dili',
+            'Asia/Dubai', 'Asia/Dushanbe', 'Asia/Famagusta', 'Asia/Gaza', 'Asia/Hebron', 'Asia/Ho_Chi_Minh', 'Asia/Hong_Kong',
+            'Asia/Hovd', 'Asia/Irkutsk', 'Asia/Jakarta', 'Asia/Jayapura', 'Asia/Jerusalem', 'Asia/Kabul', 'Asia/Kamchatka',
+            'Asia/Karachi', 'Asia/Kathmandu', 'Asia/Khandyga', 'Asia/Kolkata', 'Asia/Krasnoyarsk', 'Asia/Kuala_Lumpur',
+            'Asia/Kuching', 'Asia/Macau', 'Asia/Magadan', 'Asia/Makassar', 'Asia/Manila', 'Asia/Nicosia', 'Asia/Novokuznetsk',
+            'Asia/Novosibirsk', 'Asia/Omsk', 'Asia/Oral', 'Asia/Phnom_Penh', 'Asia/Pontianak', 'Asia/Pyongyang', 'Asia/Qatar',
+            'Asia/Qostanay', 'Asia/Qyzylorda', 'Asia/Riyadh', 'Asia/Sakhalin', 'Asia/Samarkand', 'Asia/Seoul', 'Asia/Shanghai',
+            'Asia/Singapore', 'Asia/Srednekolymsk', 'Asia/Taipei', 'Asia/Tashkent', 'Asia/Tbilisi', 'Asia/Tehran', 'Asia/Thimphu',
+            'Asia/Tokyo', 'Asia/Tomsk', 'Asia/Ulaanbaatar', 'Asia/Urumqi', 'Asia/Ust-Nera', 'Asia/Vientiane', 'Asia/Vladivostok',
+            'Asia/Yakutsk', 'Asia/Yangon', 'Asia/Yekaterinburg', 'Asia/Yerevan', 'Atlantic/Azores', 'Atlantic/Bermuda',
+            'Atlantic/Canary', 'Atlantic/Cape_Verde', 'Atlantic/Faroe', 'Atlantic/Madeira', 'Atlantic/Reykjavik',
+            'Atlantic/South_Georgia', 'Atlantic/St_Helena', 'Atlantic/Stanley', 'Australia/Adelaide', 'Australia/Brisbane',
+            'Australia/Broken_Hill', 'Australia/Currie', 'Australia/Darwin', 'Australia/Eucla', 'Australia/Hobart',
+            'Australia/Lindeman', 'Australia/Lord_Howe', 'Australia/Melbourne', 'Australia/Perth', 'Australia/Sydney',
+            'Europe/Amsterdam', 'Europe/Andorra', 'Europe/Astrakhan', 'Europe/Athens', 'Europe/Belgrade', 'Europe/Berlin',
+            'Europe/Brussels', 'Europe/Bucharest', 'Europe/Budapest', 'Europe/Chisinau', 'Europe/Copenhagen', 'Europe/Dublin',
+            'Europe/Gibraltar', 'Europe/Helsinki', 'Europe/Istanbul', 'Europe/Kaliningrad', 'Europe/Kiev', 'Europe/Kirov',
+            'Europe/Lisbon', 'Europe/Ljubljana', 'Europe/London', 'Europe/Luxembourg', 'Europe/Madrid', 'Europe/Malta',
+            'Europe/Mariehamn', 'Europe/Minsk', 'Europe/Monaco', 'Europe/Moscow', 'Europe/Oslo', 'Europe/Paris', 'Europe/Podgorica',
+            'Europe/Prague', 'Europe/Riga', 'Europe/Rome', 'Europe/Samara', 'Europe/San_Marino', 'Europe/Sarajevo',
+            'Europe/Saratov', 'Europe/Simferopol', 'Europe/Skopje', 'Europe/Sofia', 'Europe/Stockholm', 'Europe/Tallinn',
+            'Europe/Tirane', 'Europe/Ulyanovsk', 'Europe/Uzhgorod', 'Europe/Vaduz', 'Europe/Vatican', 'Europe/Vienna',
+            'Europe/Vilnius', 'Europe/Volgograd', 'Europe/Warsaw', 'Europe/Zagreb', 'Europe/Zaporozhye', 'Europe/Zurich',
+            'Indian/Antananarivo', 'Indian/Chagos', 'Indian/Christmas', 'Indian/Cocos', 'Indian/Kerguelen', 'Indian/Mahe',
+            'Indian/Maldives', 'Indian/Mauritius', 'Indian/Mayotte', 'Indian/Reunion', 'Pacific/Apia', 'Pacific/Auckland',
+            'Pacific/Bougainville', 'Pacific/Chatham', 'Pacific/Chuuk', 'Pacific/Easter', 'Pacific/Efate', 'Pacific/Enderbury',
+            'Pacific/Fakaofo', 'Pacific/Fiji', 'Pacific/Funafuti', 'Pacific/Galapagos', 'Pacific/Gambier', 'Pacific/Guadalcanal',
+            'Pacific/Guam', 'Pacific/Honolulu', 'Pacific/Kiritimati', 'Pacific/Kosrae', 'Pacific/Kwajalein', 'Pacific/Majuro',
+            'Pacific/Marquesas', 'Pacific/Midway', 'Pacific/Nauru', 'Pacific/Niue', 'Pacific/Norfolk', 'Pacific/Noumea',
+            'Pacific/Pago_Pago', 'Pacific/Palau', 'Pacific/Pitcairn', 'Pacific/Pohnpei', 'Pacific/Port_Moresby', 'Pacific/Rarotonga',
+            'Pacific/Saipan', 'Pacific/Tahiti', 'Pacific/Tarawa', 'Pacific/Tongatapu', 'Pacific/Wake', 'Pacific/Wallis'
+        ] %}
+        <select name="timezone" class="sleek-input" style="width:100%;max-width:350px;background:#222;color:#fff;border:1px solid #555;">
+          {% for tz in timezones %}
+          <option value="{{ tz }}" style="color:#222;background:#fff;">{{ tz }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <script>
+    // Reward system radio button highlight logic (match settings page)
+    document.addEventListener('DOMContentLoaded', function() {
+      // Reward system highlight
+      const pointsRadio = document.querySelector('input[name="reward_system"][value="points"]');
+      const cashRadio = document.querySelector('input[name="reward_system"][value="cash"]');
+      const pointsLabel = document.getElementById('wizard-points-label');
+      const cashLabel = document.getElementById('wizard-cash-label');
+      function updateRewardSystemHighlight() {
+        if (pointsRadio.checked) {
+          pointsLabel.classList.add('selected');
+          cashLabel.classList.remove('selected');
+        } else {
+          pointsLabel.classList.remove('selected');
+          cashLabel.classList.add('selected');
+        }
+      }
+      pointsRadio.addEventListener('change', updateRewardSystemHighlight);
+      cashRadio.addEventListener('change', updateRewardSystemHighlight);
+      updateRewardSystemHighlight();
+
+      // Bonus points static/range toggle logic
+      const staticRadio = document.querySelector('input[name="bonus_mode"][value="static"]');
+      const rangeRadio = document.querySelector('input[name="bonus_mode"][value="range"]');
+      const staticInput = document.getElementById('wizard-bonus-static-input');
+      const minInput = document.getElementById('wizard-bonus-min-input');
+      const maxInput = document.getElementById('wizard-bonus-max-input');
+      function updateBonusFields() {
+        if (staticRadio.checked) {
+          staticInput.style.display = '';
+          minInput.style.display = 'none';
+          maxInput.style.display = 'none';
+        } else {
+          staticInput.style.display = 'none';
+          minInput.style.display = '';
+          maxInput.style.display = '';
+        }
+      }
+      staticRadio.addEventListener('change', updateBonusFields);
+      rangeRadio.addEventListener('change', updateBonusFields);
+      updateBonusFields();
+    });
+    </script>
+
     {% if not master_pin_set %}
-    <!-- Added master PIN input field -->
     <div class="input-group" style="margin-top: 1.5rem;">
       <label class="input-label">
         <span>Set Master 4-Digit PIN</span>
@@ -60,6 +257,9 @@
       </label>
     </div>
     {% endif %}
+    <div class="form-actions">
+      <button type="submit" class="submit-btn">Finish Setup</button>
+    </div>
   </form>
 
   <!-- Modal for delete confirmation -->
@@ -518,13 +718,16 @@ function addPerson() {
   const entry = document.createElement('div');
   entry.className = 'person-entry';
   entry.innerHTML = `
-    <div class="input-group">
-      <label class="input-label">
-        <span>Family Member Name</span>
-        <input type="text" name="people[]" required maxlength="50" placeholder="Enter name" class="sleek-input">
-      </label>
+    <div class="person-details">
+      <div class="input-group">
+        <span class="input-label">Family Member Name</span>
+        <input type="text" name="people[]" required maxlength="50" placeholder="Enter name">
+      </div>
+      <div class="input-group color-input-group">
+        <span class="input-label">Color of Kanban Chorewall</span>
+        <input type="color" name="person_color[]" value="#cccccc">
+      </div>
     </div>
-      <!-- Removed admin checkbox and PIN input as per new requirement -->
     <button type="button" class="remove-person-btn" onclick="removePerson(this)">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M18 6L6 18M6 6l12 12"></path>

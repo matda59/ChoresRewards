@@ -1,52 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
+    <script>
+        window.REWARD_SYSTEM = "{{ reward_system }}";
+    </script>
+        <noscript>
+            <style>
+                #site-content { display: block !important; }
+                #pin-overlay { display: none !important; }
+            </style>
+        </noscript>
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ChoresAwards</title>
+        <title>ChoresRewards</title>
         <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-        <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
-        <script>
-        // --- Clear All Completed Chores ---
-        function clearAllCompletedChores(btn) {
-            console.log('Clear All button clicked');
-            // Find the parent completed-chores-list
-            const completedList = btn.closest('.completed-chores-list');
-            if (!completedList) { console.log('No completed-chores-list found'); return; }
-            // Get all completed chore elements
-            const choreDivs = completedList.querySelectorAll('.chore.completed');
-            const ids = Array.from(choreDivs).map(div => div.getAttribute('data-chore-id'));
-            if (ids.length === 0) { alert('No completed chores to clear.'); return; }
-            // Use UnifiedModal for confirmation
-            showUnifiedModal({
-                icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
-                message: 'Are you sure you want to delete all completed chores for this person?',
-                buttons: [
-                    {text: 'Delete', color: '#e53935', onClick: function() {
-                        let deleted = 0;
-                        ids.forEach((id, idx) => {
-                            fetch("{{ url_for('routes.delete_chore') }}", {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ chore_id: id, permanent: true })
-                            })
-                            .then(res => res.json())
-                            .then(data => {
-                                deleted++;
-                                if (deleted === ids.length) window.location.reload();
-                            });
-                        });
-                    }},
-                    {text: 'Cancel', color: '#888', onClick: null}
-                ]
-            });
-        }
-        </script>
+                <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+                <style id="hide-overlays-style">
+                    #pin-overlay, #site-content { display: none !important; }
+                    #toast-container { z-index: 99999; }
+                </style>
+                <noscript>
+                    <style>
+                        #site-content { display: block !important; }
+                        #pin-overlay { display: none !important; }
+                    </style>
+                </noscript>
+                <script>
+                // Remove the overlay-hiding style as soon as possible so JS can show overlays
+                window.addEventListener('DOMContentLoaded', function() {
+                    var style = document.getElementById('hide-overlays-style');
+                    if (style) style.parentNode.removeChild(style);
+                });
+                </script>
         <style>
         /* Celebration Animation Styles */
         .celebration-overlay {
@@ -206,8 +196,8 @@
             animation: twinkle 1s infinite alternate;
         }
         @keyframes twinkle {
-            from { opacity: 0.5; transform: translateX(-50%) scale(0.8); }
-            to { opacity: 1; transform: translateX(-50%) scale(1.2); }
+                width: 180px;
+                height: 180px;
         }
         .sound-toggle {
             position: absolute;
@@ -270,10 +260,23 @@
 }        
     </style>
 </head>
+        <style id="hide-overlays-style">
+            #pin-overlay, #site-content { display: none !important; }
+            #toast-container { z-index: 99999; }
+        </style>
+<script>
+// Remove the overlay-hiding style as soon as possible so JS can show overlays
+window.addEventListener('DOMContentLoaded', function() {
+    var style = document.getElementById('hide-overlays-style');
+    if (style) style.parentNode.removeChild(style);
+});
+</script>
 <body>
+<!-- Toast container for notifications -->
+<div id="toast-container" style="position:fixed;top:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:12px;"></div>
 <!-- Now moved below the main heading -->
 <!-- PIN Authorization Overlay Start -->
-<div id="pin-overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center; flex-direction: column;">
+<div id="pin-overlay" style="display:none!important; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center; flex-direction: column;">
     <div style="background: #222; padding: 2rem; border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.8); width: 320px; max-width: 90%;">
         <h2 style="color: white; margin-bottom: 1rem; text-align: center;">Enter Master PIN</h2>
         <input id="master-pin-input" type="password" maxlength="4" pattern="\d{4}" placeholder="4-digit PIN" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; border: none; margin-bottom: 1rem; text-align: center;">
@@ -327,8 +330,7 @@
     </div>
 </div>
 <!-- All site content is wrapped in the site-content container -->
-<div id="site-content">
-<div id="site-content">
+<div id="site-content" style="display:none;">
     <header>
 <div class="header-content" style="display:flex; align-items:center; justify-content:flex-start;">
     <img src="{{ url_for('static', filename='images/mascot-transp.png') }}" 
@@ -346,6 +348,7 @@
         Settings
         <span style="position: absolute; bottom: -17px; left: 0; width: 100%; height: 2px; background: #4CAF50; transform: scaleX(0); transition: transform 0.3s ease; transform-origin: left;"></span>
     </a>
+    <!-- Removed Log out (Require PIN again) button as per user request -->
 </nav>
 <style>
     nav a:hover {
@@ -360,10 +363,13 @@
 
     <header>
     <div class="theme-toggle-container" style="display:flex;align-items:center;gap:10px; margin-left:20px;">
-    <button class="theme-toggle" id="theme-toggle">
-    <i class="fas fa-sun light-icon"></i>
-    <i class="fas fa-moon dark-icon"></i>
-    </button>
+        <button class="theme-toggle" id="theme-toggle">
+            <i class="fas fa-sun light-icon"></i>
+            <i class="fas fa-moon dark-icon"></i>
+        </button>
+        <button class="mute-toggle" id="mute-toggle" title="Mute All Sounds" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:10px;border-radius:50%;cursor:pointer;font-size:1.2em;">
+            <i class="fas fa-volume-up" id="mute-icon"></i>
+        </button>
     </div>
     </header>
  
@@ -380,59 +386,145 @@
   </div>
 </div>
 
-    <!--  Rewards Section -->
-    <section class="weekly-rewards">
-        <h2 style="text-align: center; color: #4CAF50;">
-            <i class="fas fa-trophy" style="color: gold;"></i> Rewards!
+    <!-- Enhanced Rewards Section -->
+    <section class="rewards-section">
+        <h2 class="section-title">
+<i class="fas fa-trophy" style="color: green;"></i> <span style="color: green;">Available Rewards</span>
         </h2>
-        <div class="completed-rewards-container">
+        {% set uncompleted_rewards = rewards | selectattr('completed', 'equalto', False) | list %}
+        {% if uncompleted_rewards | length == 0 %}
+        <div class="empty-state">
+            <i class="fas fa-gift" style="font-size: 3em; color: #666; margin-bottom: 1rem;"></i>
+            <p>No rewards available yet</p>
+            <p class="subtitle">Create some amazing rewards below!</p>
+        </div>
+        {% endif %}
+        <div class="rewards-grid">
             {% for reward in rewards %}
             {% if not reward.completed %}
-            <div class="completed-reward-item" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward.assigned_to }}" data-assigned-to-id="{{ get_person_by_name(reward.assigned_to).id }}">
-                <div class="completed-reward-content">
-                    <div class="reward-header">
-                        <div class="reward-icon">
-                            {% if reward.title == "Millhouse Canteen" %}
-                                <i class="fas fa-utensils"></i>
-                            {% elif reward.title == "MiniGolf" %}
-                                <i class="fas fa-golf-ball"></i>
-                            {% elif reward.title == "1 hour of ipad" %}
-                                <i class="fas fa-tablet-alt"></i>
-                            {% elif reward.title == "1 hour of TV" %}
-                                <i class="fas fa-tv"></i>
-                            {% elif reward.title == "A Movie" %}
-                                <i class="fas fa-film"></i>
-                            {% elif reward.title == "Baking Something Yum" %}
-                                <i class="fas fa-birthday-cake"></i>
-                            {% else %}
-                                <i class="fas fa-gift"></i>
-                            {% endif %}
-                        </div>
-                        <div class="reward-title" style="color: #4CAF50;">{{ reward.title }}</div>
+            <div class="reward-card" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward.assigned_to }}" data-assigned-to-id="{{ get_person_by_name(reward.assigned_to).id }}">
+                {% if reward.image_url %}
+                <div class="reward-image-container">
+                    <img src="{{ reward.image_url }}" alt="{{ reward.title }}" class="reward-image">
+                    <div class="reward-overlay">
+                        {% if reward_system == 'cash' %}
+                        <span class="reward-points-badge">
+                            <i class="fas fa-money-bill-wave" style="color:#4CAF50;"></i>
+                            <span class="reward-points-value">${{ reward.points_required }}</span>
+                        </span>
+                        {% else %}
+                        <span class="reward-points-badge">
+                            <i class="fas fa-award" style="color:#fbbf24;"></i>
+                            <span class="reward-points-value">{{ reward.points_required }}</span>
+                        </span>
+                        {% endif %}
                     </div>
-                    <div class="reward-details">
-                        <div class="reward-points" style="color: #4CAF50;">{{ reward.points_required }} points required</div> 
-                        <div class="reward-assigned">
+                </div>
+                {% else %}
+                <div class="reward-icon-container">
+                    <div class="reward-icon-large">
+                        {% if reward.title == "Millhouse Canteen" %}
+                            <i class="fas fa-utensils"></i>
+                        {% elif reward.title == "MiniGolf" %}
+                            <i class="fas fa-golf-ball"></i>
+                        {% elif reward.title == "1 hour of ipad" %}
+                            <i class="fas fa-tablet-alt"></i>
+                        {% elif reward.title == "1 hour of TV" %}
+                            <i class="fas fa-tv"></i>
+                        {% elif reward.title == "A Movie" %}
+                            <i class="fas fa-film"></i>
+                        {% elif reward.title == "Baking Something Yum" %}
+                            <i class="fas fa-birthday-cake"></i>
+                        {% else %}
+                            <i class="fas fa-gift"></i>
+                        {% endif %}
+                    </div>
+                    <span class="reward-points-badge">
+                        <i class="fas fa-award"></i>
+                        <span class="reward-points-value">{{ reward.points_required }}</span>
+                    </span>
+                </div>
+                {% endif %}
+                
+                <div class="reward-content">
+                    <h3 class="reward-title-modern">{{ reward.title }}</h3>
+                    <div class="reward-points-badge" style="display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">
+                        {% if reward_system == 'cash' %}
+                            <i class="fas fa-money-bill-wave" style="color:#4CAF50;"></i>
+                            <span class="reward-points-value">${{ reward.points_required }}</span>
+                        {% else %}
+                            <i class="fas fa-award" style="color:#fbbf24;"></i>
+                            <span class="reward-points-value">{{ reward.points_required }}</span>
+                        {% endif %}
+                    </div>
+                    {% if reward.description %}
+                    <p class="reward-description">{{ reward.description }}</p>
+                    {% endif %}
+                    <div class="reward-meta">
+                        <div class="reward-assignee">
                             <img src="{{ url_for('static', filename='uploads/' + (get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to).avatar else 'uploads/default_avatar.png')) }}" 
                                  alt="{{ reward.assigned_to }}" 
-                                 class="redeemer-avatar"
+                                 class="assignee-avatar"
                                  title="{{ reward.assigned_to }}">
+                            <span class="assignee-name">{{ reward.assigned_to }}</span>
                         </div>
                     </div>
-                    <div class="reward-actions">
-                        <button class="delete-reward-btn" 
-                                data-reward-id="{{ reward.id }}" 
-                                onclick="confirmDeleteReward({{ reward.id }})"
-                                aria-label="Delete reward">
+                    {# Progress Bar for Reward #}
+                    {% set person = get_person_by_name(reward.assigned_to) %}
+                    {% if person %}
+                        {% set current_points = person.points + person.bonus_points %}
+                        {% set percent = (current_points / reward.points_required * 100) if reward.points_required > 0 else 0 %}
+                        <div class="reward-progress-container">
+                            <div class="reward-progress-bar-bg">
+                                <div class="reward-progress-bar-fill" style="width: {{ percent if percent < 100 else 100 }}%;"></div>
+                            </div>
+                            <div class="reward-progress-label">
+                                {{ percent|round(1) if percent < 100 else 100 }}% to redeem ({{ current_points|round(2) }}/{{ reward.points_required|round(2) }})
+                            </div>
+                        </div>
+                    {% endif %}
+                    <div class="reward-actions-modern">
+                        <button class="btn-redeem" onclick="completeReward({{ reward.id }})" aria-label="Redeem reward">
+                            <i class="fas fa-check-circle"></i> Redeem
+                        </button>
+                        <button class="btn-delete" onclick="confirmDeleteReward({{ reward.id }})" aria-label="Delete reward">
                             <i class="fas fa-trash-alt"></i>
                         </button>
-                        <button class="complete-reward-btn" 
-                        type="button"
-                        onclick="completeReward({{ reward.id }})"
-                        aria-label="Complete reward">
-                        <i class="fas fa-check-circle"></i>
-                        </button>
                     </div>
+</style>
+<style>
+/* Reward Progress Bar Styles */
+.reward-progress-container {
+    margin: 10px 0 0 0;
+}
+.reward-progress-bar-bg {
+    width: 100%;
+    height: 14px;
+    background: #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+.reward-progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50 60%, #ffd700 100%);
+    border-radius: 8px 0 0 8px;
+    transition: width 0.5s cubic-bezier(.4,2,.6,1);
+}
+.reward-progress-label {
+    font-size: 0.98em;
+    color: #333;
+    text-align: right;
+    font-weight: 500;
+}
+[data-theme="dark"] .reward-progress-bar-bg {
+    background: #333;
+}
+[data-theme="dark"] .reward-progress-label {
+    color: #fff;
+}
+</style>
                 </div>
             </div>
             {% endif %}
@@ -613,14 +705,14 @@ function completeReward(rewardId) {
         return;
     }
     const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
-    const rewardTitle = rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : 'this reward';
-    const pointsMatch = rewardElem.querySelector('.reward-points').textContent.match(/(\d+)/);
-    const pointsRequired = pointsMatch ? parseInt(pointsMatch[1]) : 0;
+    const rewardTitle = rewardElem.querySelector('.reward-title-modern') ? rewardElem.querySelector('.reward-title-modern').textContent.trim() : 'this reward';
+    const pointsMatch = rewardElem.querySelector('.reward-points').textContent.match(/([\d.]+)/);
+    const pointsRequired = pointsMatch ? parseFloat(pointsMatch[1]) : 0;
     // Get person's current points from the points display in their column
     const personColumn = document.querySelector(`.column[data-person="${assignedTo}"]`);
     const pointsDisplay = personColumn ? personColumn.querySelector('.points-display') : null;
-    const currentPointsText = pointsDisplay ? pointsDisplay.textContent.replace(' points', '') : '0';
-    const currentPoints = parseInt(currentPointsText) || 0;
+    const currentPointsText = pointsDisplay ? pointsDisplay.textContent.replace(' points', '').replace('$', '') : '0';
+    const currentPoints = parseFloat(currentPointsText) || 0;
     if (currentPoints < pointsRequired) {
         showUnifiedModal({
             icon: '😢',
@@ -664,6 +756,16 @@ function doRedeemReward(rewardId) {
             const assignedTo = rewardElem ? rewardElem.getAttribute('data-assigned-to') : '';
             document.getElementById('reward-celebration-message').textContent = `${assignedTo} redeemed "${rewardTitle}"!`;
             const overlay = document.getElementById('reward-celebration-overlay');
+            // Update points display in the DOM if new_points is returned
+            if (data.new_points !== undefined && assignedTo) {
+                const personColumn = document.querySelector(`.column[data-person="${assignedTo}"]`);
+                if (personColumn) {
+                    const pointsValue = personColumn.querySelector('.chore-points-value');
+                    if (pointsValue) {
+                        pointsValue.textContent = data.new_points;
+                    }
+                }
+            }
             // Make sure overlay is on top and visible
             overlay.style.display = 'flex';
             overlay.style.opacity = '1';
@@ -679,13 +781,12 @@ function doRedeemReward(rewardId) {
             }, 100);
             // Prevent any default form or button event from reloading the page
             if (window.event) window.event.preventDefault && window.event.preventDefault();
-            // Hide overlay with fade out and reload after 4 seconds
+            // Hide overlay with fade out and remove overlay after 4 seconds (no reload)
             setTimeout(() => {
                 overlay.style.transition = 'opacity 0.5s';
                 overlay.style.opacity = '0';
                 setTimeout(() => {
                     overlay.style.display = 'none';
-                    window.location.reload();
                 }, 500);
             }, 4000);
         } else {
@@ -870,9 +971,10 @@ function deleteReward(rewardId) {
 
 
     <section>
-        <h2 style="text-align:center; color:#535453; margin-bottom: 18px; margin-top: 0; font-size:2em; letter-spacing:1px; display:flex; align-items:center; justify-content:center; gap:12px;">
-    Family Members Chores
-</h2>
+        <h2 style="text-align:center; color:#fff; margin-bottom: 18px; margin-top: 0; font-size:2em; letter-spacing:1px; display:flex; align-items:center; justify-content:center; gap:12px;">
+            <i class="fas fa-house-chimney" style="color: #ffffff; font-size:1.2em;"></i>
+            Family Members Chores
+        </h2>
 <div id="add-person-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
   <div style="background:#464646; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
     <h3>Add Family Member</h3>
@@ -893,123 +995,65 @@ function deleteReward(rewardId) {
                 <!-- Column header with centered name and edit icon -->
                 <div class="column-header" style="display:flex;align-items:center;justify-content:space-between;padding:5px 5px 5px 5px;">
                     <div style="display:flex;align-items:center;gap:8px;">
-                    <!-- Delete person button removed as per user request -->
-                    <!-- <button class="delete-person-btn" title="Delete Person" style="background:none;border:none;cursor:pointer;font-size:1.1em;color:#e53935;" onclick="confirmDeletePerson('{{ person.id }}', '{{ person.name }}')">
-                        <i class="fas fa-trash-alt"></i>
-                    </button> -->
                     </div>
-                    <h3 class="name" style="margin: 0; font-size: 1.5em; color: black;flex:1;text-align:center;">
+                    <h3 class="name" style="margin: 0; font-size: 2.2em; color: black;flex:1;text-align:center;">
                         <span class="person-name" data-person-id="{{ person.id }}">{{ person.name }}</span>
-                        <i class="fas fa-pencil-alt edit-name-icon" style="cursor: pointer; margin-left: 4ch; color: #2d2d2d;" 
+                        <i class="fas fa-pencil-alt edit-name-icon" style="cursor: pointer; margin-left: 1ch; color: #2d2d2d; font-size: .6em;" 
                            title="Edit Name" style= "color: #2d2d2d;""
                            onclick="openEditNameModal('{{ person.id }}', '{{ person.name }}')"></i>
                     </h3>
                     <div class="action-icons" style="margin-top: 5px;display:flex;align-items:center;gap:8px;">
                         <!-- Removed Reset Points button as per user request -->
-                        <!-- Color palette icon with hidden color picker -->
-                        <div class="color-picker-container" style="display: inline-block; margin-left: 10px;">
-                            <input type="color" id="color-picker-{{ person.id }}" class="color-input" onchange="changeKanbanColor(event, {{ person.id }})">
-                            <button class="color-picker-btn" onclick="document.getElementById('color-picker-{{ person.id }}').click()" title="Change Background Color">
-                                <i class="fas fa-palette" style="color: #333333;"></i>
-                            </button>
-                        </div>
                                             </div>
                 </div>
-                <div class="points-display" style="font-size: 1.5em; color: black;">{{ person.points + person.bonus_points }} points</div>
-                                <div class="avatar-container">
+                                <div class="points-display">
+                                    <span class="chore-points-badge" title="Total {{ 'cash' if reward_system == 'cash' else 'points' }} for {{ person.name }}">
+                                        {% set total_points = (person.points + person.bonus_points) %}
+                                        {% if reward_system == 'cash' %}
+                                            <i class="fas fa-money-bill-wave" style="color:#4CAF50; margin-right:4px;"></i>
+                                            <span class="chore-points-value">${{ '%.2f' % total_points }}</span>
+                                            <span style="color:#fff; font-size:1em; font-weight:500; margin-left:4px;">cash</span>
+                                        {% else %}
+                                            <i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i>
+                                            <span class="chore-points-value">{{ '%.2f' % total_points }}</span>
+                                            <span style="color:#fff; font-size:1em; font-weight:500; margin-left:4px;">{% if total_points == 1 %}point{% else %}points{% endif %}</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="avatar-container" style="margin-bottom: 0px; padding-bottom: 0px;">
                     <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'uploads/default_avatar.png') }}" alt="{{ person.name }}" class="avatar">
-                    <!-- Moved avatar upload form below avatar -->
-                    <form class="avatar-upload-form" onsubmit="uploadAvatar(event, {{ person.id }})">
-                        <input id="avatar-upload-{{ person.id }}" type="file" name="avatar" accept="image/*" style="display: none;" onchange="uploadAvatar(event, {{ person.id }})">
-                        <label for="avatar-upload-{{ person.id }}" class="custom-file-upload" title="Change Profile Picture">
-                            <i class="fa-solid fa-image"></i>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                        <form class="avatar-upload-form" onsubmit="uploadAvatar(event, {{ person.id }})" style="margin:0;">
+                            <input id="avatar-upload-{{ person.id }}" type="file" name="avatar" accept="image/*" style="display: none;" onchange="uploadAvatar(event, {{ person.id }})">
+                            <label for="avatar-upload-{{ person.id }}" class="custom-file-upload" title="Change Profile Picture" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;z-index:2;position:relative;">
+                                <i class="fa-solid fa-image"></i>
+                            </label>
+                        </form>
+                        <input type="color" id="color-picker-{{ person.id }}" class="color-input" value="{{ person.color or '#cccccc' }}" onchange="changeKanbanColor(event, {{ person.id }})" style="width:38px;height:38px;padding:0;border-radius:6px;border:1.5px solid #bbb;background:none;display:inline-block;vertical-align:middle;cursor:pointer;">
+                        <label for="color-picker-{{ person.id }}" class="color-picker-label" title="Change Kanban Color" style="margin-left:2px;cursor:pointer;z-index:1;position:relative;">
+                            <i class="fas fa-palette" style="color: #333333;"></i>
                         </label>
-                    </form>
+                    </div>
                 </div>
             <!-- Retrieve all chores for this person -->
             {% set person_chores = chores | selectattr("assigned_to_id", "equalto", person.id) | list %}
             {% set incomplete_chores = person_chores | rejectattr("completed") | list %}
             {% set completed_chores = person_chores | selectattr("completed") | list %}
             
-            <h4 class="chores-to-do-header" style="color: black;">Chores:</h4>
+            <h4 class="chores-to-do-header" style="color: black; font-size: 2em;">Chores:</h4>
             
             <!-- First, display pending (incomplete) chores at the top -->
             {% if incomplete_chores %}
                 <div class="chores-list incomplete-chores-list">
                     {% for chore in incomplete_chores %}
-                        <div class="chore" data-chore-id="{{ chore.id }}">
-                            {% if chore.is_daily %}
-                                <span class="daily-chore-indicator">
-                                    <i class="fas fa-sync" style="color: cyan;"></i>
-                                </span>
-                            {% endif %}
-                            {% if chore.title == "Clean Room" %}
-                                <i class="fas fa-bed"></i>
-                            {% elif chore.title == "Clean Desk" %}
-                                <i class="fas fa-table"></i>
-                            {% elif chore.title == "Pack Lunch" %}
-                                <i class="fas fa-box"></i>
-                            {% elif chore.title == "Clean Playroom" %}
-                                <i class="fas fa-gamepad"></i>
-                            {% elif chore.title == "Pack Water Bottle" %}
-                                <i class="fas fa-bottle"></i>
-                            {% elif chore.title == "Brush Teeth" %}
-                                <i class="fas fa-tooth"></i>
-                            {% elif chore.title == "Unstack Dishwasher" %}
-                                <i class="fas fa-sink"></i>
-                            {% elif chore.title == "Put Away Laundry" %}
-                                <i class="fas fa-basket-shopping"></i>
-                            {% elif chore.title == "Do a workout" %}
-                                <i class="fas fa-heart"></i>
-                            {% elif chore.title == "Take Sam For A Walk" %}
-                                <i class="fas fa-dog"></i>
-                            {% elif chore.title == "Reading" %}
-                                <i class="fas fa-book"></i>
-                            {% elif chore.title == "Sleep without meltdown" %}
-                                <i class="fas fa-face-smile"></i>
-                            {% else %}
-                                <i class="fas fa-tasks"></i>
-                            {% endif %}
-                            
-                            <span class="chore-title">
-                                {{ chore.title }} ({{ chore.points }} points)
-                            </span>
-                            
-                            <button onclick="completeChore({{ chore.id }})">Complete</button>
-                            
-                            <button class="delete-chore-btn" 
-                            onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})"
-                            aria-label="Delete chore">
-                            <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p style="color: black;">No Pending Chores</p>
-            {% endif %}
-            
-            <!-- Collapsible Completed Chores Section -->
-            {% if completed_chores %}
-                <div class="completed-chores-toggle-container" style="margin-top: 15px;">
-                    <button class="completed-chores-toggle-btn" 
-                            onclick="toggleCompletedChores(this)" 
-                            aria-label="Show/Hide Completed Chores"
-                            style="background: none; border: none; cursor: pointer; font-size: 1.1em; color: #333; display: flex; align-items: center;">
-                        <i class="fas fa-chevron-down" style="transition: transform 0.2s;"></i>
-                        <span style="margin-left: 6px;">Show Completed Chores ({{ completed_chores|length }})</span>
-                    </button>
-                    <div class="chores-list completed-chores-list" style="display: none;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h4 class="chores-completed-header" style="color: black; margin-top: 0;">Completed Chores:</h4>
-                            <button class="clear-all-completed-btn" style="background:#f44336; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:0.95em; cursor:pointer; margin-bottom:6px;" onclick="clearAllCompletedChores(this)"><i class='fas fa-trash'></i> Clear All</button>
-                        </div>
-                        <div class="clear-all-hint" style="font-size:0.95em;color:#888;margin-bottom:6px;">(Expand to see and clear all completed chores)</div>
-                        {% for chore in completed_chores %}
-                            <div class="chore completed" data-chore-id="{{ chore.id }}">
+                        <div class="chore{% if chore.due_datetime %} has-due-date{% endif %}" data-chore-id="{{ chore.id }}" style="margin:10px 10px 10px 10px;padding:16px 18px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                            <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
                                 {% if chore.is_daily %}
-                                    <span class="daily-chore-indicator">
-                                        <i class="fas fa-sync" style="color: cyan;"></i>
+                                    <span class="daily-chore-indicator"><i class="fas fa-sync" style="color:#2196f3;"></i></span>
+                                {% endif %}
+                                {% if chore.due_datetime %}
+                                    <span class="due-datetime-bubble" title="Due: {{ chore.due_datetime.strftime('%Y-%m-%d %H:%M') }}">
+                                        <i class="fas fa-clock"></i>
                                     </span>
                                 {% endif %}
                                 {% if chore.title == "Clean Room" %}
@@ -1039,21 +1083,114 @@ function deleteReward(rewardId) {
                                 {% else %}
                                     <i class="fas fa-tasks"></i>
                                 {% endif %}
-                                
-                                <span class="chore-title">
-                                    {{ chore.title }} ({{ chore.points }} points)
+                                <span class="chore-title">{{ chore.title }}</span>
+                                <span class="chore-points-badge" title="Points for this chore">
+                                    {% if reward_system == 'cash' %}
+                                        <i class="fas fa-money-bill-wave" style="color:#4CAF50; margin-right:4px;"></i>
+                                        <span class="chore-points-value">${{ chore.points }}</span>
+                                        <span style="display:block; width:100%; color:#888; font-size:0.60em; line-height:1; margin-top:2px; text-align:center;">cash</span>
+                                    {% else %}
+                                        <i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i>
+                                        <span class="chore-points-value">{{ chore.points }}</span>
+                                        <span style="display:block; width:100%; color:#888; font-size:0.60em; line-height:1; margin-top:2px; text-align:center;">{% if chore.points == 1 %}point{% else %}points{% endif %}</span>
+                                    {% endif %}
                                 </span>
-                                
-                                <span class="completion-status" title="Completed">✅</span>
-                                <div class="completion-date">
-                                    Completed: {{ chore.date_completed.strftime("%d %b %Y") if chore.date_completed else "Today" }}
+                                {% if chore.due_datetime %}
+                                    {% set due_date = chore.due_datetime.date() %}
+                                    {% set _current_date = current_date or (cycler.__self__.now().date() if cycler and cycler.__self__ and cycler.__self__.now else None) %}
+                                    {% set is_today = _current_date and due_date == _current_date %}
+                                    {% set is_tomorrow = _current_date and due_date == (_current_date + timedelta(days=1)) %}
+                                    <span class="chore-due-datetime" style="font-size: 0.85em; margin-left: 8px;">
+                                        Due
+                                        {% if is_today %}
+                                            Today
+                                        {% elif is_tomorrow %}
+                                            Tomorrow
+                                        {% else %}
+                                            {{ chore.due_datetime.strftime('%a, %b %d') }}
+                                        {% endif %}
+                                        at {{ chore.due_datetime.strftime('%-I:%M%p')|replace('AM','AM')|replace('PM','PM')|replace(':00','') }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <button class="button-success" onclick="completeChore({{ chore.id }})">Complete</button>
+                                <button class="delete-chore-btn" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p style="color: black;">No Pending Chores</p>
+            {% endif %}
+            
+            <!-- Collapsible Completed Chores Section -->
+            {% if completed_chores %}
+                <div class="completed-chores-toggle-container" style="margin-top: 15px;">
+                    <button class="completed-chores-toggle-btn" 
+                            onclick="toggleCompletedChores(this)" 
+                            aria-label="Show/Hide Completed Chores"
+                            style="background: none; border: none; cursor: pointer; font-size: 1.1em; color: #333; display: flex; align-items: center;">
+                        <i class="fas fa-chevron-down" style="transition: transform 0.2s;"></i>
+                        <span style="margin-left: 6px;">Show Completed Chores ({{ completed_chores|length }})</span>
+                    </button>
+                    <div class="chores-list completed-chores-list" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h4 class="chores-completed-header" style="color: black; margin-top: 0;">Completed Chores:</h4>
+                            <button class="clear-all-completed-btn" style="background:#f44336; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:0.95em; cursor:pointer; margin-bottom:6px;" onclick="clearAllCompletedChores(this)"><i class='fas fa-trash'></i> Clear All</button>
+                        </div>
+                        <div class="clear-all-hint" style="font-size:0.95em;color:#888;margin-bottom:6px;">(Expand to see and clear all completed chores)</div>
+                        {% for chore in completed_chores %}
+                            <div class="chore completed" data-chore-id="{{ chore.id }}" style="margin:10px 10px 10px 10px;padding:16px 18px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                                    {% if chore.is_daily %}
+                                        <span class="daily-chore-indicator"><i class="fas fa-sync" style="color:#2196f3;"></i></span>
+                                    {% endif %}
+                                    {% if chore.title == "Clean Room" %}
+                                        <i class="fas fa-bed"></i>
+                                    {% elif chore.title == "Clean Desk" %}
+                                        <i class="fas fa-table"></i>
+                                    {% elif chore.title == "Pack Lunch" %}
+                                        <i class="fas fa-box"></i>
+                                    {% elif chore.title == "Clean Playroom" %}
+                                        <i class="fas fa-gamepad"></i>
+                                    {% elif chore.title == "Pack Water Bottle" %}
+                                        <i class="fas fa-bottle"></i>
+                                    {% elif chore.title == "Brush Teeth" %}
+                                        <i class="fas fa-tooth"></i>
+                                    {% elif chore.title == "Unstack Dishwasher" %}
+                                        <i class="fas fa-sink"></i>
+                                    {% elif chore.title == "Put Away Laundry" %}
+                                        <i class="fas fa-basket-shopping"></i>
+                                    {% elif chore.title == "Do a workout" %}
+                                        <i class="fas fa-heart"></i>
+                                    {% elif chore.title == "Take Sam For A Walk" %}
+                                        <i class="fas fa-dog"></i>
+                                    {% elif chore.title == "Reading" %}
+                                        <i class="fas fa-book"></i>
+                                    {% elif chore.title == "Sleep without meltdown" %}
+                                        <i class="fas fa-face-smile"></i>
+                                    {% else %}
+                                        <i class="fas fa-tasks"></i>
+                                    {% endif %}
+                                    <span class="chore-title">{{ chore.title }}</span>
+                                    <span class="chore-points-badge" title="Points for this chore">
+                                        {% if reward_system == 'cash' %}
+                                            <i class="fas fa-money-bill-wave" style="color:#4CAF50; margin-right:4px;"></i>
+                                            <span class="chore-points-value">${{ chore.points }}</span>
+                                            <span style="display:block; width:100%; color:#888; font-size:0.60em; line-height:1; margin-top:2px; text-align:center;">cash</span>
+                                        {% else %}
+                                            <i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i>
+                                            <span class="chore-points-value">{{ chore.points }}</span>
+                                            <span style="display:block; width:100%; color:#888; font-size:0.60em; line-height:1; margin-top:2px; text-align:center;">{% if chore.points == 1 %}point{% else %}points{% endif %}</span>
+                                        {% endif %}
+                                    </span>
+                                    <span class="completion-status" title="Completed">✅</span>
+                                    <div class="completion-date">Completed: {{ chore.date_completed.strftime("%d %b %Y") if chore.date_completed else "Today" }}</div>
                                 </div>
-                                
-                                <button class="delete-chore-btn" 
-                                    onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})"
-                                    aria-label="Delete chore">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <button class="delete-chore-btn" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-trash-alt"></i></button>
+                                </div>
                             </div>
                         {% endfor %}
                     </div>
@@ -1062,7 +1199,7 @@ function deleteReward(rewardId) {
             
             <!-- Drag handle for Kanban column -->
             <div class="column-footer" style="text-align: center; padding: 5px; margin-top: auto; border-top: 1px solid #ccc; cursor: grab;">
-                <span class="drag-handle" title="Drag to reorder" style="font-size: 1.2em; color: #888;"><i class="fas fa-grip-lines"></i> Drag</span>
+                <span class="drag-handle" title="Drag to reorder" style="font-size: 1.2em; color: #000000; cursor: grab;" draggable="true"><i class="fas fa-grip-lines"></i> </span>
             </div>
         </div>
         {% endfor %}
@@ -1091,16 +1228,21 @@ function deleteReward(rewardId) {
         }
 
         kanban.querySelectorAll('.column').forEach(col => {
-            col.setAttribute('draggable', 'true');
-            col.addEventListener('dragstart', function(e) {
-                draggedCol = this;
-                e.dataTransfer.effectAllowed = 'move';
-                this.style.opacity = '0.5';
-            });
-            col.addEventListener('dragend', function() {
-                this.style.opacity = '';
-                draggedCol = null;
-            });
+            // Prevent column itself from being draggable
+            col.setAttribute('draggable', 'false');
+            // Find the drag handle inside the column
+            const dragHandle = col.querySelector('.drag-handle');
+            if (dragHandle) {
+                dragHandle.addEventListener('dragstart', function(e) {
+                    draggedCol = col;
+                    e.dataTransfer.effectAllowed = 'move';
+                    col.style.opacity = '0.5';
+                });
+                dragHandle.addEventListener('dragend', function() {
+                    col.style.opacity = '';
+                    draggedCol = null;
+                });
+            }
             col.addEventListener('dragover', function(e) {
                 e.preventDefault();
                 dragOverCol = this;
@@ -1126,8 +1268,9 @@ function deleteReward(rewardId) {
     </script>
 <section class="chores">
     <h2 style="text-align: center;"><i class="fas fa-tasks" style="color: rgb(225, 0, 255);"></i> Add Chores</h2>
-    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 15px;">
-        <div class="chore-suggestions" style="display: inline-flex; flex-wrap: wrap; gap: 5px;">
+    <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px;">
+        <h3 style="margin: 0 0 4px 0; color: #ffffff; font-size: 1.2em; font-weight: 700;">Suggested Chores</h3>
+    <div class="chore-suggestions" style="display: inline-flex; flex-wrap: wrap; gap: 5px;">
             <!-- Chore suggestions will be dynamically added here -->
         </div>
         <div style="display: inline-flex; gap: 5px; margin-left: auto;">
@@ -1137,20 +1280,151 @@ function deleteReward(rewardId) {
         </div>
     </div>
     <form id="add-chore-form" onsubmit="addChore(event)">
-        <input type="text" name="title" placeholder="Add a chore" required>
+    <label for="chore-title-input" style="font-weight:600; color:#f8f4f4; margin-bottom:4px; display:block;">Chore Title</label>
+    <input id="chore-title-input" type="text" name="title" placeholder="Give the Chore a title..." required>
         <div id="assigned-to-btn-group" style="margin: 8px 0;">
             {% for person in family %}
             <button type="button" class="assigned-to-btn" data-person="{{ person.name }}" style="margin-right:6px;padding:4px 14px;border-radius:5px;border:1px solid #4CAF50;background:#eee;color:#222;font-weight:600;cursor:pointer;">{{ person.name }}</button>
             {% endfor %}
         </div>
         <input type="hidden" name="assigned_to" id="assigned-to-hidden" required>
-        <input type="number" name="points" placeholder="Points (e.g., 1, 2, 3)" value="1" min="1" required>
-        <label class="form-group">
-            <input type="checkbox" name="is_daily" id="is_daily">
-            <span class="label-text">Daily chore?</span>
-        </label>
-        <button type="submit">Add Chore</button>
+    <label for="points-input" class="points-label" style="font-weight:600; margin-bottom:4px; display:block; color:#ffffff;">
+        {% if reward_system == 'cash' %}
+            <i class="fas fa-money-bill-wave" style="color:#388e3c;"></i> Cash
+        {% else %}
+            <i class="fas fa-certificate" style="color:#ffd700;"></i> Points
+        {% endif %}
+    </label>
+    <input id="points-input" type="number" name="points" placeholder="Points or cash (e.g., .3, .5, 1, 2, 3, 0.5)" value="1" min="0" step="0.01" required>
+    <style>
+    .points-label {
+        color: #222;
+    }
+    [data-theme="dark"] .points-label {
+        color: #fff;
+    }
+    </style>
+        <div class="form-group" style="display: flex; align-items: center; gap: 28px; margin-bottom: 8px;">
+            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 0; cursor: pointer; white-space: nowrap;">
+                <input type="checkbox" name="is_daily" id="is_daily" class="custom-checkbox">
+                <span class="label-text" style="color:#fff;" title="This chore will reappear daily until you permanently delete it">Daily Chore?</span>
+                <span class="daily-chore-indicator"><i class="fas fa-sync" style="color:#2196f3;"></i></span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 0; cursor: pointer; white-space: nowrap;">
+                <input type="checkbox" id="set-due-datetime-checkbox" name="set_due_datetime" class="custom-checkbox">
+                <span class="label-text" style="color:#fff;" title="Once the due date has passed, NO points will be awarded for completing the chore">Set due date &amp; time</span> <i class="fas fa-clock" style="color:#f32f21dd;"></i></span>
+            </label>
+        </div>
+    <input type="datetime-local" id="due-datetime-input" name="due_datetime" class="modern-datetime" style="display: none; margin-bottom: 8px;">
+
+    <button type="submit" class="add-chore-btn">Add Chore</button>
     </form>
+    
+    <style>
+    .add-chore-btn {
+        background: #4CAF50 !important;
+        color: #fff !important;
+        border: none;
+        padding: 10px 22px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1.1em;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .add-chore-btn:hover {
+        background: #388e3c !important;
+    }
+    .modern-datetime {
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: 2px solid #4CAF50;
+        background: linear-gradient(90deg, #23272f 60%, #3a3f4b 100%);
+        color: #fff;
+        font-size: 1.13em;
+        font-weight: 500;
+        box-shadow: 0 2px 8px rgba(76,175,80,0.08);
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        margin-top: 2px;
+    }
+    .modern-datetime:focus {
+        border-color: #ffd700;
+        box-shadow: 0 0 0 2px #ffd70044;
+        background: linear-gradient(90deg, #23272f 40%, #ffd70022 100%);
+    }
+    .modern-datetime::-webkit-calendar-picker-indicator {
+        filter: invert(1) brightness(1.5) sepia(1) hue-rotate(80deg) saturate(4);
+        cursor: pointer;
+    }
+    .modern-datetime::-webkit-input-placeholder { color: #bbb; }
+    .modern-datetime:-ms-input-placeholder { color: #bbb; }
+    .modern-datetime::placeholder { color: #bbb; }
+    [data-theme="dark"] .modern-datetime {
+        background: linear-gradient(90deg, #23272f 60%, #3a3f4b 100%);
+        color: #fff;
+        border-color: #ffd700;
+    }
+    .form-group {
+        flex-wrap: nowrap !important;
+    }
+    /* Custom Checkbox Styling */
+    .custom-checkbox {
+        width: 22px;
+        height: 22px;
+        accent-color: #4CAF50;
+        border-radius: 6px;
+        border: 2px solid #4CAF50;
+        margin-right: 4px;
+        vertical-align: middle;
+        transition: box-shadow 0.2s;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        appearance: none;
+        -webkit-appearance: none;
+        background: #fff;
+        position: relative;
+    }
+    .custom-checkbox:checked {
+        background: #4CAF50;
+        border-color: #4CAF50;
+    }
+    .custom-checkbox:checked:after {
+        content: '\2714';
+        color: #fff;
+        font-size: 1.1em;
+        position: absolute;
+        left: 3px;
+        top: 0px;
+    }
+    .custom-checkbox:focus {
+        outline: 2px solid #2196F3;
+        box-shadow: 0 0 0 2px #2196F3;
+    }
+    .label-text {
+        font-size: 1.13em;
+        color: #222;
+        font-weight: 500;
+    }
+    [data-theme="dark"] .label-text {
+        color: #fff;
+    }
+    </style>
+    <script>
+        document.getElementById('set-due-datetime-checkbox').addEventListener('change', function() {
+            const dueDatetimeInput = document.getElementById('due-datetime-input');
+            if (this.checked) {
+                dueDatetimeInput.style.display = 'block';
+                // Set minimum date/time to current date/time
+                const now = new Date();
+                const localISOTime = now.toISOString().slice(0,16);
+                dueDatetimeInput.min = localISOTime;
+                dueDatetimeInput.value = localISOTime;
+            } else {
+                dueDatetimeInput.style.display = 'none';
+                dueDatetimeInput.value = '';
+            }
+        });
+    </script>
     <script>
     // Initial chore suggestions
     const initialChoreSuggestions = [
@@ -1163,7 +1437,7 @@ function deleteReward(rewardId) {
         'Unstack Dishwasher',
         'Put Away Laundry',
         'Do a workout',
-        'Take Sam For A Walk',
+        'Take Dog For A Walk',
         'Reading',
         'Go to Sleep without meltdown'
     ];
@@ -1329,27 +1603,76 @@ function deleteReward(rewardId) {
     }
     </style>
 </section>
-<section class="add-rewards">
-    <h2 style="text-align: center;"><i class="fas fa-trophy" style="color: gold;"></i> Add Rewards</h2>
-    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 15px;">
-        <div class="reward-suggestions" style="display: inline-flex; flex-wrap: wrap; gap: 5px;">
+<section class="add-rewards-modern">
+    <h2 class="section-title">
+        <i class="fas fa-trophy" style="color: green;"></i> <span style="color: green;">+ Create New Reward</span>
+    </h2>
+        <div class="reward-suggestions-container">
+        <div class="reward-suggestions" id="reward-suggestions-container">
             <!-- Reward suggestions will be dynamically added here -->
         </div>
-        <div style="display: inline-flex; gap: 5px; margin-left: auto;">
-            <input type="text" id="new-reward-suggestion" placeholder="Add New reward Suggestion" style="padding: 5px; border-radius: 5px; border: 1px solid #ccc;">
-            <button type="button" onclick="addNewRewardSuggestion()" style="padding: 5px 10px; border-radius: 5px; background-color: #676665; color: white; border: none;">Add</button>
-            <button type="button" onclick="toggleRewardEditMode()" style="padding: 5px 10px; border-radius: 5px; background-color: #676665; color: white; border: none;">Edit Suggestions</button>
+        <div class="suggestion-controls">
+            <input type="text" id="new-reward-suggestion" placeholder="Add custom reward suggestion" class="modern-input">
+            <button type="button" onclick="addNewRewardSuggestion()" class="btn-secondary">
+                <i class="fas fa-plus"></i> Add
+            </button>
+            <button type="button" onclick="toggleRewardEditMode()" class="btn-secondary">
+                <i class="fas fa-edit"></i> Edit Suggestions
+            </button>
         </div>
     </div>
-    <form action="{{ url_for('routes.add_reward') }}" method="POST" id="add-reward-form">
-        <input type="text" name="title" placeholder="Reward title" required>
-        <input type="number" name="points_required" placeholder="Points required" required>
-        <select name="assigned_to" required>
-            {% for person in family %}
-            <option value="{{ person.name }}">{{ person.name }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit">Add Reward</button>
+
+    <form action="{{ url_for('routes.add_reward') }}" method="POST" id="add-reward-form" class="modern-form" enctype="multipart/form-data">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="reward-title">Reward Title *</label>
+                <input type="text" id="reward-title" name="title" placeholder="e.g., Trip to the Zoo" required class="modern-input">
+            </div>
+            
+            <div class="form-group">
+                <label for="reward-description">Description</label>
+                <textarea id="reward-description" name="description" placeholder="Describe this amazing reward..." rows="3" class="modern-textarea"></textarea>
+            </div>
+            
+
+            <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                <div style="flex:1;">
+                    <label for="reward-image">Reward Image URL</label>
+                    <input type="url" id="reward-image" name="image_url" placeholder="https://example.com/reward-image.jpg" class="modern-input">
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <input type="file" id="reward-image-upload" name="reward_image_file" accept="image/*" style="display: none;">
+                    <button type="button" onclick="document.getElementById('reward-image-upload').click();" class="btn-upload-reward-image" style="display: flex; align-items: center; gap: 8px; background: #676665; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 1em; font-weight: 500; cursor: pointer; margin-left: 8px;">
+                        <i class="fa-solid fa-upload" style="font-size: 1.1em;"></i>
+                        Upload Reward Image
+                    </button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                {% if reward_system == 'cash' %}
+                    <label for="reward-points"><i class="fas fa-money-bill-wave" style="color:#388e3c;"></i> Cash Required *</label>
+                    <input type="number" id="reward-points" name="points_required" placeholder="10.00" min="0.01" step="0.01" required class="modern-input">
+                {% else %}
+                    <label for="reward-points"><i class="fas fa-certificate" style="color:#ffd700;"></i> Points Required *</label>
+                    <input type="number" id="reward-points" name="points_required" placeholder="100" min="1" step="1" required class="modern-input">
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="reward-assignee">Assign To *</label>
+                <select id="reward-assignee" name="assigned_to" required class="modern-select">
+                    <option value="">Select person...</option>
+                    {% for person in family %}
+                    <option value="{{ person.name }}">{{ person.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn-primary">
+            <i class="fas fa-plus"></i> Create Reward
+        </button>
     </form>
     <script>
     // Initial reward suggestions
@@ -1492,50 +1815,77 @@ function deleteReward(rewardId) {
     <h2 style="text-align: center; color: #4CAF50;">
         <i class="fas fa-trophy" style="color: #4CAF50;"></i> Redeemed Rewards
     </h2>
+    {% set redeemed_rewards = rewards | selectattr('completed', 'equalto', True) | list %}
+    {% if redeemed_rewards | length == 0 %}
+    <p style="text-align: center; color: #c4c1c1; font-style: italic; margin-top: 10px;">
+        This is where you redeemed rewards will be when you redeem them
+    </p>
+    {% endif %}
     <div id="redeemed-rewards-container" class="completed-rewards-container">
         {% for reward in rewards %}
         {% if reward.completed %}
-        <div class="completed-reward-item" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward.assigned_to }}" data-assigned-to-id="{{ get_person_by_name(reward.assigned_to).id }}">
-            <div class="completed-reward-content">
-                <div class="reward-header">
-                    <div class="reward-icon">
-                        {% if reward.title == "Millhouse Canteen" %}
-                            <i class="fas fa-utensils"></i>
-                        {% elif reward.title == "MiniGolf" %}
-                            <i class="fas fa-golf-ball"></i>
-                        {% elif reward.title == "1 hour of ipad" %}
-                            <i class="fas fa-tablet-alt"></i>
-                        {% elif reward.title == "1 hour of TV" %}
-                            <i class="fas fa-tv"></i>
-                        {% elif reward.title == "A Movie" %}
-                            <i class="fas fa-film"></i>
-                        {% elif reward.title == "Baking Something Yum" %}
-                            <i class="fas fa-birthday-cake"></i>
-                        {% else %}
-                            <i class="fas fa-gift"></i>
-                        {% endif %}
-                    </div>
-                    <div class="reward-title">{{ reward.title }}</div>
+        <div class="reward-card" style="opacity:0.7; position:relative;" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward.assigned_to }}" data-assigned-to-id="{{ get_person_by_name(reward.assigned_to).id }}">
+            {% if reward.image_url %}
+            <div class="reward-image-container">
+                <img src="{{ reward.image_url }}" alt="{{ reward.title }}" class="reward-image">
+                <div class="reward-overlay">
+                    <span class="reward-points-badge">
+                        <i class="fas fa-award"></i>
+                        <span class="reward-points-value">{{ reward.points_required }}</span>
+                    </span>
                 </div>
-                <div class="reward-details">
-                    <div class="reward-points">({{ reward.points_required }} points required)</div>
-                    <div class="reward-redeemer">
-                        <img src="{{ url_for('static', filename='uploads/' + get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to).avatar else 'uploads/default_avatar.png') }}" 
+            </div>
+            {% else %}
+            <div class="reward-icon-container">
+                <div class="reward-icon-large">
+                    {% if reward.title == "Millhouse Canteen" %}
+                        <i class="fas fa-utensils"></i>
+                    {% elif reward.title == "MiniGolf" %}
+                        <i class="fas fa-golf-ball"></i>
+                    {% elif reward.title == "1 hour of ipad" %}
+                        <i class="fas fa-tablet-alt"></i>
+                    {% elif reward.title == "1 hour of TV" %}
+                        <i class="fas fa-tv"></i>
+                    {% elif reward.title == "A Movie" %}
+                        <i class="fas fa-film"></i>
+                    {% elif reward.title == "Baking Something Yum" %}
+                        <i class="fas fa-birthday-cake"></i>
+                    {% else %}
+                        <i class="fas fa-gift"></i>
+                    {% endif %}
+                </div>
+                <span class="reward-points-badge">
+                    <i class="fas fa-award"></i>
+                    <span class="reward-points-value">{{ reward.points_required }}</span>
+                </span>
+            </div>
+            {% endif %}
+            <div class="reward-content">
+                <h3 class="reward-title-modern">{{ reward.title }}</h3>
+                <div class="reward-points-badge" style="display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">
+                    <i class="fas fa-award" style="color:#fbbf24;"></i>
+                    <span class="reward-points-value">{{ reward.points_required }}</span>
+                    <span style="color:#888; font-size:0.95em; margin-left:2px;">points</span>
+                </div>
+                {% if reward.description %}
+                <p class="reward-description">{{ reward.description }}</p>
+                {% endif %}
+                <div class="reward-meta">
+                    <div class="reward-assignee">
+                        <img src="{{ url_for('static', filename='uploads/' + (get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to).avatar else 'uploads/default_avatar.png')) }}" 
                              alt="{{ reward.assigned_to }}" 
-                             class="redeemer-avatar"
+                             class="assignee-avatar"
                              title="{{ reward.assigned_to }}">
-                        <span class="completed-status">✅ Redeemed</span>
-                    </div>
-                    <div class="completion-date">
-                        Redeemed on: {{ reward.date_completed.strftime("%d %B %Y at %H:%M") }}
+                        <span class="assignee-name">{{ reward.assigned_to }}</span>
                     </div>
                 </div>
-                <button class="delete-reward-btn" 
-                        data-reward-id="{{ reward.id }}" 
-                        onclick="confirmDeleteReward({{ reward.id }})"
-                        aria-label="Delete reward">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
+                <div class="reward-actions-modern" style="margin-top:8px;">
+                    <span class="completed-status" style="color:#4CAF50;font-weight:600;"><i class="fas fa-check-circle"></i> Redeemed</span>
+                    <span class="completion-date" style="color:#888; font-size:0.95em; margin-left:10px;">Redeemed on: {{ reward.date_completed.strftime("%d %B %Y at %H:%M") }}</span>
+                    <button class="btn-delete" onclick="confirmDeleteReward({{ reward.id }})" aria-label="Delete reward" style="float:right; margin-left:auto;">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
             </div>
         </div>
         {% endif %}
@@ -1649,14 +1999,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Dummy data for demonstration
     // Replace with real calculation if available
     const weeklyPoints = {
-        {% for person in family %}
-        '{{ person.name }}': 0,
-        {% endfor %}
+    {%- for person in family -%}
+    '{{ person.name }}': 0{% if not loop.last %},{% endif %}
+    {%- endfor -%}
     };
     const averagePoints = {
-        {% for person in family %}
-        '{{ person.name }}': 0,
-        {% endfor %}
+    {%- for person in family -%}
+    '{{ person.name }}': 0{% if not loop.last %},{% endif %}
+    {%- endfor -%}
     };
     // Fill in the values
     for (const name in weeklyPoints) {
@@ -1689,9 +2039,8 @@ document.addEventListener('DOMContentLoaded', function() {
 // Global audio variables
 let celebrationSoundEnabled = true;
 let celebrationAudio; // Declare globally
-
-// --- GLOBAL MUTE BUTTON LOGIC ---
 let globalMute = localStorage.getItem('globalMute') === 'true';
+
 function updateMuteIcon() {
     const icon = document.getElementById('mute-icon');
     if (globalMute) {
@@ -1700,37 +2049,31 @@ function updateMuteIcon() {
         icon.className = 'fas fa-volume-up';
     }
 }
-
-
-
-
-
+    // Mute button logic
+    updateMuteIcon();
+    const muteToggle = document.getElementById('mute-toggle');
+    muteToggle.addEventListener('click', function() {
+        globalMute = !globalMute;
+        localStorage.setItem('globalMute', globalMute);
+        updateMuteIcon();
+    });
 document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize audio first
     initializeAudio();
-    
+
     // Check authentication and set visibility accordingly
+
+    const pinOverlay = document.getElementById('pin-overlay');
+    const siteContent = document.getElementById('site-content');
     if (localStorage.getItem('isAuthenticated') === 'true') {
-        const pinOverlay = document.getElementById('pin-overlay');
-        const siteContent = document.getElementById('site-content');
-        if (pinOverlay) {
-            pinOverlay.style.display = 'none';
-        }
-        if (siteContent) {
-            siteContent.style.display = 'block';
-        }
+        if (pinOverlay) pinOverlay.style.setProperty('display', 'none', 'important');
+        if (siteContent) siteContent.style.setProperty('display', 'block', 'important');
     } else {
-        const pinOverlay = document.getElementById('pin-overlay');
-        const siteContent = document.getElementById('site-content');
-        if (pinOverlay) {
-            pinOverlay.style.display = 'flex';
-        }
-        if (siteContent) {
-            siteContent.style.display = 'none';
-        }
+        if (pinOverlay) pinOverlay.style.setProperty('display', 'flex', 'important');
+        if (siteContent) siteContent.style.setProperty('display', 'none', 'important');
     }
-    
+
     // Initialize column colors
     const columns = document.querySelectorAll('.column');
     columns.forEach(column => {
@@ -1827,20 +2170,20 @@ function completeChore(choreId) {
             // Sparkle animation and achievement sound
             const choreElem = document.querySelector(`.chore[data-chore-id="${choreId}"]`);
             if (choreElem) {
-                // Update points immediately in the UI
+                // Update points immediately in the UI using backend value if available
                 const column = choreElem.closest('.column');
                 const pointsDisplay = column.querySelector('.points-display');
-                if (pointsDisplay) {
-                    // Add the points for this chore
-                    const pointsMatch = choreElem.textContent.match(/\((\d+) points\)/);
-                    const points = pointsMatch ? parseInt(pointsMatch[1]) : 0;
-                    const currentPointsText = pointsDisplay.textContent.replace(' points', '');
-                    const currentPoints = parseInt(currentPointsText) || 0;
-                    pointsDisplay.textContent = (currentPoints + points) + " points";
+                if (pointsDisplay && data.new_points !== undefined) {
+                    const pointsValue = pointsDisplay.querySelector('.chore-points-value');
+                    if (pointsValue) {
+                        pointsValue.textContent = data.new_points;
+                    }
                 }
                 triggerSparkleAnimation(choreElem);
                 playAchievementSound();
             }
+            // Show toast notification
+            if (window.showToast) showToast('Chore completed!', 'success');
             // Remove the completed chore from the DOM after animation
             setTimeout(() => {
                 if (choreElem) {
@@ -1855,6 +2198,12 @@ function completeChore(choreId) {
                     // Check if there are any incomplete chores left
                     const incompleteChores = column.querySelectorAll('.incomplete-chores-list .chore');
                     if (incompleteChores.length === 0) {
+                        // Show celebration overlay immediately when last chore completed
+                        document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+                        document.getElementById('celebration-avatar').src = avatarUrl;
+                        document.getElementById('celebration-overlay').style.display = 'flex';
+                        playCelebrationSound();
+                        // Then show bonus animation and awarding
                         showCelebrationWithBonus(personName, avatarUrl, personId);
                     }
                 }
@@ -1862,6 +2211,7 @@ function completeChore(choreId) {
         }
     })
     .catch(error => {
+        if (window.showToast) showToast('Error completing chore', 'error');
         console.error('Error completing chore:', error);
     });
 }
@@ -1898,6 +2248,7 @@ function triggerSparkleAnimation(targetElem) {
 }
 
 function playAchievementSound() {
+    if (globalMute) return;
     try {
         fetch('/api/sounds')
             .then(response => response.json())
@@ -1922,7 +2273,15 @@ function playAchievementSound() {
     }
 }
 
+let bonusAwardingInProgress = false;
+
 function showCelebrationWithBonus(personName, avatarUrl, personId) {
+    if (bonusAwardingInProgress) {
+        console.log('Bonus awarding already in progress, ignoring duplicate call.');
+        return;
+    }
+    bonusAwardingInProgress = true;
+
     console.log('Starting celebration with bonus for:', personName, 'ID:', personId);
     
     // Fetch bonus settings from backend
@@ -1934,10 +2293,8 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
         const bonusMin = parseInt(settings.bonus_min) || 2;
         const bonusMax = parseInt(settings.bonus_max) || 8;
 
-        document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
-        document.getElementById('celebration-avatar').src = avatarUrl;
-        document.getElementById('celebration-overlay').style.display = 'flex';
-        playCelebrationSound(); // Play the kids cheering sound
+        // Delay showing celebration overlay until after bonus awarding check
+        // Do not show overlay here
 
         // Show slot machine container
         const slotContainer = document.getElementById('slot-machine-container');
@@ -1947,11 +2304,16 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
         
         if (!slotContainer || !slotDisplay || !slotResult || !awesomeButton) {
             console.error('Slot machine elements or Awesome button not found!');
+            bonusAwardingInProgress = false;
             return;
         }
         
         slotContainer.style.display = 'block';
-        slotDisplay.textContent = '?';
+        if (bonusMode === 'static') {
+            slotDisplay.textContent = bonusStatic;
+        } else {
+            slotDisplay.textContent = '?';
+        }
         slotResult.style.display = 'none';
         slotResult.textContent = '';
 
@@ -1963,116 +2325,190 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
         if (bonusMode === 'static') {
             animationMin = bonusStatic;
             animationMax = bonusStatic;
-            // Enable the Awesome button immediately for static mode
-            awesomeButton.disabled = false;
+            // Disable the Awesome button during static bonus awarding
+            awesomeButton.disabled = true;
+
+            // Award the static bonus points via backend immediately
+            fetch('/award_bonus_points', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    person_id: parseInt(personId, 10), 
+                    bonus_points: bonusStatic 
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Backend response for static bonus:', data);
+                if (data.success) {
+                    // Show celebration overlay only if bonus awarded
+                    document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+                    document.getElementById('celebration-avatar').src = avatarUrl;
+                    document.getElementById('celebration-overlay').style.display = 'flex';
+                    playCelebrationSound(); // Play the kids cheering sound
+                    // Update points display in the UI
+                    const column = document.querySelector(`.column[data-person="${personName}"]`);
+                    if (column) {
+                        const pointsDisplay = column.querySelector('.points-display');
+                        if (pointsDisplay) {
+                            const currentPointsText = pointsDisplay.textContent.replace(' points', '');
+                            const currentPoints = parseInt(currentPointsText) || 0;
+                            pointsDisplay.textContent = (currentPoints + bonusStatic) + " points";
+                            console.log('Updated points display for static bonus:', currentPoints + bonusStatic);
+                        }
+                    }
+                } else if (data.message && data.message.includes('already awarded today')) {
+                    // Suppress bonus points screen and alert, just close celebration
+                    closeCelebration();
+                } else {
+                    alert("Failed to award static bonus points: " + data.message);
+                    console.error("Failed to award static bonus points:", data.message);
+                }
+            })
+            .catch(err => {
+                alert("Error awarding static bonus points: " + err);
+                console.error("Error awarding static bonus points:", err);
+            })
+            .finally(() => {
+                // Enable the Awesome button after awarding completes
+                awesomeButton.disabled = false;
+                bonusAwardingInProgress = false;
+            });
         } else if (bonusMode === 'range') {
             animationMin = bonusMin;
             animationMax = bonusMax;
             // Disable the Awesome button during animation
             awesomeButton.disabled = true;
-        }
 
-        // Slot machine animation for 5 seconds with sound
-        let elapsed = 0;
-        const duration = 5000;
-        const intervalTime = 100;
-        
-        let slotInterval = setInterval(() => {
-            // Random number between animationMin and animationMax
-            const randomNum = Math.floor(Math.random() * (animationMax - animationMin + 1)) + animationMin;
-            slotDisplay.textContent = randomNum;
+            // Award bonus points via backend after animation
+            let elapsed = 0;
+            const duration = 5000;
+            const intervalTime = 100;
             
-            // Play slot machine sound every few intervals
-            if (elapsed % 300 === 0) { // Play sound every 300ms
-                playSlotMachineSound();
-            }
-            
-            elapsed += intervalTime;
-            
-            if (elapsed >= duration) {
-                clearInterval(slotInterval);
+            let slotInterval = setInterval(() => {
+                // Random number between animationMin and animationMax
+                const randomNum = Math.floor(Math.random() * (animationMax - animationMin + 1)) + animationMin;
+                slotDisplay.textContent = randomNum;
                 
-                // Final bonus points consistent with settings
-                let bonusPoints = 0;
-                if (bonusMode === 'static') {
-                    bonusPoints = bonusStatic;
-                } else if (bonusMode === 'range') {
-                    bonusPoints = Math.floor(Math.random() * (bonusMax - bonusMin + 1)) + bonusMin;
-                } else {
-                    bonusPoints = bonusStatic; // fallback
+                // Play slot machine sound every few intervals
+                if (elapsed % 300 === 0) { // Play sound every 300ms
+                    playSlotMachineSound();
                 }
-                slotDisplay.textContent = bonusPoints;
-                slotResult.textContent = `You earned ${bonusPoints} bonus points!`;
-                slotResult.style.display = 'block';
+                
+                elapsed += intervalTime;
+                
+                if (elapsed >= duration) {
+                    clearInterval(slotInterval);
+                    
+                    // Final bonus points consistent with settings
+                    let bonusPoints = Math.floor(Math.random() * (animationMax - animationMin + 1)) + animationMin;
+                    slotDisplay.textContent = bonusPoints;
+                    slotResult.textContent = `You earned ${bonusPoints} bonus points!`;
+                    slotResult.style.display = 'block';
 
-                // Enable the Awesome button after animation completes
-                awesomeButton.disabled = false;
+                    // Enable the Awesome button after animation completes
+                    awesomeButton.disabled = false;
 
-                // Play a final "win" sound
-                setTimeout(() => {
-                    try {
-                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                        const oscillator = audioContext.createOscillator();
-                        const gainNode = audioContext.createGain();
-                        
-                        oscillator.connect(gainNode);
-                        gainNode.connect(audioContext.destination);
-                        
-                        // Play a victory chord
-                        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
-                        oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.2); // E5
-                        oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.4); // G5
-                        
-                        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
-                        
-                        oscillator.start(audioContext.currentTime);
-                        oscillator.stop(audioContext.currentTime + 0.8);
-                    } catch (error) {
-                        console.log('Victory sound not supported');
-                    }
-                }, 200);
-
-                console.log('Awarding bonus points:', bonusPoints, 'to person ID:', personId);
-
-                // Award the bonus points via backend
-                fetch('/award_bonus_points', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        person_id: parseInt(personId, 10), 
-                        bonus_points: bonusPoints 
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Backend response:', data);
-                    // Always update points display in the UI, regardless of backend response
-                    const column = document.querySelector(`.column[data-person="${personName}"]`);
-                    if (column) {
-                        const pointsDisplay = column.querySelector('.points-display');
-                        if (pointsDisplay) {
-                            // Add bonus to the current points in the DOM (ensures all completed chores are included)
-                            const currentPointsText = pointsDisplay.textContent.replace(' points', '');
-                            const currentPoints = parseInt(currentPointsText) || 0;
-                            pointsDisplay.textContent = (currentPoints + bonusPoints) + " points";
-                            console.log('Updated points display:', currentPoints + bonusPoints);
+                    // Play a final "win" sound
+                    setTimeout(() => {
+                        try {
+                            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                            const oscillator = audioContext.createOscillator();
+                            const gainNode = audioContext.createGain();
+                            
+                            oscillator.connect(gainNode);
+                            gainNode.connect(audioContext.destination);
+                            
+                            // Play a victory chord
+                            oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+                            oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.2); // E5
+                            oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.4); // G5
+                            
+                            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+                            
+                            oscillator.start(audioContext.currentTime);
+                            oscillator.stop(audioContext.currentTime + 0.8);
+                        } catch (error) {
+                            console.log('Victory sound not supported');
                         }
-                    }
-                    if (!data.success) {
-                        console.error("Failed to award bonus points:", data.message);
-                    }
-                })
-                .catch(err => {
-                    console.error("Error awarding bonus points:", err);
-                });
-            }
-        }, intervalTime);
+                    }, 200);
+
+                    console.log('Awarding bonus points:', bonusPoints, 'to person ID:', personId);
+
+                    // Award the bonus points via backend
+                    fetch('/award_bonus_points', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            person_id: parseInt(personId, 10), 
+                            bonus_points: bonusPoints 
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Backend response:', data);
+                        if (data.success) {
+                            // Show celebration overlay only if bonus awarded
+                            document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+                            document.getElementById('celebration-avatar').src = avatarUrl;
+                            document.getElementById('celebration-overlay').style.display = 'flex';
+                            playCelebrationSound(); // Play the kids cheering sound
+                        } else if (data.message && data.message.includes('already awarded today')) {
+                            // Suppress bonus points screen and alert, just close celebration
+                            closeCelebration();
+                        } else {
+                            alert("Failed to award bonus points: " + data.message);
+                            console.error("Failed to award bonus points:", data.message);
+                        }
+                        // Update points display in the UI
+                        const column = document.querySelector(`.column[data-person="${personName}"]`);
+                        if (column) {
+                            const pointsDisplay = column.querySelector('.points-display');
+                            if (pointsDisplay) {
+                                const currentPointsText = pointsDisplay.textContent.replace(' points', '');
+                                const currentPoints = parseInt(currentPointsText) || 0;
+                                pointsDisplay.textContent = (currentPoints + bonusPoints) + " points";
+                                console.log('Updated points display:', currentPoints + bonusPoints);
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        alert("Error awarding bonus points: " + err);
+                        console.error("Error awarding bonus points:", err);
+                    })
+                    .finally(() => {
+                        bonusAwardingInProgress = false;
+                    });
+                }
+            }, intervalTime);
+        } else {
+            // Unknown bonus mode, fallback to static bonus awarding
+            console.warn('Unknown bonus mode:', bonusMode);
+            // Show celebration overlay immediately
+            document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+            document.getElementById('celebration-avatar').src = avatarUrl;
+            document.getElementById('celebration-overlay').style.display = 'flex';
+            playCelebrationSound();
+            bonusAwardingInProgress = false;
+        }
     })
     .catch(error => {
         console.error('Error fetching bonus settings:', error);
         // Fallback to original behavior with random bonus points 2-8
         showCelebrationWithBonusFallback(personName, avatarUrl, personId);
+        bonusAwardingInProgress = false;
+    });
+}
+
+const awesomeButton = document.querySelector('.celebration-close');
+if (awesomeButton) {
+    awesomeButton.addEventListener('click', () => {
+        if (bonusAwardingInProgress) {
+            console.log('Awesome button clicked but bonus awarding is still in progress. Ignoring click.');
+            return;
+        }
+        closeCelebration();
     });
 }
 
@@ -2112,29 +2548,29 @@ function closeCelebration() {
 
 // Audio functions
 function playCelebrationSound() {
-    if (celebrationSoundEnabled) {
-        try {
-            if (celebrationAudio) {
-                celebrationAudio.currentTime = 0; // Reset to beginning
-                celebrationAudio.play().then(() => {
-                    console.log('Kids cheering sound played successfully');
-                }).catch(error => {
-                    console.log('Audio play failed:', error);
-                    // Fallback to Web Audio API if external audio fails
-                    playFallbackCelebrationSound();
-                });
-            } else {
-                console.log('celebrationAudio not initialized, using fallback');
+    if (globalMute || !celebrationSoundEnabled) return;
+    try {
+        if (celebrationAudio) {
+            celebrationAudio.currentTime = 0; // Reset to beginning
+            celebrationAudio.play().then(() => {
+                console.log('Kids cheering sound played successfully');
+            }).catch(error => {
+                console.log('Audio play failed:', error);
+                // Fallback to Web Audio API if external audio fails
                 playFallbackCelebrationSound();
-            }
-        } catch (error) {
-            console.log('Audio not supported or blocked:', error);
+            });
+        } else {
+            console.log('celebrationAudio not initialized, using fallback');
             playFallbackCelebrationSound();
         }
+    } catch (error) {
+        console.log('Audio not supported or blocked:', error);
+        playFallbackCelebrationSound();
     }
 }
 
 function playFallbackCelebrationSound() {
+    if (globalMute) return;
     try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
@@ -2158,25 +2594,24 @@ function playFallbackCelebrationSound() {
 }
 
 function playSlotMachineSound() {
-    if (celebrationSoundEnabled) {
-        try {
-            // Create a quick beep sound for slot machine
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // High beep
-            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.1);
-        } catch (error) {
-            console.log('Slot audio not supported or blocked');
-        }
+    if (globalMute || !celebrationSoundEnabled) return;
+    try {
+        // Create a quick beep sound for slot machine
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // High beep
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1);
+    } catch (error) {
+        console.log('Slot audio not supported or blocked');
     }
 }
 
@@ -2683,7 +3118,8 @@ function deleteChore(choreId, permanent) {
             data = { success: false, message: 'Invalid server response' };
         }
         if (data.success) {
-            window.location.reload();
+            if (window.showToast) showToast('Chore deleted!', 'success');
+            setTimeout(() => window.location.reload(), 900);
         } else {
             showUnifiedModal({
                 icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
@@ -2692,9 +3128,11 @@ function deleteChore(choreId, permanent) {
                     {text: 'OK', color: '#888', onClick: null}
                 ]
             });
+            if (window.showToast) showToast(data.message || 'Failed to delete chore', 'error');
         }
     })
     .catch(error => {
+        if (window.showToast) showToast('Error deleting chore', 'error');
         showUnifiedModal({
             icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
             message: 'Error deleting chore: ' + error,
@@ -2746,8 +3184,9 @@ function completeReward(rewardId) {
         return;
     }
     const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
-    const rewardTitle = rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : 'this reward';
-    const pointsMatch = rewardElem.querySelector('.reward-points').textContent.match(/(\d+)/);
+    const rewardTitle = rewardElem.querySelector('.reward-title-modern') ? rewardElem.querySelector('.reward-title-modern').textContent.trim() : 'this reward';
+    const pointsElem = rewardElem.querySelector('.reward-points-value');
+    const pointsMatch = pointsElem ? pointsElem.textContent.match(/(\d+)/) : null;
     const pointsRequired = pointsMatch ? parseInt(pointsMatch[1]) : 0;
     // Get person's current points from the points display in their column
     const personColumn = document.querySelector(`.column[data-person="${assignedTo}"]`);
