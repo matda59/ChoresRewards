@@ -1,21 +1,417 @@
+/* Notification bubble for due date clock icon on chores */
+.due-datetime-bubble {
+    position: relative;
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+.due-datetime-bubble i.fas.fa-clock {
+    color: #fff;
+    background: #ff3b3b;
+    border-radius: 50%;
+    font-size: 1em;
+    width: 1.6em;
+    height: 1.6em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(0,0,0,0.12);
+    border: 2px solid #fff;
+    position: relative;
+    z-index: 2;
+    animation: due-bounce 1.2s infinite cubic-bezier(.4,2,.6,1);
+}
+@keyframes due-bounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.18); }
+}
+/* Amber highlight for chores with a due date */
+.chore.has-due-date {
+    background: rgba(74, 0, 0, 0.674);
+    border: 2px solid rgb(7, 5, 0);
+    box-shadow: 0 2px 12px rgba(225, 176, 41, 0.10);
+}
+/* Responsive styles for tablet and desktop modes */
+@media (max-width: 1024px) and (min-width: 600px) {
+    /* Tablet mode */
+    .chore {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    .chore > div:last-child {
+        justify-content: flex-end;
+        gap: 10px;
+    }
+    button {
+        font-size: 1em;
+        padding: 10px 18px;
+    }
+}
+
+@media (min-width: 1025px) {
+    /* Desktop mode */
+    .chore {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+    }
+    .chore > div:last-child {
+        justify-content: flex-end;
+        gap: 8px;
+    }
+    button {
+        font-size: 1.1em;
+        padding: 12px 28px;
+    }
+}
+/* Sleek reward badge for points (matches action icon style) */
+.chore-points-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #23272f;
+    border-radius: 999px;
+    padding: 6px 14px 6px 10px;
+    font-weight: 700;
+    font-size: 1em;
+    color: #fbbf24;
+    box-shadow: 0 2px 8px rgba(251, 191, 36, 0.08);
+    margin-left: 8px;
+    margin-right: 0;
+    border: 2px solid #fbbf24;
+    min-width: 44px;
+    min-height: 36px;
+    gap: 4px;
+}
+.chore-points-badge i {
+    font-size: 1.1em;
+    color: #fbbf24;
+    margin-right: 4px;
+}
+.chore-points-value {
+    color: #fff;
+    font-size: 1.1em;
+    font-weight: 700;
+    margin-left: 2px;
+}
 /* Import Lato font from Google Fonts */
-@import url('https://fonts.googleapis.com/css?family=Lato:400,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+/* Enhanced Rewards Section Styles */
+.rewards-section {
+    padding: 2rem;
+    margin: 2rem;
+    background: var(--section-background);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+
+.section-title {
+    text-align: center;
+    font-size: 2.5em;
+    color: var(--text-color);
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: rgba(var(--text-color), 0.6);
+}
+
+.empty-state p {
+    font-size: 1.2em;
+    margin: 0.5rem 0;
+}
+
+.empty-state .subtitle {
+    font-size: 1em;
+    opacity: 0.7;
+}
+
+.rewards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.reward-card {
+    background: var(--background-color);
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(var(--text-color), 0.1);
+}
+
+.reward-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.reward-image-container {
+    position: relative;
+    height: 200px;
+    overflow: hidden;
+}
+
+.reward-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.reward-overlay {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+}
+
+.reward-points-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #23272f;
+    border-radius: 999px;
+    padding: 6px 14px 6px 10px;
+    font-weight: 700;
+    font-size: 1em;
+    color: #fbbf24;
+    box-shadow: 0 2px 8px rgba(251, 191, 36, 0.08);
+    margin-left: 8px;
+    margin-right: 0;
+    border: 2px solid #fbbf24;
+    min-width: 44px;
+    min-height: 36px;
+    gap: 4px;
+}
+
+.reward-icon-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.reward-icon-large {
+    font-size: 3em;
+    margin-bottom: 1rem;
+}
+
+.reward-content {
+    padding: 1.5rem;
+}
+
+.reward-title-modern {
+    font-size: 1.5em;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.reward-description {
+    color: rgba(var(--text-color), 0.8);
+    line-height: 1.5;
+    margin-bottom: 1rem;
+}
+
+.reward-meta {
+    margin-bottom: 1.5rem;
+}
+
+.reward-assignee {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.assignee-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--text-color);
+}
+
+.assignee-name {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.reward-actions-modern {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.btn-redeem, .btn-delete {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-redeem {
+    background: var(--button-success);
+    color: white;
+}
+
+.btn-redeem:hover {
+    background: var(--button-success-hover);
+    transform: scale(1.05);
+}
+
+.btn-delete {
+    background: var(--button-danger);
+    color: white;
+    padding: 0.75rem;
+}
+
+.btn-delete:hover {
+    background: var(--button-danger-hover);
+    transform: scale(1.05);
+}
+
+/* Modern Form Styles */
+.add-rewards-modern {
+    padding: 2rem;
+    margin: 2rem;
+    background: var(--section-background);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.modern-input, .modern-textarea, .modern-select {
+    padding: 1rem;
+    border: 1px solid rgba(var(--text-color), 0.2);
+    border-radius: var(--border-radius);
+    background: var(--background-color);
+    color: var(--text-color);
+    font-size: 1em;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.modern-input:focus, .modern-textarea:focus, .modern-select:focus {
+    outline: none;
+    border-color: var(--button-background);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.modern-textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.btn-primary {
+    background: var(--button-background);
+    color: white;
+    padding: 1rem 2rem;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-primary:hover {
+    background: var(--button-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.btn-secondary {
+    background: rgba(var(--text-color), 0.1);
+    color: var(--text-color);
+    padding: 0.75rem 1.5rem;
+    border: 1px solid rgba(var(--text-color), 0.2);
+    border-radius: var(--border-radius);
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: rgba(var(--text-color), 0.2);
+}
+
+.reward-suggestions-container {
+    margin-bottom: 2rem;
+}
+
+.suggestion-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .rewards-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .suggestion-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
 
 :root {
-    /* Base Colors */
-    --background-color: #ffffff;
-    --text-color: #000000;
-    --header-background: #000000;
-    --header-text: #4a4a4a;
-    --section-background: #f4f4f4;
-    --button-background: #4CAF50;
-    --button-hover: #45a049;
-    --border-radius: 8px;
-    --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    --spacing-unit: 10px;
-    --pencil-icon-color: #000; /* Default pencil icon color */
-    --rewards-icon-color: #4CAF50; /* Rewards icon color */
-    --font-family: 'Lato', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Use Lato everywhere */
+    --background-color: #0f172a;
+    --text-color: #f1f5f9;
+    --header-background: #111827;
+    --header-text: #f1f5f9;
+    --section-background: #1e293b;
+    --button-background: #6366f1;
+    --button-hover: #4f46e5;
+    --button-danger: #ef4444;
+    --button-danger-hover: #b91c1c;
+    --button-success: #10b981;
+    --button-success-hover: #059669;
+    --border-radius: 14px;
+    --box-shadow: 0 4px 24px rgba(30, 41, 59, 0.12);
+    --spacing-unit: 14px;
+    --pencil-icon-color: #6366f1;
+    --rewards-icon-color: #10b981;
+    --font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* Dark Mode Overrides using CSS variables */
@@ -36,9 +432,10 @@ body {
     font-family: var(--font-family);
     margin: 0;
     padding: 0;
-    background-color: var(--background-color);
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     color: var(--text-color);
-    line-height: 1.6;
+    line-height: 1.7;
+    min-height: 100vh;
 }
 
 /* Ensure all headings and text use Lato */
@@ -251,7 +648,14 @@ h3 {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     color: var(--text-color);
     transition: transform 0.2s ease;
-    position: relative; /* Added for absolute positioning of points circle */
+    position: relative; /* For points circle */
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    min-width: 0;
 }
 
 .chore:hover {
@@ -261,57 +665,90 @@ h3 {
 
 /* Updated style for points circle to look like iPhone notification badge with purple color */
 .chore-points-circle {
-  position: absolute;
-  top: -16px;
-  right: -16px;
-  background-color: #c375df; /* Purple color - note: this hex code is actually a shade of olive-green, not purple. A purple hex code would be something like #800080 or #A020F0. */
-  color: white;
-  width: 60px; /* Use 'width' instead of 'min-width' */
-  height: 60px;
-  padding: 0; /* Remove padding to keep the circle tight around the content */
-  border-radius: 50%; /* Use 50% for a perfect circle */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 1.2em;
-  box-shadow: 0 0 6px rgba(128, 0, 128, 0.7);
-  user-select: none;
-  pointer-events: none;
-  white-space: nowrap;
-  transition: transform 0.3s ease;
-  z-index: 10;
+ position: absolute;
+ top: -16px;
+ right: -16px;
+ background-color: #c375df;
+ color: white;
+ width: 40px;
+ height: 40px;
+ padding: 0;
+ border-radius: 50%;
+ display: flex;
+ flex-direction: column; /* Stacks the content vertically */
+ align-items: center; /* Horizontally centers content within the column */
+ justify-content: center; /* Vertically centers content within the circle */
+ font-weight: 700;
+ font-size: .9em;
+ box-shadow: 0 0 6px rgb(255, 255, 255);
+ user-select: none;
+ pointer-events: none;
+ white-space: nowrap;
+ transition: transform 0.3s ease;
+ z-index: 10;
 }
 
 .chore-points-circle:hover {
-    transform: scale(1.5);
+ transform: scale(1.5);
 }
 
-.chore-points-circle::before {
-    content: "points";
-    font-size: 0.5em;
-    line-height: 1;
-    margin-bottom: 2px;
-    text-transform: uppercase;
-    font-weight: 600;
+.chore-points-circle::after {
+ content: "points";
+ font-size: 0.3em;
+ line-height: 1; /* Set this to a value that looks good, like 1 or less */
+ margin-top: 1px; /* Add a negative top margin to pull it up */
+ text-transform: uppercase;
+ font-weight: 600;
 }
 
 /* Button Styles */
 button {
-    background-color: #4caf50;
-    color: white;
+    background: var(--button-background);
+    color: #fff;
     border: none;
-    padding: 8px 16px; /* Adjusted padding */
+    padding: 12px 28px;
     border-radius: var(--border-radius);
     cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.3s ease; /* Added transition */
-    font-size: 0.9em; /* Slightly smaller font */
+    font-size: 1.1em;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
+    transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+    outline: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    max-width: 100%;
+    white-space: nowrap;
 }
-
-button:hover {
-    background-color: var(--button-hover);
-    transform: scale(1.05); /* Slight scale on hover */
+/* Ensure the button container inside .chore doesn't overflow and aligns buttons properly */
+.chore > div:last-child {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+button:hover, button:focus {
+    background: var(--button-hover);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.13);
+    transform: translateY(-2px) scale(1.04);
+}
+.button-danger, .delete-chore-btn, .delete-reward-btn {
+    background: var(--button-danger) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.08);
+}
+.button-danger:hover, .delete-chore-btn:hover, .delete-reward-btn:hover {
+    background: var(--button-danger-hover) !important;
+}
+.button-success, .complete-reward-btn {
+    background: var(--button-success) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
+}
+.button-success:hover, .complete-reward-btn:hover {
+    background: var(--button-success-hover) !important;
 }
 
 /* Theme Toggle Styles */
@@ -429,21 +866,24 @@ button:hover {
     text-align: center;
 }
 
-.chore-info {
+.chore {
+    background: #111827;
+    padding: 18px 20px;
+    margin-bottom: var(--spacing-unit);
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 8px rgba(30, 41, 59, 0.13);
+    color: var(--text-color);
+    transition: box-shadow 0.18s, transform 0.18s;
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 18px;
 }
-
-.chore-title {
-    font-weight: bold;
-    color: var(--text-color);
-    flex: 1;
-    margin-right: 8px;
+.chore:hover {
+    box-shadow: 0 6px 24px rgba(99, 102, 241, 0.13);
+    transform: translateY(-2px) scale(1.01);
 }
-
-.completion-count {
-    color: rgba(var(--text-color), 0.6);
     font-style: italic;
 }
 
@@ -573,12 +1013,11 @@ button:hover {
     justify-content: center;
 }
 
-.complete-reward-btn:hover {
-    background-color: #45a049;
-    transform: scale(1.05);
-}
-
-/* Unified Delete button styling */
+    .reward-progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #e53935 0%, #ffd700 50%, #4CAF50 100%);
+        border-radius: 8px 0 0 8px;
+        transition: width 0.5s cubic-bezier(.4,2,.6,1);
 .delete-chore-btn,
 .delete-reward-btn {
     background-color: #f44336;
@@ -822,42 +1261,36 @@ button:hover {
     }
 }
 
-.reward-points {
-    font-size: 0.8em;
-    color: inherit;
-}
-
-/* Weekly Rewards Section */
-.weekly-rewards {
-    margin-top: 2rem;
-    padding: 2rem;
-    background-color: var(--section-background);
-    border-radius: 10px;
-}
-
-.rewards-grid {
+.chore-points-circle {
+    position: relative;
+    background: linear-gradient(135deg, #6366f1 60%, #10b981 100%);
+    color: #fff;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
     display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: center;
-}
-
-.reward-item {
-    display: flex;
-    flex-direction: column; /* Stack items vertically */
+    flex-direction: column;
     align-items: center;
-    width: 100%;
-    max-width: 300px;
-    padding: 15px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    background-color: var(--background-color);
-    text-align: center; /* Center content */
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1em;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.13);
+    user-select: none;
+    pointer-events: none;
+    white-space: nowrap;
+    margin-right: 8px;
+    margin-left: 0;
+    transition: transform 0.2s;
+    z-index: 10;
 }
-
-.reward-icon-wrapper {
-    font-size: 2em;
+.chore-points-circle::after {
+    content: "pts";
+    font-size: 0.6em;
+    line-height: 1;
+    margin-top: 1px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
     color: var(--rewards-icon-color);
     margin-bottom: 10px; /* Space below icon */
 }

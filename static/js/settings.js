@@ -2,7 +2,7 @@
 function resetPoints(personId) {
     let newPoints = prompt("Enter new points value (default is 0):", "0");
     if (newPoints === null) return;
-    newPoints = parseInt(newPoints, 10);
+    newPoints = parseFloat(newPoints);
     if (isNaN(newPoints)) {
         alert("Invalid number entered. Please try again.");
         return;
@@ -80,4 +80,30 @@ window.confirmAddPerson = function() {
 document.addEventListener('DOMContentLoaded', function() {
     const addBtn = document.getElementById('add-person-btn');
     if (addBtn) addBtn.addEventListener('click', openAddPersonModal);
+
+    // Bonus points mode radio buttons
+    const bonusModeRadios = document.querySelectorAll('input[name="bonus_mode"]');
+    const bonusStaticInput = document.getElementById('bonus-static-input');
+    const bonusMinInput = document.getElementById('bonus-min-input');
+    const bonusMaxInput = document.getElementById('bonus-max-input');
+
+    function updateBonusInputs() {
+        const selectedMode = document.querySelector('input[name="bonus_mode"]:checked').value;
+        if (selectedMode === 'static') {
+            bonusStaticInput.style.display = 'inline-block';
+            bonusMinInput.style.display = 'none';
+            bonusMaxInput.style.display = 'none';
+        } else if (selectedMode === 'range') {
+            bonusStaticInput.style.display = 'none';
+            bonusMinInput.style.display = 'inline-block';
+            bonusMaxInput.style.display = 'inline-block';
+        }
+    }
+
+    bonusModeRadios.forEach(radio => {
+        radio.addEventListener('change', updateBonusInputs);
+    });
+
+    // Initialize on page load
+    updateBonusInputs();
 });
