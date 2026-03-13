@@ -1215,17 +1215,21 @@ h3 {
 }
 
 .avatar {
-    width: 160px;
-    height: 160px;
+    width: 110px;
+    height: 110px;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid var(--text-color);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-    transition: transform 0.3s ease; /* Added transition */
+    object-position: center top;
+    border: 3px solid rgba(255,255,255,0.55);
+    box-shadow: 0 3px 14px rgba(0,0,0,0.22);
+    transition: transform 0.25s ease, box-shadow 0.2s;
+    background: #d1d5db;
+    display: block;
 }
 
 .avatar:hover {
-    transform: scale(1.1); /* Slight scale on hover */
+    transform: scale(1.07);
+    box-shadow: 0 5px 22px rgba(0,0,0,0.30);
 }
 
 /* Action Icons */
@@ -1830,20 +1834,71 @@ button:hover, button:focus {
 
 .column {
     background-color: var(--section-background);
-    border: 1px solid #504848;
-    border-radius: var(--border-radius);
-    padding: 10px;
+    border: 1px solid rgba(0,0,0,0.10);
+    border-radius: 16px;
+    padding: 14px 12px 8px;
     width: 23%;
     text-align: center;
     position: relative;
     color: var(--text-color);
-    transition: box-shadow 0.3s ease; /* Added transition */
-    overflow: hidden; /* Hide both horizontal and vertical overflow */
-    box-sizing: border-box; /* Include padding in width calculation */
+    transition: box-shadow 0.25s ease, transform 0.2s ease;
+    box-sizing: border-box;
+    box-shadow: 0 3px 14px rgba(0,0,0,0.13);
 }
 
 .column:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow on hover */
+    box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+    transform: translateY(-2px);
+}
+
+/* Column header */
+.column-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 4px 8px;
+    position: relative;
+}
+
+.column-header .name {
+    margin: 0;
+    font-size: 1.75em;
+    font-weight: 800;
+    text-align: center;
+    flex: 1;
+    color: inherit;
+    line-height: 1.2;
+}
+
+.column-header > .edit-name-icon {
+    position: absolute !important;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%) !important;
+}
+
+/* Column footer / drag handle */
+.column-footer {
+    text-align: center;
+    padding: 5px 4px 3px;
+    margin-top: auto;
+    border-top: 1px solid rgba(0,0,0,0.12);
+}
+
+.drag-handle {
+    font-size: 1.0em;
+    color: rgba(0,0,0,0.30);
+    cursor: grab;
+    padding: 3px 14px;
+    border-radius: 6px;
+    transition: color 0.2s, background 0.2s;
+    display: inline-block;
+    user-select: none;
+}
+
+.drag-handle:hover {
+    color: rgba(0,0,0,0.55);
+    background: rgba(0,0,0,0.06);
 }
 
 /* Person-specific column colors */

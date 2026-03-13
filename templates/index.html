@@ -1542,18 +1542,13 @@ function deleteReward(rewardId) {
             {% for person in sorted_family %}
             <div class="column" data-person="{{ person.name }}" style="display: flex; flex-direction: column; height: 100%;">
                 <!-- Column header with centered name and edit icon -->
-                <div class="column-header" style="display:flex;align-items:center;justify-content:space-between;padding:5px 5px 5px 5px;">
-                    <div style="display:flex;align-items:center;gap:8px;">
-                    </div>
-                    <h3 class="name" style="margin: 0; font-size: 2.2em; color: black;flex:1;text-align:center;">
+                <div class="column-header">
+                    <h3 class="name">
                         <span class="person-name" data-person-id="{{ person.id }}">{{ person.name }}</span>
-                        <i class="fas fa-pencil-alt edit-name-icon"
-                           title="Edit Name"
-                           onclick="openEditNameModal('{{ person.id }}', '{{ person.name }}')"></i>
                     </h3>
-                    <div class="action-icons" style="margin-top: 5px;display:flex;align-items:center;gap:8px;">
-                        <!-- Removed Reset Points button as per user request -->
-                                            </div>
+                    <i class="fas fa-pencil-alt edit-name-icon"
+                       title="Edit Name"
+                       onclick="openEditNameModal('{{ person.id }}', '{{ person.name }}')"></i>
                 </div>
                 <div class="points-display">
                     <div class="balance-label">{% if reward_system == 'cash' %}Balance{% else %}Points{% endif %}</div>
@@ -1754,8 +1749,8 @@ function deleteReward(rewardId) {
             {% endif %}
             
             <!-- Drag handle for Kanban column -->
-            <div class="column-footer" style="text-align: center; padding: 5px; margin-top: auto; border-top: 1px solid #ccc; cursor: grab;">
-                <span class="drag-handle" title="Drag to reorder" style="font-size: 1.2em; color: #000000; cursor: grab;" draggable="true"><i class="fas fa-grip-lines"></i> </span>
+            <div class="column-footer">
+                <span class="drag-handle" title="Drag to reorder" draggable="true"><i class="fas fa-grip-lines"></i></span>
             </div>
         </div>
         {% endfor %}
@@ -1898,6 +1893,7 @@ function updateStreakDisplay(column, streakCount) {
                 dragHandle.addEventListener('dragstart', function(e) {
                     draggedCol = col;
                     e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', col.dataset.person || '');
                     col.style.opacity = '0.5';
                 });
                 dragHandle.addEventListener('dragend', function() {
@@ -1908,19 +1904,22 @@ function updateStreakDisplay(column, streakCount) {
             col.addEventListener('dragover', function(e) {
                 e.preventDefault();
                 dragOverCol = this;
-                this.style.borderLeft = '4px solid #6366f1';
+                this.style.outline = '2px solid #6366f1';
+                this.style.outlineOffset = '-2px';
             });
             col.addEventListener('dragleave', function() {
-                this.style.borderLeft = '';
+                this.style.outline = '';
+                this.style.outlineOffset = '';
             });
             col.addEventListener('drop', function(e) {
                 e.preventDefault();
-                this.style.borderLeft = '';
+                this.style.outline = '';
+                this.style.outlineOffset = '';
                 if (draggedCol && draggedCol !== this) {
-                    if (this.nextSibling === draggedCol) {
+                    if (this.nextElementSibling === draggedCol) {
                         kanban.insertBefore(draggedCol, this);
                     } else {
-                        kanban.insertBefore(draggedCol, this.nextSibling);
+                        kanban.insertBefore(draggedCol, this.nextElementSibling);
                     }
                     saveKanbanOrder();
                 }
