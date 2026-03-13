@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ person.name }}'s Profile – ChoresRewards</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="profile-page">
+
+<div class="profile-container">
+
+    <!-- Back button -->
+    <a href="{{ url_for('routes.index') }}" class="profile-back-btn">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+
+    <!-- Hero header -->
+    <div class="profile-hero" style="background: {{ person.color or '#2d2d2d' }}22; border-color: {{ person.color or '#555' }};">
+        <img
+            src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'uploads/default_avatar.png') }}"
+            alt="{{ person.name }}"
+            class="profile-avatar"
+            onerror="this.onerror=null;this.src='{{ url_for('static', filename='uploads/default_avatar.png') }}';"
+        >
+        <h1 class="profile-name">{{ person.name }}</h1>
+
+        <!-- Stats row -->
+        <div class="profile-stats-row">
+            <div class="profile-stat">
+                <div class="profile-stat-value">{{ total_completed }}</div>
+                <div class="profile-stat-label">Chores Done</div>
+            </div>
+            <div class="profile-stat">
+                <div class="profile-stat-value">
+                    {% if reward_system == 'cash' %}${{ '%.2f' % (person.points + person.bonus_points) }}{% else %}{{ '%.0f' % (person.points + person.bonus_points) }}{% endif %}
+                </div>
+                <div class="profile-stat-label">{% if reward_system == 'cash' %}Balance{% else %}Points{% endif %}</div>
+            </div>
+            <div class="profile-stat">
+                <div class="profile-stat-value">🔥 {{ streak.current_streak if streak else 0 }}</div>
+                <div class="profile-stat-label">Day Streak</div>
+            </div>
+            <div class="profile-stat">
+                <div class="profile-stat-value">{{ earned_count }}/{{ total_badges }}</div>
+                <div class="profile-stat-label">Badges</div>
+            </div>
+        </div>
+
+        {% if streak and streak.longest_streak and streak.longest_streak > 0 %}
+        <div class="profile-best-streak">Best streak: {{ streak.longest_streak }} days 🏅</div>
+        {% endif %}
+    </div>
+
+    <!-- Badge collection -->
+    <h2 class="profile-section-title">Badge Collection</h2>
+    <div class="profile-badge-grid">
+        {% for badge in all_badges %}
+        <div class="profile-badge-card {% if badge.earned %}badge-earned{% else %}badge-locked{% endif %}">
+            <div class="profile-badge-emoji">{{ badge.emoji }}</div>
+            <div class="profile-badge-name">{{ badge.name }}</div>
+            <div class="profile-badge-desc">{{ badge.desc }}</div>
+            {% if not badge.earned %}
+            <div class="badge-locked-label"><i class="fas fa-lock"></i> Locked</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+</body>
+</html>

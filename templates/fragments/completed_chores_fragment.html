@@ -1,0 +1,21 @@
+{% for chore in completed_chores %}
+    <div class="chore completed" data-chore-id="{{ chore.id }}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04); opacity:0.72; padding-right:34px;">
+        <button class="btn-delete-chore-sm" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
+        <div class="chore-header">
+            <span class="chore-icon"><i class="fas fa-check-circle" style="color:#10b981;"></i></span>
+            <span class="chore-title" style="font-size:0.95em;">{{ chore.title }}</span>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+            <span style="font-size:0.78em; color:#94a3b8;">&#10003; {% if chore.date_completed %}{{ chore.date_completed.strftime("%I:%M %p") }}{% else %}Today{% endif %}</span>
+            <span class="chore-points-badge" title="Points for this chore">
+                {% if reward_system == 'cash' %}
+                    <i class="fas fa-money-bill-wave"></i>
+                    <span class="chore-points-value">${{ chore.points }}</span>
+                {% else %}
+                    <i class="fas fa-award"></i>
+                    <span class="chore-points-value">{{ chore.points }}</span>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+{% endfor %}

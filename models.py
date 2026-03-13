@@ -1,0 +1,220 @@
+from datetime import datetime, timedelta, date
+from extensions import db  # Import db from extensions.py
+
+class AppSetting(db.Model):
+    @staticmethod
+    def get_reward_system():
+        # Returns 'points' or 'cash', default to 'points'
+        val = AppSetting.get('reward_system', 'points')
+        return val if val in ['points', 'cash'] else 'points'
+
+    @staticmethod
+    def set_reward_system(system):
+        if system not in ['points', 'cash']:
+            raise ValueError('Invalid reward system')
+        AppSetting.set('reward_system', system)
+    __tablename__ = 'app_settings'
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    value = db.Column(db.String(500), nullable=False)
+
+    @staticmethod
+    def get(key, default=None):
+        setting = AppSetting.query.filter_by(key=key).first()
+        return setting.value if setting else default
+
+    @staticmethod
+    def set(key, value):
+        setting = AppSetting.query.filter_by(key=key).first()
+        if setting:
+            setting.value = value
+        else:
+            setting = AppSetting(key=key, value=value)
+            db.session.add(setting)
+        db.session.commit()
+
+class Person(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    points = db.Column(db.Float, default=0.0)
+    bonus_points = db.Column(db.Float, default=0.0)  # Track bonus points separately
+    last_reset = db.Column(db.DateTime, default=datetime.utcnow)
+    last_bonus_awarded = db.Column(db.DateTime, nullable=True)  # Track last bonus awarding date
+    last_daily_chores_added = db.Column(db.DateTime, default=datetime.utcnow)  # New column
+    avatar = db.Column(db.String(100), default='default_avatar.png')  # Add this line
+    color = db.Column(db.String(7), default='#ffffff')  # Add this line
+    order = db.Column(db.Integer, default=0)  # New field for kanban ordering
+    pin = db.Column(db.String(20), nullable=True)  # PIN for person (setup wizard)
+    is_admin = db.Column(db.Boolean, default=False)  # Is this person the adult/admin
+    age = db.Column(db.Integer, nullable=True)  # Age for quiz difficulty filtering
+    
+    # Relationships to chores and rewards
+    chores = db.relationship('Chore', backref='person', lazy=True)
+    rewards = db.relationship('Reward', backref='person', lazy=True)
+
+    def set_points(self, new_points):
+        """
+        Reset points to a specified value.
+        Accepts a non-negative float as new_points.
+        """
+        try:
+            new_points = float(new_points)
+        except (ValueError, TypeError):
+            raise ValueError("Points must be a number.")
+
+        if new_points < 0:
+            raise ValueError("Points cannot be negative.")
+
+        self.points = new_points
+        self.last_reset = datetime.utcnow()
+        db.session.commit()
+                
+class Chore(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey('person.id'), nullable=True)
+    assigned_to = db.Column(db.String(50))  # Keep for backward compatibility
+    points = db.Column(db.Float, default=1.0)
+    completed = db.Column(db.Boolean, default=False)
+    date_completed = db.Column(db.DateTime)
+    is_daily = db.Column(db.Boolean, default=False)  # Properly define is_daily as a Boolean
+    days_of_week = db.Column(db.String(64), nullable=True)  # Comma-separated days, e.g. "Monday,Wednesday"
+    due_date = db.Column(db.Date, nullable=True)  # For daily chore scheduling
+    due_datetime = db.Column(db.DateTime, nullable=True)  # New field for due date and time
+    deleted = db.Column(db.Boolean, default=False)  # New field to track deletion for daily chores
+    
+    def __init__(self, **kwargs):
+        super(Chore, self).__init__(**kwargs)
+        # Validate points are positive
+        if self.points < 0:
+            self.points = 0
+
+    def to_dict(self):
+        # ...existing code...
+        days_of_week = self.days_of_week.split(',') if self.days_of_week else []
+        """
+        Convert chore object to dictionary for JSON responses.
+        """
+        return {
+            'id': self.id,
+            'title': self.title,
+            'assigned_to': self.assigned_to,
+            'points': self.points,
+            'completed': self.completed,
+            'is_daily': self.is_daily,
+            'days_of_week': days_of_week,
+            'due_date': self.due_date.isoformat() if self.due_date else None,
+            'date_completed': self.date_completed.isoformat() if self.date_completed else None
+        }
+
+    @staticmethod
+    def calculate_weekly_progress(person_name):
+        """
+        Calculate weekly progress for a person by name.
+        Returns (completed_chores, total_chores) for the current week.
+        """
+        today = datetime.utcnow().date()
+        start_of_week = today - timedelta(days=today.weekday())  # Monday of the current week
+        chores = Chore.query.filter_by(assigned_to=person_name).filter(
+            Chore.date_completed >= start_of_week
+        ).all()
+        total_chores = len(chores)
+        completed_chores = len([chore for chore in chores if chore.completed])
+        return completed_chores, total_chores
+
+    @staticmethod
+    def clear_old_daily_chores():
+        """
+        Remove daily chores that have expired (i.e. their due_date is before today)
+        to ensure only one set of daily chores exists for the current day.
+        """
+        today = datetime.utcnow().date()
+        
+        # Delete any daily chore with a due_date before today.
+        old_daily_chores = Chore.query.filter(
+            Chore.is_daily == True,
+            Chore.due_date < today
+        ).all()
+        
+        for chore in old_daily_chores:
+            db.session.delete(chore)
+        db.session.commit()
+
+class Reward(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    points_required = db.Column(db.Float, nullable=False)
+    image_url = db.Column(db.String(255), nullable=True)  # Added image_url field
+    description = db.Column(db.Text, nullable=True)  # Added description field
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey('person.id'), nullable=True)
+    assigned_to = db.Column(db.String(50))  # Keep for backward compatibility
+    completed = db.Column(db.Boolean, default=False)
+    date_completed = db.Column(db.DateTime)
+
+class ActivityLog(db.Model):
+    """
+    Model to track all activities/actions performed in the application.
+    """
+    __tablename__ = 'activity_log'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    type = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.String(500), nullable=False)
+    user_name = db.Column(db.String(100))
+    
+    def __repr__(self):
+        return f'<ActivityLog {self.type}: {self.description}>'
+
+# ── Badge / Streak models ──────────────────────────────────────────────────
+BADGE_DEFINITIONS = {
+    'first_chore': {'emoji': '⭐', 'name': 'First Steps',    'desc': 'Completed your very first chore!'},
+    'chores_10':   {'emoji': '💪', 'name': '10 Chores!',     'desc': 'Completed 10 chores in total!'},
+    'chores_50':   {'emoji': '🥇', 'name': 'Chore Champion', 'desc': 'Completed 50 chores!'},
+    'chores_100':  {'emoji': '👑', 'name': 'Centurion',      'desc': '100 chores completed!'},
+    'perfect_day': {'emoji': '🌟', 'name': 'Perfect Day',    'desc': 'All chores done in one day!'},
+    'early_bird':  {'emoji': '🌅', 'name': 'Early Bird',     'desc': 'All chores finished before noon!'},
+    'streak_3':    {'emoji': '🔥', 'name': '3-Day Streak',   'desc': '3 days in a row!'},
+    'streak_7':    {'emoji': '🏅', 'name': 'On Fire!',       'desc': '7 days in a row!'},
+    'streak_30':   {'emoji': '🏆', 'name': 'Legend',         'desc': '30-day streak!'},
+}
+
+class PersonStreak(db.Model):
+    __tablename__ = 'person_streak'
+    id = db.Column(db.Integer, primary_key=True)
+    person_id = db.Column(db.Integer, db.ForeignKey('person.id'), unique=True, nullable=False)
+    current_streak = db.Column(db.Integer, default=0)
+    longest_streak = db.Column(db.Integer, default=0)
+    last_completed_date = db.Column(db.Date, nullable=True)
+
+class PersonBadge(db.Model):
+    __tablename__ = 'person_badge'
+    id = db.Column(db.Integer, primary_key=True)
+    person_id = db.Column(db.Integer, db.ForeignKey('person.id'), nullable=False)
+    badge_key = db.Column(db.String(50), nullable=False)
+    earned_at = db.Column(db.DateTime, default=datetime.utcnow)
+    __table_args__ = (db.UniqueConstraint('person_id', 'badge_key', name='uq_person_badge'),)
+
+def log_activity(action_type, description, user_name=None):
+    """
+    Log an activity to the database.
+    
+    Args:
+        action_type (str): Type of action (e.g., 'chore_added', 'chore_completed')
+        description (str): Description of the action
+        user_name (str, optional): Name of the user who performed the action
+    """
+    try:
+        log_entry = ActivityLog(
+            type=action_type,
+            description=description,
+            user_name=user_name
+        )
+        db.session.add(log_entry)
+        db.session.commit()
+        # Also print to stdout for container logs
+        log_str = f"[ActivityLog] type={action_type} user={user_name} desc={description}"
+        print(log_str, flush=True)
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error logging activity: {e}", flush=True)

@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block content %}
+<header>
+    <div class="header-content">
+        <h2><i class="fas fa-history"></i> Chore History</h2>
+        <div class="header-right" style="display: flex; align-items: center;">
+            <nav>
+                <a href="{{ url_for('routes.index') }}">Home</a>
+                <a href="{{ url_for('routes.chore_history') }}">Chore History</a>
+                <a href="{{ url_for('routes.activity_log') }}">Activity Log</a>
+            </nav>
+            <div class="theme-toggle-container">
+                <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode">
+                    <i class="fas fa-sun light-icon"></i>
+                    <i class="fas fa-moon dark-icon"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</header>
+<div class="activity-log-container">
+    <div class="activity-log-header">
+        <p class="activity-log-subtitle">See all completed chores and trends for your family</p>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="activity-stats">
+        <div class="stat-item">
+            <span class="stat-number">{{ completed_chores|length }}</span>
+            <span class="stat-label">Total Completed</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-number">{{ chores_by_person.values()|sum }}</span>
+            <span class="stat-label">By All People</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-number">{{ monthly_chores_by_person.values()|sum }}</span>
+            <span class="stat-label">This Month</span>
+        </div>
+    </div>
+
+    <!-- Enhanced Table of Completed Chores -->
+    <div class="activity-log-list" style="margin-bottom: 2em;">
+        <div class="activity-log-item" style="flex-direction: column; align-items: stretch; padding: 0;">
+            <div style="overflow-x:auto;">
+                <table id="choreHistoryTable" class="table table-striped table-bordered" style="width:100%; background: var(--background-color); color: var(--text-color); border-radius: var(--border-radius);">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Assigned To</th>
+                            <th>Points</th>
+                            <th>Daily?</th>
+                            <th>Date Completed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for chore in completed_chores %}
+                        <tr>
+                            <td>{{ chore.title }}</td>
+                            <td>{{ chore.assigned_to }}</td>
+                            <td>{{ chore.points }}</td>
+                            <td>{{ 'Yes' if chore.is_daily else 'No' }}</td>
+                            <td>{{ chore.date_completed.strftime('%Y-%m-%d') if chore.date_completed else '' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row text-center" style="display: flex; flex-wrap: wrap; gap: 2em; justify-content: center;">
+        <div class="col-md-4 mb-4" style="flex: 1 1 300px; min-width: 250px;">
+            <h4>Chores Completed by Person</h4>
+            <div style="width: 100%; max-width: 300px; margin: auto;">
+                <canvas id="personPie" width="250" height="250"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4" style="flex: 1 1 300px; min-width: 250px;">
+            <h4>Monthly Summary (Chores per Person)</h4>
+            <div style="width: 100%; max-width: 300px; margin: auto;">
+                <canvas id="monthlyBar" width="250" height="250"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4" style="flex: 1 1 300px; min-width: 250px;">
+            <h4>Top Tasks Trend (per Person)</h4>
+            <div style="width: 100%; max-width: 300px; margin: auto;">
+                <canvas id="topTasksTrend" width="250" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DataTables and Chart.js CDN -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+/* Fix for stats visibility in dark mode */
+[data-theme="dark"] .stat-number {
+    color: #4CAF50 !important;
+}
+[data-theme="dark"] .stat-label {
+    color: #fff !important;
+    opacity: 0.9;
+}
+[data-theme="dark"] .activity-log-subtitle {
+    color: #fff !important;
+    opacity: 0.7;
+}
+.theme-toggle-container {
+    margin-left: 1em;
+}
+.theme-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.7em;
+    padding: 8px;
+}
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--section-background, #222);
+    padding: 1em 2em;
+    border-radius: var(--border-radius, 12px);
+    margin-bottom: 1.5em;
+}
+.header-content nav a {
+    color: #fff;
+    margin-right: 1em;
+    text-decoration: none;
+    font-weight: 500;
+}
+.header-content nav a:last-child {
+    margin-right: 0;
+}
+.header-content h2 {
+    margin: 0;
+    color: #fff;
+}
+</style>
+
+<script>
+    // Theme toggle logic (same as activity_log.html)
+    document.addEventListener('DOMContentLoaded', function() {
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            body.setAttribute('data-theme', savedTheme);
+        }
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+    });
+
+    // DataTables for enhanced table
+    $(document).ready(function() {
+        $('#choreHistoryTable').DataTable({
+            "order": [[4, "desc"]],
+            "pageLength": 10,
+            "lengthMenu": [5, 10, 25, 50, 100],
+            "language": {
+                "search": "",
+                "searchPlaceholder": "Search chores..."
+            }
+        });
+    });
+
+    // Pie chart: Chores by person
+    const personPie = new Chart(document.getElementById('personPie'), {
+        type: 'pie',
+        data: {
+            labels: {{ chores_by_person.keys()|list|tojson }},
+            datasets: [{
+                data: {{ chores_by_person.values()|list|tojson }},
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#8BC34A', '#FF9800', '#9C27B0'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+
+    // Monthly summary bar chart: chores per person for the current month
+    const monthlyBar = new Chart(document.getElementById('monthlyBar'), {
+        type: 'bar',
+        data: {
+            labels: {{ monthly_chores_by_person.keys()|list|tojson }},
+            datasets: [{
+                label: 'Chores This Month',
+                data: {{ monthly_chores_by_person.values()|list|tojson }},
+                backgroundColor: '#8BC34A'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    // Top tasks trend line chart: for each person, top 3 tasks and their completion counts over the last 4 weeks
+    const trendData = {{ top_tasks_trend|tojson }};
+    const trendLabels = {{ trend_weeks|tojson }};
+    const trendDatasets = [];
+    for (const person in trendData) {
+        for (const task of trendData[person]) {
+            trendDatasets.push({
+                label: person + ': ' + task.title,
+                data: task.counts,
+                fill: false,
+                borderColor: task.color,
+                tension: 0.1
+            });
+        }
+    }
+    const topTasksTrend = new Chart(document.getElementById('topTasksTrend'), {
+        type: 'line',
+        data: {
+            labels: trendLabels,
+            datasets: trendDatasets
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+</script>
+{% endblock %}

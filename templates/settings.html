@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Settings - ChoresAwards</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ── Layout ── */
+        .settings-layout {
+            display: flex;
+            max-width: 1100px;
+            margin: 2rem auto;
+            background: linear-gradient(135deg, #141f33 0%, #1a2840 100%);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 16px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+            color: #fff;
+        }
+        .settings-nav {
+            width: 220px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px 0 0 16px;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            border-right: 1px solid rgba(255,255,255,0.07);
+        }
+        .settings-nav a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 0.97rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.7em;
+            padding: 0.7em 1em;
+            border-radius: 10px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .settings-nav a.active, .settings-nav a:hover {
+            background: rgba(76,175,80,0.18);
+            color: #4CAF50;
+        }
+        .settings-nav a.active {
+            background: rgba(76,175,80,0.25);
+            font-weight: 700;
+        }
+        .settings-content {
+            flex: 1;
+            padding: 2rem 2.5rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.9rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+        }
+        .section-title > i { color: #4CAF50; }
+
+        /* ── Section cards ── */
+        .settings-section {
+            background: linear-gradient(135deg, #1a2436 0%, #1e2d42 100%);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 14px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 14px rgba(0,0,0,0.2);
+            color: #fff;
+        }
+
+        /* ── Table ── */
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+        .sleek-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            overflow: hidden;
+            color: #fff;
+        }
+        .sleek-table th,
+        .sleek-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            color: #fff;
+        }
+        .sleek-table th {
+            background: rgba(76,175,80,0.1);
+            font-weight: 700;
+            color: #4CAF50;
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .sleek-table tr:last-child td { border-bottom: none; }
+        .sleek-table tbody tr:hover td { background: rgba(255,255,255,0.03); }
+        .no-chores { text-align: center; color: #94a3b8; padding: 1.5rem; }
+
+        /* ── Pill / assign buttons ── */
+        .actions-cell { display: flex; gap: 0.5rem; }
+        .person-btn-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+        .person-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .person-btn:hover { background: rgba(255,255,255,0.1); }
+        .person-btn.selected {
+            background: rgba(76,175,80,0.22);
+            color: #fff;
+            border-color: #4CAF50;
+        }
+
+        /* ── Action buttons ── */
+        .edit-btn, .save-btn, .cancel-btn, .delete-btn {
+            padding: 0.45rem 0.95rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .edit-btn { background: rgba(33,150,243,0.12); color: #64b5f6; }
+        .edit-btn:hover { background: rgba(33,150,243,0.25); }
+        .save-btn {
+            background: #4CAF50;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(76,175,80,0.3);
+        }
+        .save-btn:hover { background: #45a049; box-shadow: 0 3px 14px rgba(76,175,80,0.45); }
+        .cancel-btn {
+            background: rgba(255,255,255,0.07);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        .cancel-btn:hover { background: rgba(255,255,255,0.14); }
+        .delete-btn { background: rgba(244,67,54,0.12); color: #ef9a9a; }
+        .delete-btn:hover { background: rgba(244,67,54,0.25); color: #ffcdd2; }
+
+        /* ── Status messages ── */
+        .success-message {
+            color: #4CAF50; font-weight: 500; margin-top: 1rem;
+            padding: 0.6rem 1rem;
+            background: rgba(76,175,80,0.1);
+            border: 1px solid rgba(76,175,80,0.25);
+            border-radius: 10px;
+        }
+        .error-message {
+            color: #ef9a9a; font-weight: 500; margin-top: 1rem;
+            padding: 0.6rem 1rem;
+            background: rgba(244,67,54,0.1);
+            border: 1px solid rgba(244,67,54,0.25);
+            border-radius: 10px;
+        }
+
+        /* ── Misc ── */
+        .back-link { margin-top: 2rem; text-align: center; }
+        .back-btn {
+            color: rgba(255,255,255,0.7); text-decoration: none;
+            padding: 0.5rem 1rem; border-radius: 10px; transition: all 0.2s; display: inline-block;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.07); color: #fff; }
+        .chore-title input, .chore-points input {
+            background: rgba(255,255,255,0.07) !important;
+            border: 1px solid rgba(255,255,255,0.15) !important;
+            color: #fff !important; padding: 0.5rem 0.75rem !important;
+            border-radius: 8px !important; width: 100% !important;
+        }
+        .edit-person-btn-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+
+        /* ── Settings field label (uppercase caption style) ── */
+        .settings-field-label {
+            display: block;
+            font-size: 0.78rem; font-weight: 700;
+            letter-spacing: 0.06em; text-transform: uppercase;
+            color: rgba(255,255,255,0.5); margin-bottom: 0.45rem;
+        }
+
+        /* ── Radio dot → green ── */
+        .bonus-mode-label .custom-radio { border-color: #4CAF50 !important; }
+        .bonus-mode-label input[type="radio"]:checked ~ .custom-radio { border-color: #4CAF50 !important; }
+        .bonus-mode-label .custom-radio:after { background: #4CAF50 !important; }
+
+        /* ── Reward system radio pills ── */
+        .reward-system-label {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 0.6rem 1.3rem; border-radius: 50px;
+            border: 2px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.55); font-size: 0.97rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+            user-select: none;
+        }
+        .reward-system-label:hover {
+            border-color: rgba(76,175,80,0.5);
+            color: #fff;
+        }
+        .reward-system-label.selected {
+            background: #4CAF50;
+            border-color: #4CAF50;
+            color: #fff;
+            box-shadow: 0 3px 14px rgba(76,175,80,0.45);
+        }
+        .reward-system-label.selected .reward-check { display: inline-block; }
+        .reward-check { display: none; font-size: 0.8em; }
+        .reward-system-radio { display: none; }
+
+        @media (max-width: 900px) {
+            .settings-layout { flex-direction: column; }
+            .settings-nav { width: 100%; border-radius: 16px 16px 0 0; flex-direction: row; flex-wrap: wrap; gap: 0.4rem; padding: 1rem; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); }
+            .settings-content { padding: 1.5rem 1rem; }
+        }
+        @media (max-width: 640px) {
+            .person-btn-group, .edit-person-btn-group { flex-direction: column; }
+            .person-btn, .edit-btn, .delete-btn, .save-btn, .cancel-btn { width: 100%; margin-bottom: 0.4rem; }
+            .actions-cell { flex-direction: column; }
+        }
+
+        /* Avatar upload styles */
+        .avatar-upload-overlay { transition: opacity 0.3s ease, background 0.3s ease !important; }
+        .avatar-upload-overlay:hover { opacity: 1 !important; background: rgba(0,0,0,0.8) !important; }
+        .family-member-card:hover .avatar-upload-overlay { opacity: 0.7 !important; }
+    </style>
+</head>
+<body data-theme="dark">
+    <header>
+        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#141f33 0%,#1a2840 100%);padding:0.75rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.07);">
+            <h2 style="color: white; font-size:1.3rem; text-transform:none; letter-spacing:0; margin:0;">Chores and Rewards — Settings</h2>
+        </div>
+        <nav class="activity-page-nav">
+            <a href="{{ url_for('routes.index') }}"><i class="fas fa-home"></i> Home</a>
+            <a href="{{ url_for('routes.activity_log') }}"><i class="fas fa-history"></i> Activity Log</a>
+        </nav>
+    </header>
+    <main>
+        <div class="settings-layout">
+            <nav class="settings-nav">
+                <a href="{{ url_for('routes.settings') }}"{% if request.endpoint == 'routes.settings' %} class="active"{% endif %}><i class="fas fa-cog"></i> General Settings</a>
+                <a href="{{ url_for('routes.settings_audio') }}"{% if request.endpoint == 'routes.settings_audio' %} class="active"{% endif %}><i class="fas fa-volume-up"></i> Audio Settings</a>
+                <a href="{{ url_for('routes.settings_notification') }}"{% if request.endpoint == 'routes.settings_notification' %} class="active"{% endif %}><i class="fas fa-bell"></i> Notification Settings</a>
+            </nav>
+            <div class="settings-content">
+                <h3 class="section-title"><i class="fas fa-cog"></i> General Settings</h3>
+                <section class="settings-section">
+                    <h3 class="section-title"><i class="fas fa-trophy"></i> Reward System</h3>
+                    <form method="POST" action="/settings" id="reward-system-form" style="margin-bottom: 1.5em;">
+                        <label class="reward-system-label{% if reward_system == 'points' %} selected{% endif %}" style="margin-right: 12px;">
+                            <input type="radio" class="reward-system-radio" name="reward_system" value="points" {% if reward_system == 'points' %}checked{% endif %}>
+                            <i class="fas fa-certificate" style="color:{% if reward_system == 'points' %}#fff{% else %}#ffd700{% endif %};"></i> Points
+                            <i class="fas fa-check reward-check"></i>
+                        </label>
+                        <label class="reward-system-label{% if reward_system == 'cash' %} selected{% endif %}" style="margin-right: 12px;">
+                            <input type="radio" class="reward-system-radio" name="reward_system" value="cash" {% if reward_system == 'cash' %}checked{% endif %}>
+                            <i class="fas fa-money-bill-wave" style="color:{% if reward_system == 'cash' %}#fff{% else %}#4ade80{% endif %};"></i> Cash
+                            <i class="fas fa-check reward-check"></i>
+                        </label>
+                        <button type="submit" class="save-btn" style="margin-left: 18px;">Save Reward System</button>
+                    </form>
+                </section>
+                <section class="settings-section">
+                    <h3 class="section-title"><i class="fas fa-users"></i> Family Members</h3>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">This section allows you to delete, edit family members' names, and add family members, adding an age for each member helps define what quizz questions you get</p>
+                    {% if family %}
+                    <div class="family-members-grid" style="margin-bottom:2em; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto;">
+                        <form method="POST" action="/settings" id="person-ages-form" style="display: contents;">
+                        <input type="hidden" name="save_ages" value="1">
+                        {% for person in family %}
+                        <div class="family-member-card" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; align-items: center; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease; position: relative; overflow: hidden;">
+                            <!-- Decorative background element -->
+                            <div style="position: absolute; top: -50px; right: -50px; width: 100px; height: 100px; background: radial-gradient(circle, rgba(79, 172, 254, 0.1) 0%, transparent 70%); border-radius: 50%;"></div>
+                            
+                            <!-- Avatar section -->
+                            <div style="position: relative; margin-bottom: 16px;">
+                                <div style="width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(45deg, #4CAF50, #45a049); padding: 3px; box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);">
+                                    <img src="{{ url_for('static', filename='uploads/' + (person.avatar if person.avatar else 'default_avatar.png')) }}" alt="{{ person.name }}" class="avatar" id="avatar-{{ person.id }}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #fff;">
+                                </div>
+                                <!-- Avatar upload overlay -->
+                                <div id="avatar-form-{{ person.id }}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                                    <input id="avatar-upload-{{ person.id }}" type="file" name="avatar" accept="image/*" style="display: none;" onchange="uploadAvatarSettings(event, {{ person.id }})">
+                                    <label for="avatar-upload-{{ person.id }}" class="avatar-upload-overlay" title="Change Profile Picture" style="position: absolute; top: 0; left: 0; width: 96px; height: 96px; border-radius: 50%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.3s ease; color: white;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
+                                        <i class="fas fa-camera" style="font-size: 1.2em;"></i>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- Name and details -->
+                            <div style="width: 100%; margin-bottom: 16px;">
+                                <span class="person-name" data-person-id="{{ person.id }}" contenteditable="true" onblur="renamePerson(this, '{{ person.id }}')" style="font-size: 1.2em; font-weight: 700; color: #fff; display: block; margin-bottom: 8px; border: none; background: transparent; text-align: center; outline: none; cursor: text; padding: 4px 8px; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">{{ person.name }}</span>
+                                <div style="font-size: 0.95em; color: #94a3b8; margin-bottom: 12px; font-weight: 500;">
+                                    <span style="color: #4CAF50;">●</span> {{ person.points + person.bonus_points }} Points
+                                </div>
+                            </div>
+                            
+                            <!-- Age input -->
+                            <div style="width: 100%; margin-bottom: 16px;">
+                                <label for="age-{{ person.id }}" style="display: block; margin-bottom: 6px; color: #e2e8f0; font-size: 0.9em; font-weight: 500;">Age</label>
+                                <input type="number" min="0" name="person_age_{{ person.id }}" id="age-{{ person.id }}" value="{{ person_ages.get(person.id|string, '') }}" style="width: 70px; padding: 8px 12px; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(255,255,255,0.05); color: #fff; text-align: center; font-size: 1em; font-weight: 600; transition: all 0.2s;" onfocus="this.style.borderColor='#4CAF50'; this.style.background='rgba(76,175,80,0.1)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'; this.style.background='rgba(255,255,255,0.05)'">
+                            </div>
+                            
+                            <!-- Action buttons -->
+                            <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 8px;">
+                                    <label style="color: #e2e8f0; font-size: 0.9em; font-weight: 500;">Color:</label>
+                                    <input type="color" id="color-picker-settings-{{ person.id }}" value="{{ person.color or '#cccccc' }}" onchange="changePersonColorSettings(event, {{ person.id }})" style="width:32px;height:32px;padding:0;border-radius:6px;border:1.5px solid #bbb;background:none;cursor:pointer;" title="Change person color">
+                                </div>
+                                <button class="reset-points-btn" style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);" onclick="return confirm('Are you sure you want to reset points for this person?') && resetPoints({{ person.id }})" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(76, 175, 80, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(76, 175, 80, 0.3)'">>
+                                    <i class="fas fa-coins" style="margin-right: 6px;"></i>Change Points
+                                </button>
+                                <button class="delete-person-btn" style="background: linear-gradient(135deg, #e53935, #d32f2f); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; box-shadow: 0 2px 8px rgba(229, 57, 53, 0.3);" onclick="return confirm('Are you sure you want to delete this person?') && confirmDeletePerson('{{ person.id }}', '{{ person.name }}')" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(229, 57, 53, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(229, 57, 53, 0.3)'">
+                                    <i class="fas fa-trash" style="margin-right: 6px;"></i>Delete Person
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        </form>
+                    </div>
+                    
+                    <!-- Save Ages button -->
+                    <div style="text-align:center;margin:24px 0;">
+                        <button type="submit" form="person-ages-form" class="save-btn" style="padding:12px 28px;font-size:1em;">
+                            <i class="fas fa-save" style="margin-right:8px;"></i>Save Ages
+                        </button>
+                    </div>
+                    {% else %}
+                    <p style="text-align:center; color: var(--text-muted);">No family members found.</p>
+                    {% endif %}
+                    
+                    <!-- Add Family Member button -->
+                    <div style="text-align:center;margin-top:1.5rem;">
+                        <button id="add-person-btn" class="save-btn" style="padding:11px 24px;font-size:0.97em;background:rgba(76,175,80,0.15);color:#4CAF50;border:2px solid rgba(76,175,80,0.35);box-shadow:none;" onmouseover="this.style.background='rgba(76,175,80,0.28)';this.style.borderColor='#4CAF50';" onmouseout="this.style.background='rgba(76,175,80,0.15)';this.style.borderColor='rgba(76,175,80,0.35)';">
+                            <i class="fas fa-user-plus" style="margin-right:8px;"></i>Add Family Member
+                        </button>
+                    </div>
+                </section>
+                <section class="settings-section">
+                    <h3 class="section-title"><i class="fas fa-tasks"></i> All Chores</h3>
+                    <div class="table-container">
+                        <h4 class="section-title" style="font-size:1rem;margin-bottom:0.4em;">Edit Chores</h4>
+                        <p style="margin-top:0;color:rgba(255,255,255,0.6);">Edit, reassign or delete chores.</p>
+                        <table class="sleek-table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Assigned To</th>
+                                    <th>Points</th>
+                                    <th>Completed</th>
+                                    <th>Days</th>
+                                    <th>Type</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="all-chores-tbody">
+                                {% for chore in all_chores if not chore.completed or chore.is_daily %}
+                                <tr id="chore-row-{{ chore.id }}">
+                                    <td class="chore-title">{{ chore.title }}</td>
+                                    <td class="chore-assigned-to">{{ chore.assigned_to }}</td>
+                                    <td class="chore-points">{{ chore.points }}</td>
+                                    <td>{% if chore.completed %}Yes{% else %}No{% endif %}</td>
+                                    <td class="chore-days">
+                                        {% if chore.days_of_week %}
+                                            {% set days = chore.days_of_week.split(',') if chore.days_of_week is string else chore.days_of_week %}
+                                            {% set short_days = days|map('trim')|map('lower')|list %}
+                                            {% for d in short_days %}
+                                                {% if not loop.first %}, {% endif %}
+                                                {% if d == 'monday' %}Mon{% elif d == 'tuesday' %}Tue{% elif d == 'wednesday' %}Wed{% elif d == 'thursday' %}Thu{% elif d == 'friday' %}Fri{% elif d == 'saturday' %}Sat{% elif d == 'sunday' %}Sun{% else %}{{ d }}{% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            {% if chore.is_daily %}Daily{% else %}-{% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>{% if chore.is_daily %}Daily{% else %}One-off{% endif %}</td>
+                                    <td class="actions-cell">
+                                        <button class="edit-btn" onclick="editChore({{ chore.id }})">Edit</button>
+                                        <button class="delete-btn" onclick="deleteDailyChore({{ chore.id }})">Delete</button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="7" class="no-chores">No chores found.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <section class="settings-section">
+                    <h3 class="section-title"><i class="fas fa-gift"></i> Bonus Points for Completing All Chores</h3>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Configure whether a static or range-based bonus is awarded when all chores are completed.</p>
+                    <form method="POST" action="/settings" id="bonus-points-form">
+                        <label class="bonus-mode-label{% if bonus_mode == 'static' %} selected{% endif %}" style="display:inline-flex;align-items:center;gap:6px;position:relative;">
+                            <input type="radio" class="bonus-mode-radio" name="bonus_mode" value="static" {% if bonus_mode == 'static' %}checked{% endif %}> <span class="custom-radio"></span> Static
+                        </label>
+                        <input type="number" name="bonus_static" min="0" step="0.01" value="{{ bonus_static or '' }}" placeholder="Static Points" id="bonus-static-input" class="modern-input" style="width:120px;">
+                        <br>
+                        <label class="bonus-mode-label{% if bonus_mode == 'range' %} selected{% endif %}" style="display:inline-flex;align-items:center;gap:6px;position:relative;">
+                            <input type="radio" class="bonus-mode-radio" name="bonus_mode" value="range" {% if bonus_mode == 'range' %}checked{% endif %}> <span class="custom-radio"></span> Range
+                        </label>
+                        <input type="number" name="bonus_min" min="0" step="0.01" value="{{ bonus_min or '' }}" placeholder="Min Points" id="bonus-min-input" class="modern-input" style="width:120px;">
+                        <input type="number" name="bonus_max" min="0" step="0.01" value="{{ bonus_max or '' }}" placeholder="Max Points" id="bonus-max-input" class="modern-input" style="width:120px;">
+                        <br>
+                        <label class="bonus-mode-label{% if bonus_mode == 'none' %} selected{% endif %}" style="color: #fff;display:inline-flex;align-items:center;gap:6px;position:relative;">
+                            <input type="radio" class="bonus-mode-radio" name="bonus_mode" value="none" {% if bonus_mode == 'none' %}checked{% endif %}> <span class="custom-radio"></span> No bonus points for completing all chores
+                        </label>
+                        <br>
+                        <label style="display:inline-flex;align-items:center;gap:6px;color:#fff;">
+                            <input type="checkbox" name="bonus_once_per_day" id="bonus-once-per-day" {% if bonus_once_per_day %}checked{% endif %} style="accent-color:#4CAF50;width:18px;height:18px;min-width:18px;min-height:18px;"> Only receive one bonus points award per day for completing all chores
+                        </label>
+                        <p class="explanation-text" style="color: #fff;">
+                            If checked, you will only receive the bonus points once per day even if you complete additional chores later. You will still receive points for the chores themselves.
+                        </p>
+                        <br>
+                        <label style="display:inline-flex;align-items:center;gap:6px;color:#fff;">
+                            <input type="checkbox" name="quiz_questions_enabled" id="quiz-questions-enabled" {% if quiz_questions_enabled %}checked{% endif %} style="accent-color:#4CAF50;width:18px;height:18px;min-width:18px;min-height:18px;"> Enable bonus quiz questions when completing all chores
+                        </label>
+                        <p class="explanation-text" style="color: #fff;">
+                            If checked, family members will be presented with age-appropriate quiz questions for additional bonus points when completing all their chores.
+                        </p>
+                        <button type="submit" class="save-btn">Save Bonus Points Setting</button>
+                    </form>
+                </section>
+                <section class="settings-section">
+                    <h3 class="section-title"><i class="fas fa-clock"></i> Timezone</h3>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Select your preferred timezone for displaying dates and times.</p>
+                    <form method="POST" action="/settings" id="timezone-form">
+                        <select name="timezone" id="timezone-select" class="modern-input" style="width:100%;">
+            {% set timezones = [
+                'Africa/Abidjan', 'Africa/Accra', 'Africa/Addis_Ababa', 'Africa/Algiers', 'Africa/Asmara',
+                'Africa/Bamako', 'Africa/Bangui', 'Africa/Banjul', 'Africa/Bissau', 'Africa/Blantyre',
+                'Africa/Brazzaville', 'Africa/Bujumbura', 'Africa/Cairo', 'Africa/Casablanca', 'Africa/Ceuta',
+                'Africa/Conakry', 'Africa/Dakar', 'Africa/Dar_es_Salaam', 'Africa/Djibouti', 'Africa/Douala',
+                'Africa/El_Aaiun', 'Africa/Freetown', 'Africa/Gaborone', 'Africa/Harare', 'Africa/Johannesburg',
+                'Africa/Juba', 'Africa/Kampala', 'Africa/Khartoum', 'Africa/Kigali', 'Africa/Kinshasa',
+                'Africa/Lagos', 'Africa/Libreville', 'Africa/Lome', 'Africa/Luanda', 'Africa/Lubumbashi',
+                'Africa/Lusaka', 'Africa/Malabo', 'Africa/Maputo', 'Africa/Maseru', 'Africa/Mbabane',
+                'Africa/Mogadishu', 'Africa/Monrovia', 'Africa/Nairobi', 'Africa/Ndjamena', 'Africa/Niamey',
+                'Africa/Nouakchott', 'Africa/Ouagadougou', 'Africa/Porto-Novo', 'Africa/Sao_Tome', 'Africa/Tripoli',
+                'Africa/Tunis', 'Africa/Windhoek', 'America/Adak', 'America/Anchorage', 'America/Anguilla',
+                'America/Antigua', 'America/Araguaina', 'America/Argentina/Buenos_Aires', 'America/Argentina/Catamarca',
+                'America/Argentina/Cordoba', 'America/Argentina/Jujuy', 'America/Argentina/La_Rioja', 'America/Argentina/Mendoza',
+                'America/Argentina/Rio_Gallegos', 'America/Argentina/Salta', 'America/Argentina/San_Juan', 'America/Argentina/San_Luis',
+                'America/Argentina/Tucuman', 'America/Argentina/Ushuaia', 'America/Aruba', 'America/Asuncion', 'America/Atikokan',
+                'America/Bahia', 'America/Bahia_Banderas', 'America/Barbados', 'America/Belem', 'America/Belize',
+                'America/Blanc-Sablon', 'America/Boa_Vista', 'America/Bogota', 'America/Boise', 'America/Cambridge_Bay',
+                'America/Campo_Grande', 'America/Cancun', 'America/Caracas', 'America/Cayenne', 'America/Cayman',
+                'America/Chicago', 'America/Chihuahua', 'America/Costa_Rica', 'America/Creston', 'America/Cuiaba',
+                'America/Curacao', 'America/Danmarkshavn', 'America/Dawson', 'America/Dawson_Creek', 'America/Denver',
+                'America/Detroit', 'America/Dominica', 'America/Edmonton', 'America/Eirunepe', 'America/El_Salvador',
+                'America/Fort_Nelson', 'America/Fortaleza', 'America/Glace_Bay', 'America/Godthab', 'America/Goose_Bay',
+                'America/Grand_Turk', 'America/Grenada', 'America/Guadeloupe', 'America/Guatemala', 'America/Guayaquil',
+                'America/Guyana', 'America/Halifax', 'America/Havana', 'America/Hermosillo', 'America/Indiana/Indianapolis',
+                'America/Indiana/Knox', 'America/Indiana/Marengo', 'America/Indiana/Petersburg', 'America/Indiana/Tell_City',
+                'America/Indiana/Vevay', 'America/Indiana/Vincennes', 'America/Indiana/Winamac', 'America/Inuvik', 'America/Iqaluit',
+                'America/Jamaica', 'America/Juneau', 'America/Kentucky/Louisville', 'America/Kentucky/Monticello', 'America/Kralendijk',
+                'America/La_Paz', 'America/Lima', 'America/Los_Angeles', 'America/Lower_Princes', 'America/Maceio',
+                'America/Managua', 'America/Manaus', 'America/Marigot', 'America/Martinique', 'America/Matamoros',
+                'America/Mazatlan', 'America/Menominee', 'America/Merida', 'America/Metlakatla', 'America/Mexico_City',
+                'America/Miquelon', 'America/Moncton', 'America/Monterrey', 'America/Montevideo', 'America/Montserrat',
+                'America/Nassau', 'America/New_York', 'America/Nipigon', 'America/Nome', 'America/Noronha',
+                'America/North_Dakota/Beulah', 'America/North_Dakota/Center', 'America/North_Dakota/New_Salem', 'America/Ojinaga', 'America/Panama',
+                'America/Pangnirtung', 'America/Paramaribo', 'America/Phoenix', 'America/Port-au-Prince', 'America/Port_of_Spain',
+                'America/Porto_Velho', 'America/Puerto_Rico', 'America/Punta_Arenas', 'America/Rainy_River', 'America/Rankin_Inlet',
+                'America/Recife', 'America/Regina', 'America/Resolute', 'America/Rio_Branco', 'America/Santarem',
+                'America/Santiago', 'America/Santo_Domingo', 'America/Sao_Paulo', 'America/Scoresbysund', 'America/Sitka',
+                'America/St_Barthelemy', 'America/St_Johns', 'America/St_Kitts', 'America/St_Lucia', 'America/St_Thomas',
+                'America/St_Vincent', 'America/Swift_Current', 'America/Tegucigalpa', 'America/Thule', 'America/Thunder_Bay',
+                'America/Tijuana', 'America/Toronto', 'America/Tortola', 'America/Vancouver', 'America/Whitehorse',
+                'America/Winnipeg', 'America/Yakutat', 'America/Yellowknife', 'Antarctica/Casey', 'Antarctica/Davis',
+                'Antarctica/DumontDUrville', 'Antarctica/Macquarie', 'Antarctica/Mawson', 'Antarctica/Palmer', 'Antarctica/Rothera',
+                'Antarctica/Syowa', 'Antarctica/Troll', 'Antarctica/Vostok', 'Arctic/Longyearbyen', 'Asia/Aden',
+                'Asia/Almaty', 'Asia/Amman', 'Asia/Anadyr', 'Asia/Aqtau', 'Asia/Aqtobe', 'Asia/Ashgabat', 'Asia/Atyrau',
+                'Asia/Baghdad', 'Asia/Bahrain', 'Asia/Baku', 'Asia/Bangkok', 'Asia/Barnaul', 'Asia/Beirut', 'Asia/Bishkek',
+                'Asia/Brunei', 'Asia/Chita', 'Asia/Choibalsan', 'Asia/Colombo', 'Asia/Damascus', 'Asia/Dhaka', 'Asia/Dili',
+                'Asia/Dubai', 'Asia/Dushanbe', 'Asia/Famagusta', 'Asia/Gaza', 'Asia/Hebron', 'Asia/Ho_Chi_Minh', 'Asia/Hong_Kong',
+                'Asia/Hovd', 'Asia/Irkutsk', 'Asia/Jakarta', 'Asia/Jayapura', 'Asia/Jerusalem', 'Asia/Kabul', 'Asia/Kamchatka',
+                'Asia/Karachi', 'Asia/Kathmandu', 'Asia/Khandyga', 'Asia/Kolkata', 'Asia/Krasnoyarsk', 'Asia/Kuala_Lumpur',
+                'Asia/Kuching', 'Asia/Macau', 'Asia/Magadan', 'Asia/Makassar', 'Asia/Manila', 'Asia/Nicosia', 'Asia/Novokuznetsk',
+                'Asia/Novosibirsk', 'Asia/Omsk', 'Asia/Oral', 'Asia/Phnom_Penh', 'Asia/Pontianak', 'Asia/Pyongyang', 'Asia/Qatar',
+                'Asia/Qostanay', 'Asia/Qyzylorda', 'Asia/Riyadh', 'Asia/Sakhalin', 'Asia/Samarkand', 'Asia/Seoul', 'Asia/Shanghai',
+                'Asia/Singapore', 'Asia/Srednekolymsk', 'Asia/Taipei', 'Asia/Tashkent', 'Asia/Tbilisi', 'Asia/Tehran', 'Asia/Thimphu',
+                'Asia/Tokyo', 'Asia/Tomsk', 'Asia/Ulaanbaatar', 'Asia/Urumqi', 'Asia/Ust-Nera', 'Asia/Vientiane', 'Asia/Vladivostok',
+                'Asia/Yakutsk', 'Asia/Yangon', 'Asia/Yekaterinburg', 'Asia/Yerevan', 'Atlantic/Azores', 'Atlantic/Bermuda',
+                'Atlantic/Canary', 'Atlantic/Cape_Verde', 'Atlantic/Faroe', 'Atlantic/Madeira', 'Atlantic/Reykjavik',
+                'Atlantic/South_Georgia', 'Atlantic/St_Helena', 'Atlantic/Stanley', 'Australia/Adelaide', 'Australia/Brisbane',
+                'Australia/Broken_Hill', 'Australia/Currie', 'Australia/Darwin', 'Australia/Eucla', 'Australia/Hobart',
+                'Australia/Lindeman', 'Australia/Lord_Howe', 'Australia/Melbourne', 'Australia/Perth', 'Australia/Sydney',
+                'Europe/Amsterdam', 'Europe/Andorra', 'Europe/Astrakhan', 'Europe/Athens', 'Europe/Belgrade', 'Europe/Berlin',
+                'Europe/Brussels', 'Europe/Bucharest', 'Europe/Budapest', 'Europe/Chisinau', 'Europe/Copenhagen', 'Europe/Dublin',
+                'Europe/Gibraltar', 'Europe/Helsinki', 'Europe/Istanbul', 'Europe/Kaliningrad', 'Europe/Kiev', 'Europe/Kirov',
+                'Europe/Lisbon', 'Europe/Ljubljana', 'Europe/London', 'Europe/Luxembourg', 'Europe/Madrid', 'Europe/Malta',
+                'Europe/Mariehamn', 'Europe/Minsk', 'Europe/Monaco', 'Europe/Moscow', 'Europe/Oslo', 'Europe/Paris', 'Europe/Podgorica',
+                'Europe/Prague', 'Europe/Riga', 'Europe/Rome', 'Europe/Samara', 'Europe/San_Marino', 'Europe/Sarajevo',
+                'Europe/Saratov', 'Europe/Simferopol', 'Europe/Skopje', 'Europe/Sofia', 'Europe/Stockholm', 'Europe/Tallinn',
+                'Europe/Tirane', 'Europe/Ulyanovsk', 'Europe/Uzhgorod', 'Europe/Vaduz', 'Europe/Vatican', 'Europe/Vienna',
+                'Europe/Vilnius', 'Europe/Volgograd', 'Europe/Warsaw', 'Europe/Zagreb', 'Europe/Zaporozhye', 'Europe/Zurich',
+                'Indian/Antananarivo', 'Indian/Chagos', 'Indian/Christmas', 'Indian/Cocos', 'Indian/Kerguelen', 'Indian/Mahe',
+                'Indian/Maldives', 'Indian/Mauritius', 'Indian/Mayotte', 'Indian/Reunion', 'Pacific/Apia', 'Pacific/Auckland',
+                'Pacific/Bougainville', 'Pacific/Chatham', 'Pacific/Chuuk', 'Pacific/Easter', 'Pacific/Efate', 'Pacific/Enderbury',
+                'Pacific/Fakaofo', 'Pacific/Fiji', 'Pacific/Funafuti', 'Pacific/Galapagos', 'Pacific/Gambier', 'Pacific/Guadalcanal',
+                'Pacific/Guam', 'Pacific/Honolulu', 'Pacific/Kiritimati', 'Pacific/Kosrae', 'Pacific/Kwajalein', 'Pacific/Majuro',
+                'Pacific/Marquesas', 'Pacific/Midway', 'Pacific/Nauru', 'Pacific/Niue', 'Pacific/Norfolk', 'Pacific/Noumea',
+                'Pacific/Pago_Pago', 'Pacific/Palau', 'Pacific/Pitcairn', 'Pacific/Pohnpei', 'Pacific/Port_Moresby', 'Pacific/Rarotonga',
+                'Pacific/Saipan', 'Pacific/Tahiti', 'Pacific/Tarawa', 'Pacific/Tongatapu', 'Pacific/Wake', 'Pacific/Wallis'
+            ] %}
+            {% for tz in timezones %}
+            <option value="{{ tz }}" style="color:#222;background:#fff;"{% if tz == 'Australia/Melbourne' %} selected{% endif %}>{{ tz }}</option>
+            {% endfor %}
+                        </select>
+                        <br><br>
+                        <button type="submit" class="save-btn">Save Timezone</button>
+                    </form>
+                </section>
+                <section class="settings-section" id="pin-change-section">
+                    <h3 class="section-title"><i class="fas fa-lock"></i> Change Master PIN</h3>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Change your current master PIN to a new PIN.</p>
+                    <form id="pin-change-form" method="POST" action="/settings" autocomplete="off" style="display:flex;flex-direction:column;gap:0.9rem;max-width:360px;">
+                        <input type="hidden" name="change_pin" value="1" />
+                        <div>
+                            <label class="settings-field-label" for="current_pin">Current PIN</label>
+                            <input type="password" id="current_pin" name="current_pin" maxlength="4" pattern="\d{4}" placeholder="Enter current 4-digit PIN" required class="modern-input" style="width:100%;" />
+                        </div>
+                        <div>
+                            <label class="settings-field-label" for="new_pin">New PIN</label>
+                            <input type="password" id="new_pin" name="new_pin" maxlength="4" pattern="\d{4}" placeholder="Enter new 4-digit PIN" required class="modern-input" style="width:100%;" />
+                        </div>
+                        <div>
+                            <label class="settings-field-label" for="confirm_pin">Confirm New PIN</label>
+                            <input type="password" id="confirm_pin" name="confirm_pin" maxlength="4" pattern="\d{4}" placeholder="Confirm new 4-digit PIN" required class="modern-input" style="width:100%;" />
+                        </div>
+                        <button type="submit" class="save-btn" id="change-pin-btn">Change PIN</button>
+                    </form>
+                        {% if error %}
+                            <div id="pin-change-message" style="margin-top: 1rem; color: #f44336; font-weight: 600;">{{ error }}</div>
+                        {% elif success %}
+                            <div id="pin-change-message" style="margin-top: 1rem; color: #4CAF50; font-weight: 600;">{{ success }}</div>
+                        {% else %}
+                            <div id="pin-change-message" style="margin-top: 1rem;"></div>
+                        {% endif %}
+                </section>
+            </div> <!-- .settings-content -->
+        </div> <!-- .settings-layout -->
+    </main>
+             </div>
+        </div>
+    </main>
+
+    <script>
+    // Toggle Gotify token visibility
+    document.addEventListener('DOMContentLoaded', function() {
+        var tokenInput = document.getElementById('gotify_token');
+        var toggle = document.getElementById('toggle-gotify-token');
+        var eye = document.getElementById('gotify-token-eye');
+        if (toggle && tokenInput && eye) {
+            toggle.addEventListener('click', function() {
+                if (tokenInput.type === 'password') {
+                    tokenInput.type = 'text';
+                    eye.classList.remove('fa-eye');
+                    eye.classList.add('fa-eye-slash');
+                } else {
+                    tokenInput.type = 'password';
+                    eye.classList.remove('fa-eye-slash');
+                    eye.classList.add('fa-eye');
+                }
+            });
+        }
+        var testBtn = document.getElementById('send-gotify-test');
+        if (testBtn) {
+            testBtn.addEventListener('click', function() {
+                testBtn.disabled = true;
+                fetch('/settings/gotify/test', {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(res => res.text())
+                    .then(msg => {
+                        alert(msg);
+                        testBtn.disabled = false;
+                    })
+                    .catch(() => {
+                        alert('Failed to send test notification.');
+                        testBtn.disabled = false;
+                    });
+            });
+        }
+
+        // Reward system pill selection highlight
+        document.querySelectorAll('.reward-system-radio').forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                document.querySelectorAll('.reward-system-label').forEach(function(lbl) {
+                    lbl.classList.remove('selected');
+                });
+                if (this.checked) {
+                    this.closest('.reward-system-label').classList.add('selected');
+                }
+            });
+        });
+    });
+    </script>
+    <style>
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #4CAF50;
+            margin-bottom: 1rem;
+        }
+        .tab-button {
+            background: none;
+            border: none;
+            color: #bbb;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: color 0.3s ease, border-bottom-color 0.3s ease;
+        }
+        .tab-button:hover {
+            color: #4CAF50;
+        }
+        .tab-button.active {
+            color: #4CAF50;
+            border-bottom-color: #4CAF50;
+        }
+        /* Audio list styles */
+        #audio-sounds-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .sound-item {
+            background: var(--card-bg, #181818);
+            border-radius: var(--border-radius, 12px);
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            color: #fff;
+        }
+        .sound-name {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left;
+        }
+        .sound-controls button {
+            background: none;
+            border: none;
+            color: #4CAF50;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 4px 6px;
+            transition: color 0.3s ease;
+        }
+        .sound-controls button:hover {
+            color: #81c784;
+        }
+        .sound-controls button:disabled {
+            color: #555;
+            cursor: default;
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const target = button.getAttribute('data-tab');
+
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+
+                    tabContents.forEach(content => {
+                        if (content.id === target) {
+                            content.style.display = 'block';
+                        } else {
+                            content.style.display = 'none';
+                        }
+                    });
+                });
+            });
+
+            // Audio tab functionality
+            const audioListContainer = document.getElementById('audio-sounds-list');
+            const uploadForm = document.getElementById('upload-sound-form');
+            const soundFileInput = document.getElementById('sound-file-input');
+            let currentAudio = null;
+
+            // Fetch and display sounds
+            function loadSounds() {
+                if (!audioListContainer) return;
+                
+                fetch('/api/sounds')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            renderSounds(data.sounds);
+                        } else {
+                            audioListContainer.innerHTML = `<p>Error loading sounds: ${data.error}</p>`;
+                        }
+                    })
+                    .catch(err => {
+                        audioListContainer.innerHTML = `<p>Error loading sounds: ${err.message}</p>`;
+                    });
+            }
+
+            // Render sounds list
+            function renderSounds(sounds) {
+                if (!audioListContainer) return;
+                
+                audioListContainer.innerHTML = '';
+                if (sounds.length === 0) {
+                    audioListContainer.innerHTML = '<p>No sounds found.</p>';
+                    return;
+                }
+                sounds.forEach(sound => {
+                    const soundItem = document.createElement('div');
+                    soundItem.className = 'sound-item';
+
+                    const soundName = document.createElement('div');
+                    soundName.className = 'sound-name';
+                    soundName.textContent = sound;
+
+                    const controls = document.createElement('div');
+                    controls.className = 'sound-controls';
+
+                    // Play/Stop button
+                    const playBtn = document.createElement('button');
+                    playBtn.classList.add('play-btn');
+                    playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    playBtn.title = 'Play';
+                    playBtn.addEventListener('click', () => {
+                        if (currentAudio && !currentAudio.paused) {
+                            currentAudio.pause();
+                            currentAudio.currentTime = 0;
+                            if (currentPlayBtn) {
+                                currentPlayBtn.innerHTML = '<i class="fas fa-play">style="color: grey;"</i>';
+                                currentPlayBtn.title = 'Play';
+                            }
+                            if (currentAudio.src.endsWith(sound)) {
+                                // Clicking the same play button stops the audio
+                                currentAudio = null;
+                                currentPlayBtn = null;
+                                return;
+                            }
+                        }
+                        if (currentAudio) {
+                            currentAudio.pause();
+                            currentAudio.currentTime = 0;
+                            if (currentPlayBtn) {
+                                currentPlayBtn.innerHTML = '<i class="fas fa-play"></i>';
+                                currentPlayBtn.title = 'Play';
+                            }
+                        }
+                        currentAudio = new Audio(`/static/sounds/${sound}`);
+                        currentAudio.play();
+                        playBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                        playBtn.title = 'Stop';
+                        currentPlayBtn = playBtn;
+                        currentAudio.onended = () => {
+                            playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                            playBtn.title = 'Play';
+                            currentAudio = null;
+                            currentPlayBtn = null;
+                        };
+                    });
+
+                    // Download button
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.innerHTML = '<i class="fas fa-download" style="color: white;"></i>';
+                    downloadBtn.title = 'Download';
+                    downloadBtn.addEventListener('click', () => {
+                        const link = document.createElement('a');
+                        link.href = `/static/sounds/${sound}`;
+                        link.download = sound;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    });
+
+                    // Delete button
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerHTML = '<i class="fas fa-trash-alt" style="color: red;"></i>';
+                    deleteBtn.title = 'Delete';
+                    deleteBtn.addEventListener('click', () => {
+                        if (confirm(`Are you sure you want to delete "${sound}"?`)) {
+                            fetch('/api/sounds/delete', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ filename: sound })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    if (currentAudio && !currentAudio.paused && currentAudio.src.includes(sound)) {
+                                        currentAudio.pause();
+                                        currentAudio = null;
+                                    }
+                                    loadSounds();
+                                } else {
+                                    alert('Failed to delete sound: ' + data.error);
+                                }
+                            })
+                            .catch(err => alert('Error deleting sound: ' + err.message));
+                        }
+                    });
+
+                    controls.appendChild(playBtn);
+                    controls.appendChild(downloadBtn);
+                    controls.appendChild(deleteBtn);
+
+                    soundItem.appendChild(soundName);
+                    soundItem.appendChild(controls);
+
+                    audioListContainer.appendChild(soundItem);
+                });
+            }
+
+            // Handle upload form submission
+            if (uploadForm && soundFileInput) {
+                uploadForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const file = soundFileInput.files[0];
+                if (!file) {
+                    alert('Please select a sound file to upload.');
+                    return;
+                }
+                const formData = new FormData();
+                formData.append('sound_file', file);
+                fetch('/api/sounds/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        soundFileInput.value = '';
+                        loadSounds();
+                    } else {
+                        alert('Upload failed: ' + data.error);
+                    }
+                })
+                .catch(err => alert('Upload error: ' + err.message));
+            });
+            }
+
+            // Initial load of sounds
+            loadSounds();
+
+            // Add periodic refresh every 30 seconds to update sounds list automatically
+            setInterval(() => {
+                // Only refresh if the audio tab is visible
+                const audioTab = document.getElementById('audio');
+                if (audioTab && audioTab.style.display === 'block') {
+                    loadSounds();
+                }
+            }, 30000); // 30000 ms = 30 seconds
+        });
+    </script>
+
+    <!-- Edit Chore Modal -->
+    <div id="editChoreModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+        <div class="modal-content" style="background-color: #222; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 400px; border-radius: 12px; color: white;">
+            <h3>Edit Daily Chore</h3>
+            <form id="editChoreForm">
+                <input type="hidden" id="editChoreId" name="chore_id" />
+                <label for="editChoreTitle">Title:</label><br />
+                <input type="text" id="editChoreTitle" name="title" required style="width: 100%; margin-bottom: 10px; padding: 5px; border-radius: 6px; border: 1px solid #555; background: #333; color: white;" /><br />
+                <label for="editChoreAssignedTo">Assigned To:</label><br />
+                <select id="editChoreAssignedTo" name="assigned_to" required style="width: 100%; margin-bottom: 10px; padding: 5px; border-radius: 6px; border: 1px solid #555; background: #333; color: white;">
+                    {% for person in family %}
+                    <option value="{{ person.name }}">{{ person.name }}</option>
+                    {% endfor %}
+                </select><br />
+                <label for="editChorePoints">Points:</label><br />
+                <input type="number" id="editChorePoints" name="points" min="0" required style="width: 100%; margin-bottom: 10px; padding: 5px; border-radius: 6px; border: 1px solid #555; background: #333; color: white;" /><br />
+                <label style="margin-top:8px; display:block; color:#fff; font-weight:600;">Specific Day(s) of the Week:</label>
+                <div id="editChoreDaysOfWeek" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 8px;">
+                    {% for day in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
+                    <label style="display: flex; align-items: center; gap: 4px; color:#fff; font-weight:500; margin-right:10px;">
+                        <input type="checkbox" name="days_of_week" value="{{ day }}" class="edit-chore-day-checkbox"> {{ day[:3] }}
+                    </label>
+                    {% endfor %}
+                </div>
+                <span style="color:#aaa; font-size:0.95em; margin-left:2px;">(Select one or more days, or leave blank for non-repeating chores)</span>
+                <div style="text-align: right;">
+                    <button type="button" id="cancelEditChoreBtn" style="background: rgba(136, 136, 136, 0.1); color: #fff; border: none; padding: 8px 12px; border-radius: 12px; cursor: pointer; margin-right: 10px;">Cancel</button>
+                    <button type="submit" class="save-btn" style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 12px; cursor: pointer;">Save</button>
+                </div>
+                <div id="editChoreError" style="color: #f44336; margin-top: 10px; display: none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Modal elements
+        const editChoreModal = document.getElementById('editChoreModal');
+        const editChoreForm = document.getElementById('editChoreForm');
+        const editChoreIdInput = document.getElementById('editChoreId');
+        const editChoreTitleInput = document.getElementById('editChoreTitle');
+        const editChoreAssignedToSelect = document.getElementById('editChoreAssignedTo');
+        const editChorePointsInput = document.getElementById('editChorePoints');
+        const editChoreError = document.getElementById('editChoreError');
+        const cancelEditChoreBtn = document.getElementById('cancelEditChoreBtn');
+
+        // Open modal and populate fields
+        async function editChore(choreId) {
+            const row = document.getElementById(`chore-row-${choreId}`);
+            if (!row) {
+                alert('Chore row not found');
+                return;
+            }
+            const title = row.querySelector('.chore-title').textContent.trim();
+            const assignedTo = row.querySelector('.chore-assigned-to').textContent.trim();
+            const points = row.querySelector('.chore-points').textContent.trim();
+            // Get days of week from the table cell (as string)
+            let daysCell = row.querySelector('.chore-days');
+            let daysOfWeek = [];
+            if (daysCell) {
+                let text = daysCell.textContent.trim();
+                if (text && text !== 'Daily' && text !== '-') {
+                    daysOfWeek = text.split(',').map(s => s.trim());
+                }
+            }
+
+            editChoreIdInput.value = choreId;
+            editChoreTitleInput.value = title;
+            // Set the selected option in the dropdown
+            for (let option of editChoreAssignedToSelect.options) {
+                option.selected = (option.value === assignedTo);
+            }
+            editChorePointsInput.value = points;
+            // Set days of week checkboxes
+            document.querySelectorAll('.edit-chore-day-checkbox').forEach(cb => {
+                cb.checked = daysOfWeek.includes(cb.value);
+            });
+            editChoreError.style.display = 'none';
+            editChoreError.textContent = '';
+
+            editChoreModal.style.display = 'block';
+        }
+
+        // Close modal
+        if (cancelEditChoreBtn && editChoreModal) {
+            cancelEditChoreBtn.addEventListener('click', () => {
+                editChoreModal.style.display = 'none';
+            });
+        }
+
+        // Handle form submission
+        if (editChoreForm && editChoreError && editChoreIdInput && editChoreTitleInput && editChoreAssignedToSelect) {
+            editChoreForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            editChoreError.style.display = 'none';
+            editChoreError.textContent = '';
+
+            const choreId = editChoreIdInput.value;
+            const title = editChoreTitleInput.value.trim();
+            const assignedTo = editChoreAssignedToSelect.value;
+            const points = parseInt(editChorePointsInput.value, 10);
+
+            if (!title || !assignedTo || isNaN(points) || points < 0) {
+                editChoreError.textContent = 'Please fill in all fields correctly.';
+                editChoreError.style.display = 'block';
+                return;
+            }
+
+            // Gather days of week from checkboxes
+            const daysOfWeek = Array.from(document.querySelectorAll('.edit-chore-day-checkbox:checked')).map(cb => cb.value);
+            const data = {
+                chore_id: choreId,
+                title: title,
+                assigned_to: assignedTo,
+                points: points,
+                days_of_week: daysOfWeek
+            };
+
+            try {
+                const response = await fetch('/edit_chore', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Update the row with new values
+                    const row = document.getElementById(`chore-row-${choreId}`);
+                    if (row) {
+                        row.querySelector('.chore-title').textContent = title;
+                        row.querySelector('.chore-assigned-to').textContent = assignedTo;
+                        row.querySelector('.chore-points').textContent = points;
+                    }
+                    editChoreModal.style.display = 'none';
+                    alert('Chore updated successfully');
+                } else {
+                    editChoreError.textContent = result.error || 'Unknown error';
+                    editChoreError.style.display = 'block';
+                }
+            } catch (error) {
+                editChoreError.textContent = error.message;
+                editChoreError.style.display = 'block';
+            }
+        });
+        }
+
+        // Delete chore function with corrected payload key
+        async function deleteDailyChore(choreId) {
+            if (!confirm('Are you sure you want to delete this daily chore?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/delete_daily_chore', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ chore_id: choreId })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Remove the row from the table
+                    const row = document.getElementById(`chore-row-${choreId}`);
+                    if (row) {
+                        row.remove();
+                    }
+                    alert('Chore deleted successfully');
+                } else {
+                    alert('Failed to delete chore: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error deleting chore: ' + error.message);
+            }
+        }
+    </script>
+
+<!-- Add missing modal elements expected by auth.js -->
+
+<!-- PIN Authorization Overlay Start -->
+<div id="pin-overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center; flex-direction: column;">
+    <div style="background: #222; padding: 2rem; border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.8); width: 320px; max-width: 90%;">
+        <h2 style="color: white; margin-bottom: 1rem; text-align: center;">Enter Master PIN</h2>
+        <input id="master-pin-input" type="password" maxlength="4" pattern="\d{4}" placeholder="4-digit PIN" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; border: none; margin-bottom: 1rem; text-align: center;">
+        <div id="master-pin-error" style="color: #f44336; font-weight: 600; margin-bottom: 1rem; display: none; text-align: center;"></div>
+        <button id="master-pin-submit" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; background-color: #4CAF50; color: white; border: none; cursor: pointer;">Submit</button>
+    </div>
+</div>
+<!-- PIN Authorization Overlay End -->
+
+<!-- Add Person Modal -->
+<div id="add-person-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#464646; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+    <h3>Add Family Member</h3>
+    <input type="text" id="add-person-input" placeholder="Enter name" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:80%; margin-bottom:18px;">
+    <div style="margin-top:10px; display:flex; gap:16px; justify-content:center;">
+      <button class="confirm-btn" onclick="confirmAddPerson()" style="background:#2d2d2d; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Add</button>
+      <button class="cancel-btn" onclick="closeAddPersonModal()" style="background:#888; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Person Modal -->
+<div id="delete-person-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#676665; color:#222; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+    <h3 style="margin-bottom:18px;">Are you sure you want to delete this person?</h3>
+    <h3 style="margin-bottom:24px;">This cannot be undone.</h3>
+    <div style="display:flex; gap:18px; justify-content:center;">
+      <button id="confirm-delete-btn" style="background:#e53935; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Yes</button>
+      <button id="cancel-delete-btn" style="background:#888; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">No</button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+<script>
+// Add Family Member Modal Functions
+const addPersonBtn = document.getElementById('add-person-btn');
+if (addPersonBtn) {
+    addPersonBtn.addEventListener('click', function() {
+        document.getElementById('add-person-modal').style.display = 'flex';
+        document.getElementById('add-person-input').focus();
+    });
+}
+
+function closeAddPersonModal() {
+    document.getElementById('add-person-modal').style.display = 'none';
+    document.getElementById('add-person-input').value = '';
+}
+
+function confirmAddPerson() {
+    const name = document.getElementById('add-person-input').value.trim();
+    if (!name) {
+        alert('Please enter a name');
+        return;
+    }
+    
+    fetch('/add_person', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to add person');
+        }
+    })
+    .catch(error => {
+        console.error('Error adding person:', error);
+        alert('An error occurred while adding the person.');
+    });
+}
+
+// Close modal when clicking outside
+const addPersonModal = document.getElementById('add-person-modal');
+if (addPersonModal) {
+    addPersonModal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeAddPersonModal();
+        }
+    });
+}
+
+// Handle Enter key in input field
+const addPersonInput = document.getElementById('add-person-input');
+if (addPersonInput) {
+    addPersonInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            confirmAddPerson();
+        }
+    });
+}
+
+// Upload avatar function for settings page
+function uploadAvatarSettings(event, personId) {
+    const file = event.target.files[0];
+    if (!file) {
+        alert("Please select a file to upload.");
+        return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        alert("Please select an image file.");
+        return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        alert("File size must be less than 5MB.");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    // Show loading state
+    const avatar = document.getElementById(`avatar-${personId}`);
+    const originalSrc = avatar.src;
+    avatar.style.opacity = '0.6';
+
+    fetch(`/upload_avatar/${personId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the avatar image with the new URL
+            avatar.src = data.avatar_url + '?t=' + Date.now(); // Add timestamp to bypass cache
+            avatar.style.opacity = '1';
+            
+            // Show success message
+            const card = avatar.closest('.family-member-card');
+            showSuccessMessage(card, 'Avatar updated successfully!');
+        } else {
+            avatar.style.opacity = '1';
+            alert(data.message || "Failed to upload avatar");
+        }
+    })
+    .catch(error => {
+        console.error("Error uploading avatar:", error);
+        avatar.style.opacity = '1';
+        alert("An error occurred while uploading the avatar.");
+    });
+
+    // Clear the input for future uploads
+    event.target.value = '';
+}
+
+// Helper function to show success message
+function showSuccessMessage(container, message) {
+    const successDiv = document.createElement('div');
+    successDiv.textContent = message;
+    successDiv.style.cssText = `
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #4CAF50;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 0.9em;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+        z-index: 1000;
+    `;
+    
+    container.style.position = 'relative';
+    container.appendChild(successDiv);
+    
+    // Remove the message after 3 seconds
+    setTimeout(() => {
+        if (successDiv.parentNode) {
+            successDiv.parentNode.removeChild(successDiv);
+        }
+    }, 3000);
+}
+
+// Change person color function for settings page
+function changePersonColorSettings(event, personId) {
+    const colorInput = event.target;
+    const selectedColor = colorInput.value;
+    const card = colorInput.closest('.family-member-card');
+    
+    // Update the card's visual gradient
+    const gradientDiv = card.querySelector('.family-member-card > div:first-child');
+    if (gradientDiv) {
+        gradientDiv.style.background = `linear-gradient(135deg, ${selectedColor}20 0%, ${selectedColor}40 100%)`;
+    }
+    
+    fetch('/save_column_color', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person_id: personId, color: selectedColor }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccessMessage(card, 'Color updated successfully!');
+        } else {
+            console.error("Failed to save color preference");
+        }
+    })
+    .catch(error => {
+        console.error("Error saving color preference:", error);
+    });
+}
+</script>
+</body>
+</html>

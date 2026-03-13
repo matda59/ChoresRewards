@@ -1,0 +1,42 @@
+// Function to check for PIN and control overlay visibility
+    function checkPin() {
+        const pinInput = document.getElementById('pin-input').value;
+        if (pinInput === '3701') {
+            localStorage.setItem('isAuthenticated', 'true');
+            document.getElementById('pin-overlay').style.display = 'none';
+            // Reload the page to apply authentication
+            window.location.reload();
+        } else {
+            document.getElementById('pin-error').style.display = 'block';
+        }
+    }
+
+    // On DOM load, check if the user is authenticated
+    document.addEventListener('DOMContentLoaded', function() {
+        const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+        const pinOverlay = document.getElementById('pin-overlay');
+
+        if (!isAuthenticated) {
+            pinOverlay.style.display = 'flex';
+            // Prevent any further execution until authenticated
+            return;
+        } else {
+            pinOverlay.style.display = 'none';
+        }
+
+        // The rest of your DOMContentLoaded code here, such as:
+        const columns = document.querySelectorAll('.column');
+        columns.forEach(column => {
+            const colorInput = column.querySelector('.color-input');
+            const personId = colorInput.getAttribute('id').replace('color-picker-', '');
+            fetch(`/get_column_color/${personId}`, { method: 'GET' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    column.style.backgroundColor = data.color;
+                    colorInput.value = data.color;
+                }
+            })
+            .catch(error => console.error("Error loading color:", error));
+        });
+    });

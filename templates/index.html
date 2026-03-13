@@ -1,0 +1,4149 @@
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+    <script>
+        window.REWARD_SYSTEM = "{{ reward_system }}";
+    </script>
+        <noscript>
+            <style>
+                #site-content { display: block !important; }
+                #pin-overlay { display: none !important; }
+            </style>
+        </noscript>
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ChoresRewards</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+        <!-- Add Font Awesome for icons -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+                <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+                <style id="hide-overlays-style">
+                    #pin-overlay, #site-content { display: none !important; }
+                    #toast-container { z-index: 99999; }
+                </style>
+                <noscript>
+                    <style>
+                        #site-content { display: block !important; }
+                        #pin-overlay { display: none !important; }
+                    </style>
+                </noscript>
+                <script>
+                // Remove the overlay-hiding style as soon as possible so JS can show overlays
+                window.addEventListener('DOMContentLoaded', function() {
+                    var style = document.getElementById('hide-overlays-style');
+                    if (style) style.parentNode.removeChild(style);
+                });
+                                </script>
+                                <script>
+                                // Auto-refresh the page every 30 minutes to ensure daily chores update
+                                setInterval(function() {
+                                    window.location.reload();
+                                }, 30 * 60 * 1000); // 30 minutes in milliseconds
+                                </script>
+        <style>
+        /* Celebration Animation Styles */
+        .celebration-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: fadeIn 0.5s ease-in;
+        }
+        .celebration-content {
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+            max-width: 500px;
+            width: 90%;
+        }
+        .celebration-content::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shimmer 2s infinite;
+        }
+        .celebration-title {
+            font-size: 3em;
+            color: #fff;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            animation: bounce 1s infinite alternate;
+        }
+        .celebration-message {
+            font-size: 1.5em;
+            color: #fff;
+            margin-bottom: 30px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        .celebration-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 5px solid #fff;
+            margin: 0 auto 20px;
+            display: block;
+            animation: pulse 1.5s infinite;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+        .celebration-close {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+        .celebration-close:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(255, 107, 107, 0.6);
+        }
+        /* Confetti Animation */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #f0f;
+            animation: confetti-fall 3s linear infinite;
+        }
+        .confetti:nth-child(1) { left: 10%; animation-delay: 0s; background: #ff6b6b; }
+        .confetti:nth-child(2) { left: 20%; animation-delay: 0.2s; background: #4ecdc4; }
+        .confetti:nth-child(3) { left: 30%; animation-delay: 0.4s; background: #45b7d1; }
+        .confetti:nth-child(4) { left: 40%; animation-delay: 0.6s; background: #96ceb4; }
+        .confetti:nth-child(5) { left: 50%; animation-delay: 0.8s; background: #feca57; }
+        .confetti:nth-child(6) { left: 60%; animation-delay: 1s; background: #ff9ff3; }
+        .confetti:nth-child(7) { left: 70%; animation-delay: 1.2s; background: #54a0ff; }
+        .confetti:nth-child(8) { left: 80%; animation-delay: 1.4s; background: #5f27cd; }
+        .confetti:nth-child(9) { left: 90%; animation-delay: 1.6s; background: #00d2d3; }
+        .confetti:nth-child(10) { left: 15%; animation-delay: 1.8s; background: #ff6348; }
+        .confetti:nth-child(11) { left: 25%; animation-delay: 2s; background: #2ed573; }
+        .confetti:nth-child(12) { left: 35%; animation-delay: 2.2s; background: #ffa502; }
+        .confetti:nth-child(13) { left: 45%; animation-delay: 2.4s; background: #3742fa; }
+        .confetti:nth-child(14) { left: 55%; animation-delay: 2.6s; background: #2f3542; }
+        .confetti:nth-child(15) { left: 65%; animation-delay: 2.8s; background: #ff4757; }
+        /* Sparkles */
+        .sparkle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #fff;
+            border-radius: 50%;
+            animation: sparkle 2s linear infinite;
+        }
+        .sparkle:nth-child(16) { left: 12%; top: 20%; animation-delay: 0.1s; }
+        .sparkle:nth-child(17) { left: 88%; top: 30%; animation-delay: 0.3s; }
+        .sparkle:nth-child(18) { left: 25%; top: 60%; animation-delay: 0.5s; }
+        .sparkle:nth-child(19) { left: 75%; top: 70%; animation-delay: 0.7s; }
+        .sparkle:nth-child(20) { left: 50%; top: 15%; animation-delay: 0.9s; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes bounce {
+            from { transform: translateY(0px); }
+            to { transform: translateY(-10px); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        @keyframes sparkle {
+            0%, 100% {
+                opacity: 0;
+                transform: scale(0);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        .celebration-stars {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2em;
+            color: #ffd700;
+            animation: twinkle 1s infinite alternate;
+        }
+        @keyframes twinkle {
+                width: 180px;
+                height: 180px;
+        }
+        .sound-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2em;
+        }
+        .sound-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+/* Slot Machine Styles */
+.slot-machine-container {
+    margin: 20px 0;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    border: 2px solid #ffd700;
+}
+
+.slot-machine-title {
+    font-size: 1.8em;
+    color: #ffd700;
+    margin-bottom: 15px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.slot-machine-display {
+    background: #000;
+    color: #ffd700;
+    font-size: 4em;
+    font-weight: bold;
+    padding: 20px;
+    border-radius: 10px;
+    border: 3px solid #ffd700;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Courier New', monospace;
+    text-shadow: 0 0 10px #ffd700;
+    animation: slot-glow 1s infinite alternate;
+}
+
+.slot-machine-result {
+    font-size: 1.4em;
+    color: #fff;
+    margin-top: 15px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slot-glow {
+    from { box-shadow: 0 0 5px #ffd700; }
+    to { box-shadow: 0 0 20px #ffd700, 0 0 30px #ffd700; }
+}
+
+/* ── Bonus Choice Screen ── */
+.bonus-choice-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 10px 0;
+}
+.bonus-choice-title {
+    font-size: 1.15em;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+    letter-spacing: 0.3px;
+}
+.bonus-choice-btns {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.bonus-choice-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 130px;
+    padding: 18px 10px;
+    border-radius: 16px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    font-size: 0.95em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+.bonus-choice-btn:hover { background: rgba(255,255,255,0.17); transform: translateY(-2px); }
+.bonus-choice-btn .choice-icon { font-size: 2.2em; }
+.bonus-choice-btn.choice-brain { border-color: rgba(99,102,241,0.6); }
+.bonus-choice-btn.choice-brain:hover { border-color: #6366f1; background: rgba(99,102,241,0.15); }
+.bonus-choice-btn.choice-body  { border-color: rgba(76,175,80,0.6); }
+.bonus-choice-btn.choice-body:hover  { border-color: #4CAF50; background: rgba(76,175,80,0.15); }
+.bonus-choice-skip {
+    font-size: 0.82em;
+    color: rgba(255,255,255,0.45);
+    cursor: pointer;
+    background: none;
+    border: none;
+    text-decoration: underline;
+    padding: 4px 10px;
+}
+.bonus-choice-skip:hover { color: rgba(255,255,255,0.7); }
+
+/* ── Body Challenge Screen ── */
+.body-challenge-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 6px 0;
+}
+.challenge-emoji { font-size: 3.5em; }
+.challenge-title {
+    font-size: 1.5em;
+    font-weight: 800;
+    color: #fff;
+    text-align: center;
+}
+.challenge-desc {
+    font-size: 1em;
+    color: rgba(255,255,255,0.75);
+    text-align: center;
+    max-width: 280px;
+    line-height: 1.45;
+}
+.challenge-timer-ring {
+    position: relative;
+    width: 100px;
+    height: 100px;
+}
+.challenge-timer-ring svg { transform: rotate(-90deg); }
+.challenge-timer-ring .timer-track { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 8; }
+.challenge-timer-ring .timer-arc  { fill: none; stroke: #4CAF50; stroke-width: 8; stroke-linecap: round;
+    stroke-dasharray: 251.2; stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear, stroke 0.3s;
+}
+.challenge-timer-label {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.7em;
+    font-weight: 800;
+    color: #fff;
+}
+.challenge-did-it-btn {
+    background: #4CAF50;
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    padding: 14px 36px;
+    font-size: 1.15em;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(76,175,80,0.45);
+    transition: background 0.2s, transform 0.15s;
+}
+.challenge-did-it-btn:hover { background: #45a049; transform: translateY(-2px); }
+.challenge-skip-link {
+    font-size: 0.8em;
+    color: rgba(255,255,255,0.4);
+    cursor: pointer;
+    background: none;
+    border: none;
+    text-decoration: underline;
+}        
+    </style>
+    <style>
+    .optional-label {
+        font-size: 0.85em;
+        color: #aaa;
+        font-weight: 400;
+        margin-left: 2px;
+    }
+    </style>
+</head>
+        <style id="hide-overlays-style">
+            #pin-overlay, #site-content { display: none !important; }
+            #toast-container { z-index: 99999; }
+        </style>
+<script>
+// Remove the overlay-hiding style as soon as possible so JS can show overlays
+window.addEventListener('DOMContentLoaded', function() {
+    var style = document.getElementById('hide-overlays-style');
+    if (style) style.parentNode.removeChild(style);
+});
+        </script>
+
+<!-- Edit Reward Image Modal (only one instance, outside all loops) -->
+<div id="edit-reward-image-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:#222; padding:32px 24px; border-radius:16px; min-width:320px; max-width:90vw; box-shadow:0 2px 16px #000; display:flex; flex-direction:column; align-items:center;">
+        <h3 style="color:#fff; margin-bottom:18px;">Edit Reward Image</h3>
+        <input type="file" id="reward-image-upload" accept="image/*" style="margin-bottom:12px; color:#fff;">
+        <input type="text" id="reward-image-url" placeholder="Or paste image URL here" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:100%; margin-bottom:18px;">
+        <div style="display:flex; gap:12px;">
+            <button class="confirm-btn" onclick="saveRewardImage()" style="background:#6366f1; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Save</button>
+            <button class="cancel-btn" onclick="closeEditRewardImageModal()" style="background:#888; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<body>
+<!-- Toast container for notifications -->
+<div id="toast-container" style="position:fixed;top:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:12px;"></div>
+<!-- Now moved below the main heading -->
+<!-- PIN Authorization Overlay Start -->
+<div id="pin-overlay" style="display:none!important; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center; flex-direction: column;">
+    <div style="background: #222; padding: 2rem; border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.8); width: 320px; max-width: 90%;">
+        <h2 style="color: white; margin-bottom: 1rem; text-align: center;">Enter Master PIN</h2>
+        <input id="master-pin-input" type="password" maxlength="4" pattern="\d{4}" placeholder="4-digit PIN" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; border: none; margin-bottom: 1rem; text-align: center;">
+        <div id="master-pin-error" style="color: #f44336; font-weight: 600; margin-bottom: 1rem; display: none; text-align: center;"></div>
+        <button id="master-pin-submit" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; background-color: #6366f1; color: white; border: none; cursor: pointer;">Submit</button>
+    </div>
+</div>
+<!-- PIN Authorization Overlay End -->
+<!-- Celebration Overlay -->
+<div id="celebration-overlay" class="celebration-overlay">
+    <div class="celebration-content">
+        <div class="celebration-stars">⭐ ⭐ ⭐</div>
+        <button class="sound-toggle" onclick="toggleCelebrationSound()" title="Toggle Sound">
+            <i class="fas fa-volume-up" id="sound-icon"></i>
+        </button>
+        <!-- Confetti -->
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <div class="confetti"></div>
+        <!-- Sparkles -->
+        <div class="sparkle"></div>
+        <div class="sparkle"></div>
+        <div class="sparkle"></div>
+        <div class="sparkle"></div>
+        <div class="sparkle"></div>
+        
+        <h1 class="celebration-title">🎉 AMAZING! 🎉</h1>
+        <img id="celebration-avatar" class="celebration-avatar" src="" alt="Celebration Avatar">
+        <p id="celebration-message" class="celebration-message">You completed all your chores!</p>
+        
+        <!-- Slot Machine Container -->
+        <div id="slot-machine-container" class="slot-machine-container" style="display:none;">
+            <div class="slot-machine-title">🎰 BONUS POINTS! 🎰</div>
+            <div id="slot-machine-display" class="slot-machine-display">?</div>
+            <div id="slot-machine-result" class="slot-machine-result" style="display:none;"></div>
+        </div>
+
+        <!-- Bonus Choice Screen: Brain Quiz vs Body Challenge -->
+        <div id="bonus-choice-screen" class="bonus-choice-screen">
+            <p class="bonus-choice-title">🌟 Earn Extra Bonus Points!</p>
+            <div class="bonus-choice-btns">
+                <button class="bonus-choice-btn choice-brain" onclick="chooseBonusType('brain')">
+                    <span class="choice-icon">🧠</span>
+                    Brain Quiz
+                </button>
+                <button class="bonus-choice-btn choice-body" onclick="chooseBonusType('body')">
+                    <span class="choice-icon">💪</span>
+                    Body Challenge
+                </button>
+            </div>
+            <button class="bonus-choice-skip" onclick="chooseBonusType('skip')">Skip, just give me regular bonus</button>
+        </div>
+
+        <!-- Body Challenge Screen -->
+        <div id="body-challenge-screen" class="body-challenge-screen">
+            <div id="challenge-emoji" class="challenge-emoji">💪</div>
+            <div id="challenge-title" class="challenge-title">Ready?</div>
+            <div id="challenge-desc" class="challenge-desc"></div>
+            <div class="challenge-timer-ring">
+                <svg viewBox="0 0 100 100" width="100" height="100">
+                    <circle class="timer-track" cx="50" cy="50" r="40"/>
+                    <circle id="challenge-timer-arc" class="timer-arc" cx="50" cy="50" r="40"/>
+                </svg>
+                <div id="challenge-timer-label" class="challenge-timer-label">60</div>
+            </div>
+            <button class="challenge-did-it-btn" id="challenge-did-it-btn" onclick="challengeComplete(true)">✓ I Did It!</button>
+            <button class="challenge-skip-link" onclick="challengeComplete(false)">Too hard, skip</button>
+        </div>
+
+        <button id="celebration-quiz-btn" class="celebration-close" style="display:none;" onclick="closeCelebration()">Awesome! 🚀</button>
+    <script>
+        // Quiz questions loaded from backend Python list
+        window.quiz_questions = {{ quiz_questions|tojson }};
+        // Person ages for age-based quiz filtering
+        window.person_ages = {{ person_ages|tojson }};
+        // Badge profile data
+        window.BADGE_DEFINITIONS = {{ badge_definitions_list | tojson }};
+        window.PERSON_EARNED_KEYS = {{ person_earned_keys | tojson }};
+        window.PERSON_TOTAL_COMPLETED = {{ person_total_completed | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
+    <script>
+    // Show quiz as part of celebration overlay
+    let quizShownToday = false;
+        function showQuizForBonusCelebration(personId, onDone) {
+            // Route through choice screen so player picks brain or body challenge
+            showBonusChoiceScreen(personId, onDone);
+        }
+        function showQuizForBonusCelebration_UNUSED_placeholder() {}
+        // ── Real quiz logic (called after player picks "Brain Quiz") ──────
+        function showQuizForBonusCelebration_inner(personId, onDone) {
+            // Check if quiz questions are enabled
+            const quizEnabled = {{ 'true' if quiz_questions_enabled else 'false' }};
+            if (!quizEnabled) {
+                // Skip quiz, show button to close celebration and proceed with regular bonus
+                const btn = document.getElementById('celebration-quiz-btn');
+                btn.textContent = 'Awesome! 🚀 (Regular Bonus)';
+                btn.style.background = '#6366f1';
+                btn.style.display = '';
+                scheduleCelebrationAutoClose();
+                onDone(false);
+                return;
+            }
+            
+            if (quizShownToday) { 
+                // Quiz already shown today, show button and proceed with regular bonus
+                const btn = document.getElementById('celebration-quiz-btn');
+                btn.textContent = 'Awesome! 🚀 (Regular Bonus)';
+                btn.style.background = '#6366f1';
+                btn.style.display = '';
+                scheduleCelebrationAutoClose();
+                onDone(false); 
+                return; 
+            }
+            quizShownToday = true;
+            showQuizModal(personId, function(correct, skipped) {
+                const btn = document.getElementById('celebration-quiz-btn');
+                
+                // Log the quiz result
+                let result;
+                if (skipped) {
+                    result = 'skipped';
+                    btn.textContent = 'Boooo! 🚀 (Regular Bonus)';
+                    btn.style.background = '#ffb347';
+                    btn.style.display = '';
+                    onDone(false);
+                } else if (correct) {
+                    result = 'correct';
+                    btn.textContent = 'Awesome! 🚀 (Correct! Extra Bonus points!)';
+                    btn.style.background = '#6366f1';
+                    btn.style.display = '';
+                    onDone(true);
+                } else {
+                    result = 'incorrect';
+                    btn.textContent = 'Sorry wrong! 🚀 (Regular Bonus)';
+                    btn.style.background = '#ff6b6b';
+                    btn.style.display = '';
+                    onDone(false);
+                }
+                
+                // Log quiz result to activity log
+                scheduleCelebrationAutoClose();
+                fetch('/log_quiz_result', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        person_id: parseInt(personId, 10), 
+                        result: result
+                    })
+                })
+                .catch(error => {
+                    console.error('Error logging quiz result:', error);
+                });
+            });
+        }
+        // Call this function when showing the celebration overlay, before awarding bonus points
+        // Example usage:
+        // showQuizForBonusCelebration(function(correct) { ...award bonus... });
+
+        // ── Body Challenge Data ──────────────────────────────────────────
+        const BODY_CHALLENGES = [
+            { emoji: '🏃', title: '10 Running Jumps!',     desc: 'Jump as high as you can 10 times — arms up each time!' },
+            { emoji: '💪', title: '10 Push-Ups!',          desc: 'Get down and do 10 push-ups. Knees on floor is fine!' },
+            { emoji: '🦘', title: '20 Jumping Jacks!',     desc: 'Arms up, legs out — 20 jumping jacks, go go go!' },
+            { emoji: '🧘', title: '30s Deep Breathing',    desc: 'Close your eyes, breathe in slowly for 4 counts, out for 4. Do it 4 times.' },
+            { emoji: '🌀', title: '15 Arm Circles!',       desc: '15 big slow circles forward, then 15 backward.' },
+            { emoji: '🦩', title: '30s Balance Stand',     desc: 'Stand on one foot for 30 seconds — switch halfway!' },
+            { emoji: '🐸', title: '10 Frog Jumps!',        desc: 'Squat low like a frog, then leap forward 10 times!' },
+            { emoji: '🌟', title: '20 Star Jumps!',        desc: 'Jump and spread arms and legs wide like a star — 20 times!' },
+            { emoji: '🐛', title: '5 Slow Stretches',      desc: 'Touch your toes and hold 5 seconds. Do it 5 times slowly.' },
+            { emoji: '🦁', title: 'Lion Roar x5!',         desc: 'Take a big deep breath in, then roar out loud like a lion 5 times. Silly but great for your lungs!' },
+            { emoji: '🌈', title: 'Shake It Out!',         desc: 'Shake your hands, then arms, shoulders, hips, legs — do the whole body wiggle for 30 seconds!' },
+            { emoji: '🧗', title: '15 High Knees!',        desc: 'March on the spot bringing your knees up as high as you can — 15 each leg!' },
+        ];
+
+        let challengeTimerInterval = null;
+        let challengeOnDoneCallback = null;
+        let bonusChoiceOnDoneCallback = null;
+        let celebrationCountdownInterval = null;
+
+        // Start a 5-second countdown in the "Awesome" button, then auto-close
+        function scheduleCelebrationAutoClose() {
+            if (celebrationCountdownInterval) { clearInterval(celebrationCountdownInterval); celebrationCountdownInterval = null; }
+            const btn = document.getElementById('celebration-quiz-btn');
+            const baseText = btn.textContent;
+            let secs = 5;
+            btn.textContent = baseText + '  (' + secs + ')';
+            celebrationCountdownInterval = setInterval(() => {
+                secs--;
+                if (secs <= 0) {
+                    clearInterval(celebrationCountdownInterval);
+                    celebrationCountdownInterval = null;
+                    closeCelebration();
+                } else {
+                    btn.textContent = baseText + '  (' + secs + ')';
+                }
+            }, 1000);
+        }
+
+        // Show the choice screen (brain or body) instead of jumping straight to quiz
+        function showBonusChoiceScreen(personId, onDone) {
+            bonusChoiceOnDoneCallback = { personId, onDone };
+            const choiceScreen = document.getElementById('bonus-choice-screen');
+            choiceScreen.style.display = 'flex';
+        }
+
+        function chooseBonusType(type) {
+            const choiceScreen = document.getElementById('bonus-choice-screen');
+            choiceScreen.style.display = 'none';
+            const { personId, onDone } = bonusChoiceOnDoneCallback;
+            if (type === 'brain') {
+                // Run the existing quiz flow
+                showQuizForBonusCelebration_inner(personId, onDone);
+            } else if (type === 'body') {
+                showBodyChallengeScreen(onDone);
+            } else {
+                // skip — regular bonus
+                const btn = document.getElementById('celebration-quiz-btn');
+                btn.textContent = 'Awesome! 🚀';
+                btn.style.background = '#4CAF50';
+                btn.style.display = '';
+                scheduleCelebrationAutoClose();
+                onDone(false);
+            }
+        }
+
+        function showBodyChallengeScreen(onDone) {
+            challengeOnDoneCallback = onDone;
+            const challenge = BODY_CHALLENGES[Math.floor(Math.random() * BODY_CHALLENGES.length)];
+            document.getElementById('challenge-emoji').textContent = challenge.emoji;
+            document.getElementById('challenge-title').textContent = challenge.title;
+            document.getElementById('challenge-desc').textContent  = challenge.desc;
+
+            const screen = document.getElementById('body-challenge-screen');
+            screen.style.display = 'flex';
+
+            // Animated countdown
+            const arc = document.getElementById('challenge-timer-arc');
+            const label = document.getElementById('challenge-timer-label');
+            const totalSeconds = 60;
+            const circumference = 251.2; // 2π × 40
+            let remaining = totalSeconds;
+            arc.style.strokeDashoffset = '0';
+            arc.style.stroke = '#4CAF50';
+            label.textContent = remaining;
+
+            if (challengeTimerInterval) clearInterval(challengeTimerInterval);
+            challengeTimerInterval = setInterval(() => {
+                remaining--;
+                label.textContent = remaining;
+                arc.style.strokeDashoffset = ((totalSeconds - remaining) / totalSeconds * circumference).toFixed(1);
+                if (remaining <= 10) arc.style.stroke = '#ff6b6b';
+                if (remaining <= 0) {
+                    clearInterval(challengeTimerInterval);
+                    // Time's up — treat as skipped
+                    challengeComplete(false);
+                }
+            }, 1000);
+        }
+
+        function challengeComplete(succeeded) {
+            if (challengeTimerInterval) { clearInterval(challengeTimerInterval); challengeTimerInterval = null; }
+            const screen = document.getElementById('body-challenge-screen');
+            screen.style.display = 'none';
+            const btn = document.getElementById('celebration-quiz-btn');
+            if (succeeded) {
+                btn.textContent = '💪 Amazing! Full Bonus!';
+                btn.style.background = '#4CAF50';
+            } else {
+                btn.textContent = 'Awesome! 🚀 (Regular Bonus)';
+                btn.style.background = '#ffb347';
+            }
+            btn.style.display = '';
+            scheduleCelebrationAutoClose();
+            if (challengeOnDoneCallback) challengeOnDoneCallback(succeeded);
+        }
+
+    </script>
+    </div>
+</div>
+<!-- All site content is wrapped in the site-content container -->
+<div id="site-content" style="display:none;">
+    <header>
+<div class="header-content" style="display:flex; align-items:center; justify-content:flex-start; background:linear-gradient(135deg,#141f33 0%,#1a2840 100%); padding:0.75rem 1.5rem; border-radius:14px; border-bottom:1px solid rgba(255,255,255,0.07); margin-bottom:1.2rem; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+    <img src="{{ url_for('static', filename='images/mascot-transp.png') }}" 
+         alt="Chores Reward Icon" 
+         style="height:70px; width:70px; margin-right:10px;">
+    <h2 style="color: white; margin:0; font-size:1.4rem; text-transform:none; letter-spacing:0;">Chores and Rewards</h2>
+</div>
+    <!-- Navigation -->
+<nav class="activity-page-nav">
+    <a href="{{ url_for('routes.activity_log') }}"><i class="fas fa-history"></i> Activity Log</a>
+    <a href="{{ url_for('routes.settings') }}"><i class="fas fa-cog"></i> Settings</a>
+</nav>
+
+
+    <div class="theme-toggle-container" style="display:flex;align-items:center;gap:10px; margin-left:4px; margin-bottom:0.75rem;">
+        <button class="theme-toggle" id="theme-toggle">
+            <i class="fas fa-sun light-icon"></i>
+            <i class="fas fa-moon dark-icon"></i>
+        </button>
+        <button class="mute-toggle" id="mute-toggle" title="Mute All Sounds" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:10px;border-radius:50%;cursor:pointer;font-size:1.2em;">
+            <i class="fas fa-volume-up" id="mute-icon"></i>
+        </button>
+    </div>
+ 
+
+<!-- Edit Name Modal -->
+<div id="edit-name-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#676665; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+    <h3>Edit Name</h3>
+    <input type="text" id="edit-name-input" placeholder="Enter new name" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:80%; margin-bottom:18px;">
+    <div style="margin-top:10px; display:flex; gap:16px; justify-content:center;">
+      <button class="confirm-btn" onclick="confirmEditName()" style="background:#2d2d2d; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Confirm</button>
+      <button class="cancel-btn" onclick="closeEditNameModal()" style="background:#888; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+    <!-- Enhanced Rewards Section -->
+    <section class="rewards-section collapsible-section">
+        <h2 class="section-title section-toggle">
+<i class="fas fa-trophy" style="color: #a78bfa;"></i> <span style="color: #a78bfa;">Available Rewards</span>
+            <i class="fas fa-chevron-down section-chevron"></i>
+        </h2>
+        {% set uncompleted_rewards = rewards | selectattr('completed', 'equalto', False) | list %}
+        {% if uncompleted_rewards | length == 0 %}
+        <div class="empty-state">
+            <i class="fas fa-gift" style="font-size: 3em; color: #666; margin-bottom: 1rem;"></i>
+            <p>No rewards available yet</p>
+            <p class="subtitle">Create some amazing rewards below!</p>
+        </div>
+        {% endif %}
+        <div class="rewards-grid">
+            {% for reward in rewards %}
+            {% if not reward.completed %}
+            <div class="reward-card" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward.assigned_to }}" data-assigned-to-id="{{ get_person_by_name(reward.assigned_to).id }}">
+                {% if reward.image_url %}
+                <div class="reward-image-container" style="position:relative;">
+                    <img src="{{ reward.image_url }}" alt="{{ reward.title }}" class="reward-image" style="cursor:pointer;" onclick="openEditRewardImageModal({{ reward.id }}, '{{ reward.image_url }}')">
+                    <button class="edit-image-btn" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;padding:8px;cursor:pointer;z-index:2;" onclick="openEditRewardImageModal({{ reward.id }}, '{{ reward.image_url }}')" title="Edit image">
+                        <i class="fas fa-pencil-alt" style="color:#fff;font-size:1.2em;"></i>
+                    </button>
+                    <div class="reward-overlay">
+                        {% if reward_system == 'cash' %}
+                        <span class="reward-points-badge">
+                            <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
+                            <span class="reward-points-value">${{ reward.points_required }}</span>
+                        </span>
+                        {% else %}
+                        <span class="reward-points-badge">
+                            <i class="fas fa-award" style="color:#fbbf24;"></i>
+                            <span class="reward-points-value">{{ reward.points_required }}</span>
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="reward-icon-container" style="position:relative;">
+                    <div class="reward-icon-large">
+                        {% if reward.title == "Millhouse Canteen" %}
+                            <i class="fas fa-utensils"></i>
+                        {% elif reward.title == "MiniGolf" %}
+                            <i class="fas fa-golf-ball"></i>
+                        {% elif reward.title == "1 hour of ipad" %}
+                            <i class="fas fa-tablet-alt"></i>
+                        {% elif reward.title == "1 hour of TV" %}
+                            <i class="fas fa-tv"></i>
+                        {% elif reward.title == "A Movie" %}
+                            <i class="fas fa-film"></i>
+                        {% elif reward.title == "Baking Something Yum" %}
+                            <i class="fas fa-birthday-cake"></i>
+                        {% else %}
+                            <i class="fas fa-gift"></i>
+                        {% endif %}
+                    </div>
+                    <span class="reward-points-badge">
+                        <i class="fas fa-award"></i>
+                        <span class="reward-points-value">{{ reward.points_required }}</span>
+                    </span>
+                    <button class="edit-image-btn" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;padding:8px;cursor:pointer;z-index:2;" onclick="openEditRewardImageModal({{ reward.id }}, '')" title="Edit image">
+                        <i class="fas fa-pencil-alt" style="color:#fff;font-size:1.2em;"></i>
+                    </button>
+                </div>
+                {% endif %}
+                
+                <div class="reward-content">
+                    <h3 class="reward-title-modern">{{ reward.title }}</h3>
+                    <div class="reward-points-badge" style="display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">
+                        {% if reward_system == 'cash' %}
+                            <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
+                            <span class="reward-points-value">${{ reward.points_required }}</span>
+                        {% else %}
+                            <i class="fas fa-award" style="color:#fbbf24;"></i>
+                            <span class="reward-points-value">{{ reward.points_required }}</span>
+                        {% endif %}
+                    </div>
+                    {% if reward.description %}
+                    <p class="reward-description">{{ reward.description }}</p>
+                    {% endif %}
+                    <div class="reward-meta">
+                        <div class="reward-assignee">
+                            <img src="{{ url_for('static', filename='uploads/' + (get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to).avatar else 'uploads/default_avatar.png')) }}" 
+                                 alt="{{ reward.assigned_to }}" 
+                                 class="assignee-avatar"
+                                 title="{{ reward.assigned_to }}">
+                            <span class="assignee-name">{{ reward.assigned_to }}</span>
+                        </div>
+                    </div>
+                    {# Progress Bar for Reward #}
+                    {% set person = get_person_by_name(reward.assigned_to) %}
+                    {% if person %}
+                        {% set current_points = person.points + person.bonus_points %}
+                        {% set percent = (current_points / reward.points_required * 100) if reward.points_required > 0 else 0 %}
+                        <div class="reward-progress-container">
+                            <div class="reward-progress-bar-bg">
+                                <div class="reward-progress-bar-fill" style="width: {{ percent if percent < 100 else 100 }}%;"></div>
+                            </div>
+                            <div class="reward-progress-label">
+                                {{ percent|round(1) if percent < 100 else 100 }}% to redeem ({{ current_points|round(2) }}/{{ reward.points_required|round(2) }})
+                            </div>
+                        </div>
+                    {% endif %}
+                                        <div class="reward-actions-modern">
+                                                <button class="btn-redeem" onclick="completeReward({{ reward.id }})" aria-label="Redeem reward">
+                                                        <i class="fas fa-check-circle"></i> Redeem
+                                                </button>
+                                                <button class="btn-delete" onclick="confirmDeleteReward({{ reward.id }})" aria-label="Delete reward">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                        </div>
+
+<!-- Modal markup removed here, only one instance will remain at the end of the file -->
+</style>
+<style>
+/* Reward Progress Bar Styles - Modern Clean Design */
+.reward-progress-container {
+    margin: 10px 0 0 0;
+}
+
+.reward-progress-bar-bg {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+    position: relative;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.reward-progress-bar-fill {
+    height: 100%;
+    background: #4CAF50;
+    border-radius: 4px;
+    transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    box-shadow: 0 0 10px rgba(76,175,80,0.3);
+}
+
+/* Add subtle animation for completed rewards */
+.reward-progress-bar-fill[style*="100%"] {
+    background: #4CAF50;
+    animation: completePulse 2s ease-in-out;
+}
+
+@keyframes completePulse {
+    0%, 100% { 
+        box-shadow: 0 0 10px rgba(76,175,80,0.4);
+    }
+    50% { 
+        box-shadow: 0 0 20px rgba(76,175,80,0.7), 0 0 30px rgba(76,175,80,0.3);
+    }
+}
+
+/* Progress bar with segments for better visual feedback */
+.reward-progress-bar-bg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 25%;
+    width: 1px;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    z-index: 1;
+}
+
+.reward-progress-bar-bg::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 1px;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    z-index: 1;
+}
+
+.reward-progress-label {
+    font-size: 0.95em;
+    color: #666;
+    text-align: right;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Dark theme styles */
+[data-theme="dark"] .reward-progress-bar-bg {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .reward-progress-bar-bg::before,
+[data-theme="dark"] .reward-progress-bar-bg::after {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .reward-progress-label {
+    color: #e2e8f0;
+}
+
+/* Alternative: Striped progress bar (uncomment to use)
+.reward-progress-bar-fill {
+    background: #6366f1;
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 4px,
+        rgba(255,255,255,0.1) 4px,
+        rgba(255,255,255,0.1) 8px
+    );
+    background-size: 12px 12px;
+    animation: progressMove 1s linear infinite;
+}
+
+@keyframes progressMove {
+    0% { background-position: 0 0; }
+    100% { background-position: 12px 0; }
+}
+*/
+
+/* Alternative: Stepped progress bar (uncomment to use)
+.reward-progress-bar-fill {
+    background: #6366f1;
+    border-radius: 4px;
+    position: relative;
+}
+
+.reward-progress-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -4px;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+    background: #6366f1;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px #fff, 0 0 8px rgba(99, 102, 241, 0.4);
+}
+*/
+</style>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+
+<!-- Unified Modal -->
+<div id="unified-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#fff; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+    <div id="unified-modal-icon" style="font-size:2.5em; margin-bottom:10px;"></div>
+    <div id="unified-modal-message" style="font-size:1.15em; margin-bottom:22px; color:#222;"></div>
+    <div id="unified-modal-buttons" style="display:flex; gap:16px; justify-content:center;"></div>
+  </div>
+</div>
+
+<script>
+// --- Clear All Completed Chores ---
+function clearAllCompletedChores(btn) {
+    console.log('Clear All button clicked');
+    if (!confirm('Are you sure you want to delete all completed chores for this person?')) return;
+    // Find the parent completed-chores-list
+    const completedList = btn.closest('.completed-chores-list');
+    if (!completedList) { console.log('No completed-chores-list found'); return; }
+    // Get all completed chore elements
+    const choreDivs = completedList.querySelectorAll('.chore.completed');
+    const ids = Array.from(choreDivs).map(div => div.getAttribute('data-chore-id'));
+    if (ids.length === 0) { alert('No completed chores to clear.'); return; }
+    // For each, send a delete request
+    let deleted = 0;
+    ids.forEach((id, idx) => {
+        fetch("{{ url_for('routes.delete_chore') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chore_id: id, permanent: true })
+        })
+        .then(res => res.json())
+        .then(data => {
+            deleted++;
+            if (deleted === ids.length) window.location.reload();
+        });
+    });
+}
+// --- Edit Name Modal Logic ---
+let editNamePersonId = null;
+function openEditNameModal(personId, currentName) {
+    editNamePersonId = personId;
+    document.getElementById('edit-name-input').value = currentName;
+    document.getElementById('edit-name-modal').style.display = 'flex';
+    setTimeout(() => {
+        document.getElementById('edit-name-input').focus();
+    }, 100);
+}
+function closeEditNameModal() {
+    document.getElementById('edit-name-modal').style.display = 'none';
+    editNamePersonId = null;
+}
+function confirmEditName() {
+    const newName = document.getElementById('edit-name-input').value.trim();
+    if (!newName) return;
+    fetch('/update_name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person_id: editNamePersonId, new_name: newName })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to update name');
+        }
+    });
+    closeEditNameModal();
+}
+
+// --- Unified Modal Logic ---
+
+
+function showUnifiedModal({icon, message, buttons}) {
+    const modal = document.getElementById('unified-modal');
+    const iconDiv = document.getElementById('unified-modal-icon');
+    const msg = document.getElementById('unified-modal-message');
+    const btns = document.getElementById('unified-modal-buttons');
+    iconDiv.innerHTML = icon || '';
+    msg.innerHTML = message;
+    btns.innerHTML = '';
+    buttons.forEach(btn => {
+        const b = document.createElement('button');
+        b.textContent = btn.text;
+        b.style.background = btn.color;
+        b.style.color = '#fff';
+        b.style.border = 'none';
+        b.style.padding = '10px 18px';
+        b.style.borderRadius = '6px';
+        b.style.fontWeight = '600';
+        b.style.cursor = 'pointer';
+        b.onclick = function() {
+            closeUnifiedModal();
+            if (btn.onClick) btn.onClick();
+        };
+        btns.appendChild(b);
+    });
+    modal.style.display = 'flex';
+}
+function closeUnifiedModal() {
+    document.getElementById('unified-modal').style.display = 'none';
+    pendingDeleteChoreId = null;
+    pendingDeleteChoreIsDaily = false;
+    unifiedModalCallback = null;
+}
+
+function confirmDeleteChore(choreId, isDaily) {
+    pendingDeleteChoreId = choreId;
+    pendingDeleteChoreIsDaily = isDaily;
+    if (isDaily) {
+        showUnifiedModal({
+            icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+            message: 'Do you want to delete this daily chore permanently, or just for today?',
+            buttons: [
+                {text: 'Delete Permanently', color: '#e53935', onClick: function() { deleteChore(choreId, true); }},
+                {text: 'Delete for Today', color: '#fbc02d', onClick: function() { deleteChore(choreId, false); }},
+                {text: 'Cancel', color: '#888', onClick: null}
+            ]
+        });
+    } else {
+        showUnifiedModal({
+            icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+            message: 'Are you sure you want to delete this chore?',
+            buttons: [
+                {text: 'Delete', color: '#e53935', onClick: function() { deleteChore(choreId, true); }},
+                {text: 'Cancel', color: '#888', onClick: null}
+            ]
+        });
+    }
+}
+
+function deleteChore(choreId, permanent) {
+    fetch("{{ url_for('routes.delete_chore') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chore_id: choreId, permanent: permanent }),
+    })
+    .then(async response => {
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = { success: false, message: 'Invalid server response' };
+        }
+        if (data.success) {
+            if (window.showToast) showToast('Chore deleted!', 'success');
+            setTimeout(() => window.location.reload(), 900);
+        } else {
+            showUnifiedModal({
+                icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+                message: data.message || data.error || "Failed to delete chore",
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+            if (window.showToast) showToast(data.message || 'Failed to delete chore', 'error');
+        }
+    })
+    .catch(error => {
+        if (window.showToast) showToast('Error deleting chore', 'error');
+        showUnifiedModal({
+            icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+            message: 'Error deleting chore: ' + error,
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+    });
+}
+// --- Redeem Reward Modal ---
+function completeReward(rewardId) {
+    // Find the reward element and get reward details
+    const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+    if (!rewardElem) {
+        showUnifiedModal({
+            icon: '😢',
+            message: 'Reward not found!',
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+        return;
+    }
+    const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
+    const rewardTitle = rewardElem.querySelector('.reward-title-modern') ? rewardElem.querySelector('.reward-title-modern').textContent.trim() : 'this reward';
+    const pointsElem = rewardElem.querySelector('.reward-points-value');
+    const pointsMatch = pointsElem ? pointsElem.textContent.match(/(\d+)/) : null;
+    const pointsRequired = pointsMatch ? parseInt(pointsMatch[1]) : 0;
+    // Get person's current points from the points display in their column
+    const personColumn = document.querySelector(`.column[data-person="${assignedTo}"]`);
+    const pointsValueElem = personColumn ? personColumn.querySelector('.chore-points-value') : null;
+    const currentPointsText = pointsValueElem ? pointsValueElem.textContent.replace(/[^0-9.]/g, '') : '0';
+    const currentPoints = parseFloat(currentPointsText) || 0;
+    if (currentPoints < pointsRequired) {
+        showUnifiedModal({
+            icon: '😢',
+            message: `Not enough points to redeem "${rewardTitle}"! You need ${pointsRequired} points but only have ${Math.floor(currentPoints)} points.`,
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+        return;
+    }
+    // Confirmation modal using unified style
+    showUnifiedModal({
+        icon: '<i class="fas fa-check-circle" style="color:#6366f1;"></i>',
+        message: `Redeem "${rewardTitle}" for <b>${assignedTo}</b> costing ${pointsRequired} points?`,
+        buttons: [
+            {text: 'Redeem', color: '#6366f1', onClick: function() { doRedeemReward(rewardId); }},
+            {text: 'Cancel', color: '#888', onClick: null}
+        ]
+    });
+}
+    
+
+function doRedeemReward(rewardId) {
+    const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+    const assignedToId = rewardElem.getAttribute('data-assigned-to-id');
+    
+    fetch("{{ url_for('routes.complete_reward') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            reward_id: rewardId,
+            assigned_to_id: assignedToId 
+        }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show reward celebration overlay
+            const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+            const rewardTitle = rewardElem ? (rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : '') : '';
+            const assignedTo = rewardElem ? rewardElem.getAttribute('data-assigned-to') : '';
+            document.getElementById('reward-celebration-message').textContent = `${assignedTo} redeemed "${rewardTitle}"!`;
+            const overlay = document.getElementById('reward-celebration-overlay');
+            // Update points display in the DOM if new_points is returned
+            if (data.new_points !== undefined && assignedTo) {
+                const personColumn = document.querySelector(`.column[data-person="${assignedTo}"]`);
+                if (personColumn) {
+                    const pointsValue = personColumn.querySelector('.chore-points-value');
+                    if (pointsValue) {
+                        if (window.REWARD_SYSTEM === 'cash') {
+                            pointsValue.textContent = `$${data.new_points}`;
+                        } else {
+                            pointsValue.textContent = data.new_points;
+                        }
+                    }
+                }
+            }
+            // Make sure overlay is on top and visible
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+            overlay.style.zIndex = '99999';
+            overlay.style.pointerEvents = 'auto';
+            console.log('Overlay shown, about to play sound');
+            // Play celebration sound if available
+            if (typeof playCelebrationSound === 'function') playCelebrationSound();
+            // Trigger confetti, balloons, and streamers after overlay is visible
+            setTimeout(() => {
+                console.log('Calling triggerRewardCelebrationEffects after overlay visible');
+                triggerRewardCelebrationEffects();
+            }, 100);
+            // Prevent any default form or button event from reloading the page
+            if (window.event) window.event.preventDefault && window.event.preventDefault();
+            // Hide overlay with fade out and remove overlay after 4 seconds (no reload)
+            setTimeout(() => {
+                overlay.style.transition = 'opacity 0.5s';
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                }, 500);
+            }, 4000);
+        } else {
+            showUnifiedModal({
+                icon: '😢',
+                message: data.error || 'Could not redeem reward',
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+        }
+    })
+    .catch(error => {
+        showUnifiedModal({
+            icon: '😢',
+            message: 'Error redeeming reward',
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+    });
+}
+
+// --- Reward Celebration Effects ---
+function triggerRewardCelebrationEffects() {
+    console.log('triggerRewardCelebrationEffects called');
+    // Confetti
+    const confettiContainer = document.getElementById('reward-confetti-container');
+    const balloonsContainer = document.getElementById('reward-balloons-container');
+    const streamersContainer = document.getElementById('reward-streamers-container');
+    if (confettiContainer) {
+        confettiContainer.innerHTML = '';
+        // DEBUG: Add a visible test element
+        const debugTest = document.createElement('div');
+        debugTest.textContent = 'CONFETTI TEST';
+        debugTest.style.position = 'absolute';
+        debugTest.style.top = '10px';
+        debugTest.style.left = '10px';
+        debugTest.style.color = 'red';
+        debugTest.style.fontSize = '2em';
+        confettiContainer.appendChild(debugTest);
+        for (let i = 0; i < 40; i++) {
+            const confetti = document.createElement('div');
+            confetti.style.position = 'absolute';
+            confetti.style.left = Math.random() * 100 + 'vw';
+            confetti.style.top = '-20px';
+            confetti.style.width = '12px';
+            confetti.style.height = '18px';
+            confetti.style.background = `hsl(${Math.random()*360},90%,60%)`;
+            confetti.style.borderRadius = '3px';
+            confetti.style.opacity = 0.85;
+            confetti.style.transform = `rotate(${Math.random()*360}deg)`;
+            confetti.style.zIndex = 20002;
+            confetti.style.animation = `reward-confetti-fall 1.5s linear ${Math.random()}s forwards`;
+            confettiContainer.appendChild(confetti);
+        }
+    }
+    if (balloonsContainer) {
+        balloonsContainer.innerHTML = '';
+        for (let i = 0; i < 8; i++) {
+            const balloon = document.createElement('div');
+            balloon.style.position = 'absolute';
+            balloon.style.left = (10 + Math.random() * 80) + 'vw';
+            balloon.style.bottom = '-120px';
+            balloon.style.width = '48px';
+            balloon.style.height = '64px';
+            balloon.style.background = `hsl(${Math.random()*360},80%,70%)`;
+            balloon.style.borderRadius = '50% 50% 50% 50% / 60% 60% 40% 40%';
+            balloon.style.opacity = 0.85;
+            balloon.style.zIndex = 20003;
+            balloon.style.animation = `reward-balloon-rise 2.2s cubic-bezier(.4,1.4,.6,1) ${Math.random()}s forwards`;
+            balloonsContainer.appendChild(balloon);
+        }
+    }
+    if (streamersContainer) {
+        streamersContainer.innerHTML = '';
+        for (let i = 0; i < 10; i++) {
+            const streamer = document.createElement('div');
+            streamer.style.position = 'absolute';
+            streamer.style.left = (10 + Math.random() * 80) + 'vw';
+            streamer.style.top = '-40px';
+            streamer.style.width = '6px';
+            streamer.style.height = '60px';
+            streamer.style.background = `hsl(${Math.random()*360},80%,60%)`;
+            streamer.style.borderRadius = '3px';
+            streamer.style.opacity = 0.7;
+            streamer.style.zIndex = 20004;
+            streamer.style.animation = `reward-streamer-fall 1.7s linear ${Math.random()}s forwards`;
+            streamersContainer.appendChild(streamer);
+        }
+    }
+}
+
+// Reward celebration keyframes
+const rewardStyle = document.createElement('style');
+rewardStyle.innerHTML = `
+@keyframes reward-confetti-fall {
+    0% { top: -20px; opacity: 0.85; }
+    80% { opacity: 0.85; }
+    100% { top: 90vh; opacity: 0; }
+}
+@keyframes reward-balloon-rise {
+    0% { bottom: -120px; opacity: 0.85; }
+    80% { opacity: 0.85; }
+    100% { bottom: 90vh; opacity: 0; }
+}
+@keyframes reward-streamer-fall {
+    0% { top: -40px; opacity: 0.7; }
+    80% { opacity: 0.7; }
+    100% { top: 90vh; opacity: 0; }
+}
+`;
+document.head.appendChild(rewardStyle);
+
+// --- Delete Reward Modal ---
+function confirmDeleteReward(rewardId) {
+    // Find the reward element and get reward details
+    const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+    if (!rewardElem) {
+        showUnifiedModal({
+            icon: '😢',
+            message: 'Reward not found!',
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+        return;
+    }
+    
+    const rewardTitle = rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : 'this reward';
+    const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
+    
+    showUnifiedModal({
+        icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+        message: `Are you sure you want to delete "${rewardTitle}" for <b>${assignedTo}</b>?`,
+        buttons: [
+            {text: 'Delete', color: '#e53935', onClick: function() { deleteReward(rewardId); }},
+            {text: 'Cancel', color: '#888', onClick: null}
+        ]
+    });
+}
+
+function deleteReward(rewardId) {
+    fetch("{{ url_for('routes.delete_reward') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reward_id: rewardId }),
+    })
+    .then(async response => {
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = { success: false, error: 'Invalid server response' };
+        }
+        if (data.success) {
+            window.location.reload();
+        } else {
+            showUnifiedModal({
+                icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+                message: data.error || data.message || 'Failed to delete reward',
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+        }
+    })
+    .catch(error => {
+        showUnifiedModal({
+            icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+            message: 'Error deleting reward: ' + error,
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+    });
+}
+
+// (Removed duplicate suggestion system. Only the initializeChoreSuggestions/renderChoreSuggestions system is used now.)
+</script>
+
+
+
+    <section>
+        <h2 style="text-align:center; color:#fff; margin-bottom: 10px; margin-top: 0; font-size:2em; letter-spacing:1px; display:flex; align-items:center; justify-content:center; gap:12px;">
+            <i class="fas fa-house-chimney" style="color: #ffffff; font-size:1.2em;"></i>
+            Family Members Chores
+        </h2>
+        <div id="morning-greeting-bar" class="morning-greeting-bar"></div>
+<!-- Profile Badge Modal -->
+<div id="profile-modal-overlay" onclick="closeProfileModal()"
+     style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh;
+            background:rgba(0,0,0,0.78); z-index:99990; justify-content:center;
+            align-items:flex-start; overflow-y:auto; box-sizing:border-box; padding:20px;">
+    <div onclick="event.stopPropagation()"
+         style="background:#1a1a2e; border-radius:20px; max-width:500px; width:100%;
+                margin:auto; position:relative; box-shadow:0 8px 40px rgba(0,0,0,0.7);
+                animation:profileModalIn 0.3s cubic-bezier(.175,.885,.32,1.275);">
+        <button onclick="closeProfileModal()"
+                style="position:absolute;top:12px;right:14px;background:rgba(255,255,255,0.12);
+                       border:none;color:#fff;font-size:1.5em;width:38px;height:38px;
+                       border-radius:50%;cursor:pointer;z-index:1;line-height:1;
+                       display:flex;align-items:center;justify-content:center;">×</button>
+        <div id="profile-modal-content" style="padding:28px 20px 36px;"></div>
+    </div>
+</div>
+
+<div id="add-person-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#464646; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+    <h3>Add Family Member</h3>
+    <input type="text" id="add-person-input" placeholder="Enter name" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:80%; margin-bottom:18px;">
+    <div style="margin-top:10px; display:flex; gap:16px; justify-content:center;">
+      <button class="confirm-btn" onclick="confirmAddPerson()" style="background:#2d2d2d; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Add</button>
+      <button class="cancel-btn" onclick="closeAddPersonModal()" style="background:#888; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+</div>
+        <div id="kanban">
+            {# ── Keyword-based chore icon macro ─────────────────────────────── #}
+            {% macro chore_icon(title) %}
+                {%- set t = title | lower -%}
+                {%- if 'tooth' in t or 'teeth' in t or 'dental' in t or 'brush' in t -%}🦷
+                {%- elif 'dishwasher' in t or 'dishes' in t or 'dish' in t -%}🍽️
+                {%- elif 'laundry' in t or 'washing' in t or 'fold' in t or 'iron' in t or 'clothes' in t -%}👕
+                {%- elif 'lawn' in t or 'mow' in t or 'grass' in t or 'garden' in t or 'weed' in t or 'yard' in t or 'plant' in t -%}🌱
+                {%- elif 'rubbish' in t or 'garbage' in t or 'recycl' in t or 'bins' in t or 'bin' in t or 'trash' in t -%}🗑️
+                {%- elif 'workout' in t or 'exercise' in t or 'gym' in t or 'fitness' in t or 'sport' in t -%}🏋️
+                {%- elif 'shop' in t or 'grocery' in t or 'groceries' in t or 'market' in t or 'supermarket' in t -%}🛒
+                {%- elif 'cook' in t or 'bake' in t or 'dinner' in t -%}🍳
+                {%- elif 'bath' in t or 'shower' in t -%}🚿
+                {%- elif 'vacuum' in t or 'hoover' in t or 'sweep' in t or 'mop' in t -%}🧹
+                {%- elif 'music' in t or 'piano' in t or 'guitar' in t or 'violin' in t or 'instrument' in t or 'practis' in t or 'practice' in t -%}🎵
+                {%- elif 'cat' in t -%}🐱
+                {%- elif 'fish' in t -%}🐟
+                {%- elif 'bird' in t -%}🐦
+                {%- elif 'hamster' in t or 'rabbit' in t -%}🐹
+                {%- elif 'feed' in t or 'animal' in t -%}🐾
+                {%- elif 'medicine' in t or 'pill' in t or 'vitamin' in t -%}💊
+                {%- elif 'dog' in t or 'sam' in t -%}🐶
+                {%- elif 'walk' in t -%}🦮
+                {%- elif 'sleep' in t or 'meltdown' in t or 'night' in t -%}😴
+                {%- elif 'lunch' in t or 'breakfast' in t or 'snack' in t or 'meal' in t or 'eat' in t or 'food' in t -%}🥗
+                {%- elif 'pack' in t -%}🎒
+                {%- elif 'water' in t or 'drink' in t or 'bottle' in t -%}💧
+                {%- elif 'read' in t or 'book' in t -%}📖
+                {%- elif 'homework' in t or 'school' in t or 'learn' in t or 'study' in t -%}🎓
+                {%- elif 'tidy' in t or 'organis' in t or 'organiz' in t -%}📦
+                {%- elif 'wipe' in t or 'clean' in t or 'sort' in t -%}🧽
+                {%- elif 'playroom' in t or 'play' in t or 'game' in t or 'toy' in t -%}🎮
+                {%- elif 'desk' in t -%}🖥️
+                {%- elif 'bedroom' in t or 'room' in t or 'bed' in t -%}🛏️
+                {%- elif 'car' in t or 'drive' in t -%}🚗
+                {%- elif 'screen' in t or 'ipad' in t or 'computer' in t or 'phone' in t or 'tv' in t -%}📱
+                {%- else -%}✅
+                {%- endif -%}
+            {% endmacro %}
+            {% set charlotte = family | selectattr("name", "equalto", "Charlotte") | list %}
+            {% set others = family | rejectattr("name", "equalto", "Charlotte") | list %}
+            {# Sort the combined list by the order field #}
+            {% set sorted_family = (charlotte + others) | sort(attribute='order') %}
+            {% for person in sorted_family %}
+            <div class="column" data-person="{{ person.name }}" style="display: flex; flex-direction: column; height: 100%;">
+                <!-- Column header with centered name and edit icon -->
+                <div class="column-header" style="display:flex;align-items:center;justify-content:space-between;padding:5px 5px 5px 5px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                    </div>
+                    <h3 class="name" style="margin: 0; font-size: 2.2em; color: black;flex:1;text-align:center;">
+                        <span class="person-name" data-person-id="{{ person.id }}">{{ person.name }}</span>
+                        <i class="fas fa-pencil-alt edit-name-icon"
+                           title="Edit Name"
+                           onclick="openEditNameModal('{{ person.id }}', '{{ person.name }}')"></i>
+                    </h3>
+                    <div class="action-icons" style="margin-top: 5px;display:flex;align-items:center;gap:8px;">
+                        <!-- Removed Reset Points button as per user request -->
+                                            </div>
+                </div>
+                <div class="points-display">
+                    <div class="balance-label">{% if reward_system == 'cash' %}Balance{% else %}Points{% endif %}</div>
+                    <span class="chore-points-badge" title="Total {{ 'cash' if reward_system == 'cash' else 'points' }} for {{ person.name }}">
+                        {% set total_points = (person.points + person.bonus_points) %}
+                        {% if reward_system == 'cash' %}
+                            <i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i>
+                            <span class="chore-points-value">${{ '%.2f' % total_points }}</span>
+                        {% else %}
+                            <i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i>
+                            <span class="chore-points-value">{{ '%.2f' % total_points }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+                                <div class="avatar-container" style="margin-bottom: 0px; padding-bottom: 0px;">
+                    <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'uploads/default_avatar.png') }}"
+                         alt="{{ person.name }}"
+                         class="avatar avatar-tappable"
+                         onerror="this.onerror=null;this.src='{{ url_for('static', filename='uploads/default_avatar.png') }}';"
+                         onclick="openProfileModalFromElem(this)"
+                         title="View {{ person.name }}'s badges"
+                         data-person-id="{{ person.id }}"
+                         data-name="{{ person.name }}"
+                         data-color="{{ person.color or '#555' }}"
+                         data-points="{{ person.points + person.bonus_points }}"
+                         data-streak="{{ person_streaks.get(person.id).current_streak if person_streaks.get(person.id) else 0 }}"
+                         data-best-streak="{{ person_streaks.get(person.id).longest_streak if person_streaks.get(person.id) else 0 }}">
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                        <form class="avatar-upload-form" onsubmit="uploadAvatar(event, {{ person.id }})" style="margin:0;">
+                            <input id="avatar-upload-{{ person.id }}" type="file" name="avatar" accept="image/*" style="display: none;" onchange="uploadAvatar(event, {{ person.id }})">
+                            <label for="avatar-upload-{{ person.id }}" class="custom-file-upload" title="Change Profile Picture" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;z-index:2;position:relative;">
+                                <i class="fa-solid fa-image"></i>
+                            </label>
+                        </form>
+                        <input type="color" id="color-picker-{{ person.id }}" class="color-input" value="{{ person.color or '#cccccc' }}" onchange="changeKanbanColor(event, {{ person.id }})" style="width:38px;height:38px;padding:0;border-radius:6px;border:1.5px solid #bbb;background:none;display:inline-block;vertical-align:middle;cursor:pointer;">
+                        <label for="color-picker-{{ person.id }}" class="color-picker-label" title="Change Kanban Color">
+                            <i class="fas fa-palette"></i>
+                        </label>
+                    </div>
+                </div>
+            <!-- Retrieve all chores for this person -->
+            {% set person_chores = chores | selectattr("assigned_to_id", "equalto", person.id) | list %}
+            {% set incomplete_chores = person_chores | rejectattr("completed") | list %}
+            {# Filter chores by days_of_week: only show if today is in days_of_week or days_of_week is empty #}
+            {% set current_day = (current_date or cycler.__self__.now().date()).strftime('%A').lower() %}
+            {% set filtered_incomplete_chores = [] %}
+            {% for chore in incomplete_chores %}
+                {% if not chore.days_of_week or chore.days_of_week.strip() == '' %}
+                    {% set _ = filtered_incomplete_chores.append(chore) %}
+                {% else %}
+                    {% set days = chore.days_of_week.split(',') %}
+                    {% set days = days | map('trim') | map('lower') | list %}
+                    {% if current_day in days %}
+                        {% set _ = filtered_incomplete_chores.append(chore) %}
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+            {% set today = (current_date or cycler.__self__.now().date()) %}
+            {% set completed_chores = [] %}
+            {% for chore in person_chores %}
+                {% if chore.completed and chore.date_completed is defined and chore.date_completed and chore.date_completed.date() == today %}
+                    {% set _ = completed_chores.append(chore) %}
+                {% endif %}
+            {% endfor %}
+            {% set total_today = filtered_incomplete_chores|length + completed_chores|length %}
+            {% set remaining = filtered_incomplete_chores|length %}
+            {% if total_today > 0 %}
+            {% set pct = ((remaining / total_today) * 100)|round|int %}
+            <div class="chore-progress-wrap">
+                <div class="chore-progress-bar-container">
+                    <div class="chore-progress-bar-fill" style="width:{{ pct }}%;"></div>
+                </div>
+                <div class="chore-progress-label">{{ remaining }} left</div>
+            </div>
+            {% endif %}
+
+            <!-- Streak display -->
+            {% set pstreak = person_streaks.get(person.id) %}
+            <div class="streak-display{% if not pstreak or pstreak.current_streak == 0 %} hidden{% endif %}" id="streak-{{ person.id }}">
+                {% if pstreak and pstreak.current_streak > 0 %}
+                <span class="streak-flame">🔥</span>
+                <span class="streak-count">{{ pstreak.current_streak }}-day streak</span>
+                {% if pstreak.longest_streak > pstreak.current_streak %}
+                <span class="streak-best">(best: {{ pstreak.longest_streak }})</span>
+                {% endif %}
+                {% endif %}
+            </div>
+
+            <!-- Badge shelf -->
+            <div class="badge-shelf" id="badges-{{ person.id }}">
+                {% for badge in person_badges.get(person.id, []) %}
+                <span class="badge-item" title="{{ badge.name }}: {{ badge.desc }}">{{ badge.emoji }}</span>
+                {% endfor %}
+            </div>
+
+            <h4 class="chores-to-do-header" style="color: black; font-size: 2em;">Chores:</h4>
+            
+            <!-- First, display pending (incomplete) chores at the top -->
+            {% if filtered_incomplete_chores %}
+                <div class="chores-list incomplete-chores-list">
+                    {% for chore in filtered_incomplete_chores %}
+                        <div class="chore{% if chore.due_datetime %} has-due-date{% endif %}" data-chore-id="{{ chore.id }}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px;">
+                            <button class="btn-delete-chore-sm" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
+                            <div class="chore-header">
+                                <span class="chore-icon">{{ chore_icon(chore.title) }}</span>
+                                <span class="chore-title">{{ chore.title }}</span>
+                            </div>
+                            <div class="chore-meta">
+                                <div class="chore-tags">
+                                    {% if chore.is_daily %}
+                                        <span class="chore-tag chore-tag-daily"><i class="fas fa-sync"></i> Daily</span>
+                                    {% endif %}
+                                    {% if chore.days_of_week %}
+                                        {% set days = chore.days_of_week if chore.days_of_week is iterable and chore.days_of_week is not string else chore.days_of_week.split(',') %}
+                                        {% set short_days = days|map('trim')|map('lower')|list %}
+                                        {% set weekdays = ['monday','tuesday','wednesday','thursday','friday'] %}
+                                        {% set weekends = ['saturday','sunday'] %}
+                                        {% if short_days|length == 5 and short_days|sort == weekdays %}
+                                            <span class="chore-tag">Weekdays</span>
+                                        {% elif short_days|length == 2 and short_days|sort == weekends %}
+                                            <span class="chore-tag">Weekends</span>
+                                        {% else %}
+                                            <span class="chore-tag">{% for d in short_days %}{% if not loop.first %}, {% endif %}{% if d == 'monday' %}Mon{% elif d == 'tuesday' %}Tue{% elif d == 'wednesday' %}Wed{% elif d == 'thursday' %}Thu{% elif d == 'friday' %}Fri{% elif d == 'saturday' %}Sat{% elif d == 'sunday' %}Sun{% else %}{{ d }}{% endif %}{% endfor %}</span>
+                                        {% endif %}
+                                    {% endif %}
+                                    {% if chore.due_datetime %}
+                                        {% set due_date = chore.due_datetime.date() %}
+                                        {% set is_today = current_date and due_date == current_date %}
+                                        {% set is_tomorrow = current_date and due_date == (current_date + timedelta(days=1)) %}
+                                        <span class="chore-tag chore-tag-due"><i class="fas fa-clock"></i> Due {% if is_today %}Today{% elif is_tomorrow %}Tomorrow{% else %}{{ chore.due_datetime.strftime('%a %b %d') }}{% endif %} {{ chore.due_datetime.strftime('%-I:%M%p')|replace(':00','') }}</span>
+                                    {% endif %}
+                                </div>
+                                <span class="chore-points-badge" title="Points for this chore">
+                                    {% if reward_system == 'cash' %}
+                                        <i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i>
+                                        <span class="chore-points-value">${{ chore.points }}</span>
+                                    {% else %}
+                                        <i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i>
+                                        <span class="chore-points-value">{{ chore.points }}</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <button class="btn-complete-chore" onclick="completeChore({{ chore.id }})"><i class="fas fa-check"></i> Complete</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {% if completed_chores|length > 0 %}
+                <div class="all-done-banner">
+                    <div class="all-done-emoji">🎉</div>
+                    <div class="all-done-text">ALL DONE!</div>
+                    <div class="all-done-subtext">Amazing work today!</div>
+                </div>
+                {% else %}
+                <p style="color: black;">No chores today 😊</p>
+                {% endif %}
+            {% endif %}
+            
+            <!-- Collapsible Completed Chores Section -->
+            {% if completed_chores %}
+                <div class="completed-chores-toggle-container" style="margin-top: 15px;">
+                    <button class="completed-chores-toggle-btn" 
+                            onclick="toggleCompletedChores(this)" 
+                            aria-label="Show/Hide Completed Chores"
+                            style="background: none; border: none; cursor: pointer; font-size: 1.1em; color: #333; display: flex; align-items: center;">
+                        <i class="fas fa-chevron-down" style="transition: transform 0.2s;"></i>
+                        <span style="margin-left: 6px;">Show Completed Chores ({{ completed_chores|length }})</span>
+                    </button>
+                    <div class="chores-list completed-chores-list" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h4 class="chores-completed-header" style="color: black; margin-top: 0;">Completed Chores:</h4>
+                            <button class="clear-all-completed-btn" style="background:#f44336; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:0.95em; cursor:pointer; margin-bottom:6px;" onclick="clearAllCompletedChores(this)"><i class='fas fa-trash'></i> Clear All</button>
+                        </div>
+                        <div class="clear-all-hint" style="font-size:0.95em;color:#000000;margin-bottom:6px;">(all completed chores today)</div>
+                        {% for chore in completed_chores %}
+                            <div class="chore completed" data-chore-id="{{ chore.id }}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04); opacity:0.72; padding-right:34px;">
+                                <button class="btn-delete-chore-sm" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
+                                <div class="chore-header">
+                                    <span class="chore-icon"><i class="fas fa-check-circle" style="color:#10b981;"></i></span>
+                                    <span class="chore-title" style="font-size:0.95em;">{{ chore.title }}</span>
+                                </div>
+                                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+                                    <span style="font-size:0.78em; color:#94a3b8;">&#10003; {% if chore.date_completed %}{{ chore.date_completed.strftime("%I:%M %p") }}{% else %}Today{% endif %}</span>
+                                    <span class="chore-points-badge" title="Points for this chore">
+                                        {% if reward_system == 'cash' %}
+                                            <i class="fas fa-money-bill-wave"></i>
+                                            <span class="chore-points-value">${{ chore.points }}</span>
+                                        {% else %}
+                                            <i class="fas fa-award"></i>
+                                            <span class="chore-points-value">{{ chore.points }}</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+            
+            <!-- Drag handle for Kanban column -->
+            <div class="column-footer" style="text-align: center; padding: 5px; margin-top: auto; border-top: 1px solid #ccc; cursor: grab;">
+                <span class="drag-handle" title="Drag to reorder" style="font-size: 1.2em; color: #000000; cursor: grab;" draggable="true"><i class="fas fa-grip-lines"></i> </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<script>
+    // --- Profile modal ---
+function openProfileModalFromElem(img) {
+    const personId = img.dataset.personId;
+    const name = img.dataset.name;
+    const avatarSrc = img.src;
+    const color = img.dataset.color || '#555';
+    const points = parseFloat(img.dataset.points) || 0;
+    const streak = parseInt(img.dataset.streak) || 0;
+    const bestStreak = parseInt(img.dataset.bestStreak) || 0;
+
+    const earnedKeys = (window.PERSON_EARNED_KEYS && window.PERSON_EARNED_KEYS[String(personId)]) || [];
+    const totalCompleted = (window.PERSON_TOTAL_COMPLETED && window.PERSON_TOTAL_COMPLETED[String(personId)]) || 0;
+    const rewardSystem = window.REWARD_SYSTEM || 'points';
+    const badgeDefs = window.BADGE_DEFINITIONS || [];
+    const earnedSet = new Set(earnedKeys);
+
+    const pointsDisplay = rewardSystem === 'cash'
+        ? '$' + points.toFixed(2)
+        : Math.round(points);
+    const pointsLabel = rewardSystem === 'cash' ? 'Balance' : 'Points';
+
+    const badgeHTML = badgeDefs.map(badge => {
+        const earned = earnedSet.has(badge.key);
+        return `<div class="profile-badge-card ${earned ? 'badge-earned' : 'badge-locked'}">
+            <div class="profile-badge-emoji">${badge.emoji}</div>
+            <div class="profile-badge-name">${badge.name}</div>
+            <div class="profile-badge-desc">${badge.desc}</div>
+            ${!earned ? '<div class="badge-locked-label"><i class="fas fa-lock"></i> Locked</div>' : ''}
+        </div>`;
+    }).join('');
+
+    const bestStreakHTML = (bestStreak > streak && bestStreak > 0)
+        ? `<div class="profile-best-streak">Best streak: ${bestStreak} days 🏅</div>` : '';
+
+    document.getElementById('profile-modal-content').innerHTML = `
+        <div class="profile-hero" style="background:${color}22;border:2px solid ${color};">
+            <img src="${avatarSrc}" alt="${name}" class="profile-avatar">
+            <h1 class="profile-name">${name}</h1>
+            <div class="profile-stats-row">
+                <div class="profile-stat"><div class="profile-stat-value">${totalCompleted}</div><div class="profile-stat-label">Chores Done</div></div>
+                <div class="profile-stat"><div class="profile-stat-value">${pointsDisplay}</div><div class="profile-stat-label">${pointsLabel}</div></div>
+                <div class="profile-stat"><div class="profile-stat-value">🔥 ${streak}</div><div class="profile-stat-label">Day Streak</div></div>
+                <div class="profile-stat"><div class="profile-stat-value">${earnedKeys.length}/${badgeDefs.length}</div><div class="profile-stat-label">Badges</div></div>
+            </div>
+            ${bestStreakHTML}
+        </div>
+        <h2 class="profile-section-title" style="margin-top:20px;">Badge Collection</h2>
+        <div class="profile-badge-grid">${badgeHTML}</div>
+    `;
+
+    const overlay = document.getElementById('profile-modal-overlay');
+    overlay.style.display = 'flex';
+}
+
+function closeProfileModal() {
+    document.getElementById('profile-modal-overlay').style.display = 'none';
+}
+
+    // --- Badge earned popup ---
+function showBadgeEarned(badge) {
+    const el = document.createElement('div');
+    el.className = 'badge-earned-popup';
+    el.innerHTML = `
+        <div class="badge-earned-inner">
+            <div class="badge-earned-emoji">${badge.emoji}</div>
+            <div class="badge-earned-title">Badge Earned!</div>
+            <div class="badge-earned-name">${badge.name}</div>
+            <div class="badge-earned-desc">${badge.desc}</div>
+        </div>`;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('badge-earned-visible'));
+    setTimeout(() => {
+        el.classList.remove('badge-earned-visible');
+        setTimeout(() => el.remove(), 400);
+    }, 3000);
+}
+
+function updateStreakDisplay(column, streakCount) {
+    const el = column.querySelector('.streak-display');
+    if (!el) return;
+    if (streakCount > 0) {
+        el.innerHTML = `<span class="streak-flame">\ud83d\udd25</span><span class="streak-count">${streakCount}-day streak</span>`;
+        el.classList.remove('hidden');
+        el.style.display = '';
+    }
+}
+
+// Collapsible sections toggle
+    document.addEventListener('click', function(e) {
+        var toggle = e.target.closest('.collapsible-section > .section-toggle');
+        if (toggle) {
+            toggle.closest('.collapsible-section').classList.toggle('collapsed');
+        }
+    });
+
+    // Morning greeting
+    document.addEventListener('DOMContentLoaded', function() {
+        const hour = new Date().getHours();
+        let greeting;
+        if (hour < 12) greeting = '☀️ Good morning!';
+        else if (hour < 17) greeting = '🌤️ Good afternoon!';
+        else greeting = '🌙 Good evening!';
+        const bar = document.getElementById('morning-greeting-bar');
+        if (bar) bar.textContent = greeting;
+    });
+
+    // Drag-and-drop Kanban columns
+    document.addEventListener('DOMContentLoaded', function() {
+        const kanban = document.getElementById('kanban');
+        let draggedCol = null;
+        let dragOverCol = null;
+
+        function saveKanbanOrder() {
+            // Get the new order of person IDs
+            const columns = kanban.querySelectorAll('.column');
+            columns.forEach((col, idx) => {
+                const personId = col.querySelector('.person-name').getAttribute('data-person-id');
+                // Send the new order to the backend
+                fetch('/update_order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ person_id: personId, order: idx })
+                });
+            });
+        }
+
+        kanban.querySelectorAll('.column').forEach(col => {
+            // Prevent column itself from being draggable
+            col.setAttribute('draggable', 'false');
+            // Find the drag handle inside the column
+            const dragHandle = col.querySelector('.drag-handle');
+            if (dragHandle) {
+                dragHandle.addEventListener('dragstart', function(e) {
+                    draggedCol = col;
+                    e.dataTransfer.effectAllowed = 'move';
+                    col.style.opacity = '0.5';
+                });
+                dragHandle.addEventListener('dragend', function() {
+                    col.style.opacity = '';
+                    draggedCol = null;
+                });
+            }
+            col.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                dragOverCol = this;
+                this.style.borderLeft = '4px solid #6366f1';
+            });
+            col.addEventListener('dragleave', function() {
+                this.style.borderLeft = '';
+            });
+            col.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.style.borderLeft = '';
+                if (draggedCol && draggedCol !== this) {
+                    if (this.nextSibling === draggedCol) {
+                        kanban.insertBefore(draggedCol, this);
+                    } else {
+                        kanban.insertBefore(draggedCol, this.nextSibling);
+                    }
+                    saveKanbanOrder();
+                }
+            });
+        });
+    });
+    </script>
+<section class="chores collapsible-section collapsed">
+    <h2 class="section-title section-toggle">
+        <i class="fas fa-tasks" style="color: rgb(225, 0, 255);"></i> Add Chores
+        <i class="fas fa-chevron-down section-chevron"></i>
+    </h2>
+
+    <!-- Suggestions bar -->
+    <div class="chore-suggestions-bar">
+        <div class="chore-suggestions-header">
+            <span class="chore-suggestions-label">Quick Suggestions</span>
+            <div class="chore-suggestions-actions">
+                <button type="button" class="btn-suggestion-add" title="Add a new chore suggestion" onclick="toggleChoreSuggestionInput()">
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
+                <div id="chore-suggestion-input-wrap" style="display:none;align-items:center;gap:6px;">
+                    <input type="text" id="new-chore-suggestion" placeholder="Add chore suggestion..." class="modern-input suggestion-inline-input"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();addNewChoreSuggestion();}">
+                    <button type="button" onclick="addNewChoreSuggestion()" class="btn-secondary" style="white-space:nowrap;padding:0.55rem 0.9rem;">
+                        <i class="fas fa-plus"></i> Add
+                    </button>
+                </div>
+                <button type="button" onclick="toggleEditMode()" id="chore-edit-mode-btn" class="btn-secondary" style="padding:0.55rem 0.9rem;">Edit</button>
+            </div>
+        </div>
+        <div class="chore-suggestions"></div>
+    </div>
+
+    <!-- Add Chore Form -->
+    <form id="add-chore-form" onsubmit="addChore(event)" class="chore-form-card">
+
+        <!-- Title -->
+        <div class="chore-field-group">
+            <label class="chore-field-label" for="chore-title-input">
+                <i class="fas fa-tag"></i> Chore Title
+            </label>
+            <input id="chore-title-input" type="text" name="title"
+                   placeholder="e.g. Clean your room, Pack lunch..."
+                   class="modern-input chore-title-input" required autocomplete="off">
+        </div>
+
+        <!-- Assign to -->
+        <div class="chore-field-group">
+            <label class="chore-field-label">
+                <i class="fas fa-user-circle"></i> Assign to
+            </label>
+            <div class="chore-assign-pills" id="assigned-to-btn-group">
+                {% for person in family %}
+                <button type="button" class="chore-assign-pill assigned-to-btn"
+                        data-person="{{ person.name }}">
+                    <span class="pill-avatar">{{ person.name[:1].upper() }}</span>
+                    <span class="pill-name">{{ person.name }}</span>
+                </button>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="assigned_to" id="assigned-to-hidden" required>
+        </div>
+
+        <!-- Points + Repeating row -->
+        <div class="chore-meta-row">
+            <div class="chore-field-group chore-points-group">
+                <label class="chore-field-label" for="points-input">
+                    {% if reward_system == 'cash' %}
+                    <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i> Cash amount
+                    {% else %}
+                    <i class="fas fa-star" style="color:#fbbf24;"></i> Points
+                    {% endif %}
+                </label>
+                <div class="chore-points-stepper">
+                    <button type="button" class="stepper-btn" onclick="adjustPoints(-0.5)">&#8722;</button>
+                    <input id="points-input" type="number" name="points"
+                           value="1" min="0" step="0.5" class="points-number-input" required>
+                    <button type="button" class="stepper-btn" onclick="adjustPoints(0.5)">&#43;</button>
+                </div>
+                <div class="chore-quick-points">
+                    <button type="button" class="quick-pt-btn" onclick="setPoints(0.5)">0.5</button>
+                    <button type="button" class="quick-pt-btn" onclick="setPoints(1)">1</button>
+                    <button type="button" class="quick-pt-btn" onclick="setPoints(2)">2</button>
+                    <button type="button" class="quick-pt-btn" onclick="setPoints(3)">3</button>
+                    <button type="button" class="quick-pt-btn" onclick="setPoints(5)">5</button>
+                </div>
+            </div>
+
+            <div class="chore-field-group chore-repeating-group">
+                <label class="chore-field-label">
+                    <i class="fas fa-sync-alt" style="color:#60a5fa;"></i> Repeating Chore
+                </label>
+                <label class="chore-toggle-wrap">
+                    <input type="checkbox" id="show-repeating-checkbox" name="is_daily" class="chore-toggle-input">
+                    <span class="chore-toggle-track">
+                        <span class="chore-toggle-thumb"></span>
+                    </span>
+                    <span class="chore-toggle-label" id="repeating-label">Off</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Days of week (shown when repeating is on) -->
+        <div id="days-of-week-row" class="chore-days-row" style="display:none;">
+            <label class="chore-field-label">
+                <i class="fas fa-calendar-day"></i> Which days
+                <span class="chore-days-hint">(leave all unchecked for every day)</span>
+            </label>
+            <div class="chore-day-pills">
+                {% for day in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
+                <label class="chore-day-pill">
+                    <input type="checkbox" name="days_of_week" value="{{ day }}" class="day-checkbox">
+                    <span>{{ day[:3] }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Due date/time -->
+        <div class="chore-due-row">
+            <div class="chore-due-toggle-line">
+                <label class="chore-toggle-wrap">
+                    <input type="checkbox" id="show-due-datetime-checkbox" class="chore-toggle-input">
+                    <span class="chore-toggle-track">
+                        <span class="chore-toggle-thumb"></span>
+                    </span>
+                </label>
+                <span class="chore-field-label" style="margin:0;">
+                    <i class="fas fa-clock" style="color:#f87171;"></i> Set due date &amp; time
+                    <span class="optional-label">(optional)</span>
+                </span>
+            </div>
+            <div id="due-datetime-wrap" style="display:none;">
+                <input type="datetime-local" id="due-datetime-input" name="due_datetime" class="modern-input modern-datetime">
+                <p class="chore-due-warning">No points will be awarded if completed after the due date</p>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn-add-chore">
+            <i class="fas fa-plus"></i> Add Chore
+        </button>
+
+    </form>
+
+    <script>
+    const initialChoreSuggestions = [
+        'Clean Room', 'Clean Desk', 'Pack Lunch', 'Clean Playroom',
+        'Pack Water Bottle', 'Brush Teeth', 'Unstack Dishwasher',
+        'Put Away Laundry', 'Do a workout', 'Take Dog For A Walk',
+        'Reading', 'Go to Sleep without meltdown'
+    ];
+
+    let choreSuggestions = [];
+    let editMode = false;
+
+    function initializeChoreSuggestions() {
+        if (localStorage.getItem('choreSuggestions')) {
+            choreSuggestions = JSON.parse(localStorage.getItem('choreSuggestions'));
+        } else {
+            choreSuggestions = [...initialChoreSuggestions];
+            saveChoreSuggestions();
+        }
+    }
+
+    function renderChoreSuggestions() {
+        const container = document.querySelector('.chore-suggestions');
+        container.innerHTML = '';
+        choreSuggestions.forEach((chore, index) => {
+            if (editMode) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'chore-suggestion-edit-item';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = chore;
+                input.className = 'modern-input';
+                input.style.cssText = 'padding:4px 8px;font-size:0.85rem;width:120px;height:32px;';
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = '&times;';
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'btn-suggestion-delete';
+                deleteBtn.onclick = () => {
+                    choreSuggestions.splice(index, 1);
+                    saveChoreSuggestions();
+                    renderChoreSuggestions();
+                };
+                wrapper.appendChild(input);
+                wrapper.appendChild(deleteBtn);
+                container.appendChild(wrapper);
+            } else {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'chore-suggestion-chip';
+                button.textContent = chore;
+                button.onclick = function() {
+                    document.getElementById('chore-title-input').value = chore;
+                };
+                container.appendChild(button);
+            }
+        });
+    }
+
+    function toggleEditMode() {
+        editMode = !editMode;
+        const btn = document.getElementById('chore-edit-mode-btn');
+        if (editMode) {
+            btn.innerHTML = '<i class="fas fa-save"></i> Save';
+            btn.onclick = function() {
+                const inputs = document.querySelectorAll('.chore-suggestions input[type="text"]');
+                choreSuggestions = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+                saveChoreSuggestions();
+                editMode = false;
+                btn.innerHTML = 'Edit';
+                btn.onclick = toggleEditMode;
+                renderChoreSuggestions();
+            };
+        } else {
+            btn.innerHTML = 'Edit';
+            btn.onclick = toggleEditMode;
+        }
+        renderChoreSuggestions();
+    }
+
+    function addNewChoreSuggestion() {
+        const input = document.getElementById('new-chore-suggestion');
+        const newChore = input.value.trim();
+        if (newChore && !choreSuggestions.includes(newChore)) {
+            choreSuggestions.push(newChore);
+            saveChoreSuggestions();
+            renderChoreSuggestions();
+            input.value = '';
+        }
+        const wrap = document.getElementById('chore-suggestion-input-wrap');
+        wrap.style.display = 'none';
+    }
+
+    function toggleChoreSuggestionInput() {
+        const wrap = document.getElementById('chore-suggestion-input-wrap');
+        const visible = wrap.style.display === 'flex';
+        wrap.style.display = visible ? 'none' : 'flex';
+        if (!visible) document.getElementById('new-chore-suggestion').focus();
+    }
+
+    function saveChoreSuggestions() {
+        localStorage.setItem('choreSuggestions', JSON.stringify(choreSuggestions));
+    }
+
+    function adjustPoints(delta) {
+        const input = document.getElementById('points-input');
+        const current = parseFloat(input.value) || 0;
+        const newVal = Math.max(0, Math.round((current + delta) * 10) / 10);
+        input.value = newVal;
+    }
+
+    function setPoints(val) {
+        document.getElementById('points-input').value = val;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeChoreSuggestions();
+        renderChoreSuggestions();
+
+        // Assigned-to pill selection
+        const pills = document.querySelectorAll('.chore-assign-pill');
+        const hiddenInput = document.getElementById('assigned-to-hidden');
+        if (pills.length > 0) {
+            pills[0].classList.add('selected');
+            hiddenInput.value = pills[0].getAttribute('data-person');
+        }
+        pills.forEach(pill => {
+            pill.addEventListener('click', function() {
+                pills.forEach(p => p.classList.remove('selected'));
+                this.classList.add('selected');
+                hiddenInput.value = this.getAttribute('data-person');
+            });
+        });
+
+        // Repeating toggle -> show/hide days
+        const repeatingToggle = document.getElementById('show-repeating-checkbox');
+        const daysRow = document.getElementById('days-of-week-row');
+        const repeatingLabel = document.getElementById('repeating-label');
+        if (repeatingToggle) {
+            repeatingToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    daysRow.style.display = '';
+                    repeatingLabel.textContent = 'On';
+                } else {
+                    daysRow.style.display = 'none';
+                    repeatingLabel.textContent = 'Off';
+                    daysRow.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+                }
+            });
+        }
+
+        // Due date/time toggle
+        const dueToggle = document.getElementById('show-due-datetime-checkbox');
+        const dueWrap = document.getElementById('due-datetime-wrap');
+        const dueInput = document.getElementById('due-datetime-input');
+        if (dueToggle) {
+            dueToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    dueWrap.style.display = '';
+                    const now = new Date();
+                    const ms = 1000 * 60 * 5;
+                    const rounded = new Date(Math.round(now.getTime() / ms) * ms);
+                    dueInput.value = new Date(rounded.getTime() - rounded.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                    dueInput.min = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                } else {
+                    dueWrap.style.display = 'none';
+                    dueInput.value = '';
+                }
+            });
+        }
+
+        // After form reset, restore UI state
+        document.getElementById('add-chore-form').addEventListener('reset', function() {
+            setTimeout(function() {
+                pills.forEach(p => p.classList.remove('selected'));
+                if (pills.length > 0) {
+                    pills[0].classList.add('selected');
+                    hiddenInput.value = pills[0].getAttribute('data-person');
+                }
+                if (daysRow) daysRow.style.display = 'none';
+                if (repeatingLabel) repeatingLabel.textContent = 'Off';
+                if (dueWrap) dueWrap.style.display = 'none';
+            }, 0);
+        });
+    });
+    </script>
+</section>
+<section class="add-rewards-modern collapsible-section collapsed">
+    <h2 class="section-title section-toggle">
+        <i class="fas fa-trophy" style="color: #a78bfa;"></i> Create New Reward
+        <i class="fas fa-chevron-down section-chevron"></i>
+    </h2>
+
+    <!-- Suggestions bar (same pattern as chore form) -->
+    <div class="chore-suggestions-bar">
+        <div class="chore-suggestions-header">
+            <span class="chore-suggestions-label">Quick Suggestions</span>
+            <div class="chore-suggestions-actions">
+                <button type="button" class="btn-suggestion-add" title="Add a quick suggestion" onclick="toggleSuggestionInput()">
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
+                <div id="suggestion-input-wrap" style="display:none;align-items:center;gap:6px;">
+                    <input type="text" id="new-reward-suggestion" placeholder="Add a quick suggestion..." class="modern-input suggestion-inline-input"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();addNewRewardSuggestion();}">
+                    <button type="button" onclick="addNewRewardSuggestion()" class="btn-secondary" style="white-space:nowrap;padding:0.55rem 0.9rem;">
+                        <i class="fas fa-plus"></i> Add
+                    </button>
+                </div>
+                <button type="button" id="reward-edit-mode-btn" onclick="toggleRewardEditMode()" class="btn-secondary" style="padding:0.55rem 0.9rem;">Edit</button>
+            </div>
+        </div>
+        <div class="reward-suggestions"></div>
+    </div>
+
+    <form action="{{ url_for('routes.add_reward') }}" method="POST" id="add-reward-form" class="chore-form-card" enctype="multipart/form-data">
+
+        <!-- Title -->
+        <div class="chore-field-group">
+            <label class="chore-field-label" for="reward-title">
+                <i class="fas fa-trophy" style="color:#a78bfa;"></i> Reward Title
+            </label>
+            <input type="text" id="reward-title" name="title"
+                   placeholder="e.g., Trip to the Zoo, Movie Night..."
+                   class="modern-input chore-title-input" required autocomplete="off">
+        </div>
+
+        <!-- Points + Assign to row -->
+        <div class="chore-meta-row">
+            <div class="chore-field-group">
+                <label class="chore-field-label" for="reward-points">
+                    {% if reward_system == 'cash' %}
+                    <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i> Cash Required
+                    {% else %}
+                    <i class="fas fa-star" style="color:#fbbf24;"></i> Points Required
+                    {% endif %}
+                </label>
+                <input type="number" id="reward-points" name="points_required"
+                       placeholder="{% if reward_system == 'cash' %}10.00{% else %}100{% endif %}"
+                       min="{% if reward_system == 'cash' %}0.01{% else %}1{% endif %}"
+                       step="{% if reward_system == 'cash' %}0.01{% else %}1{% endif %}"
+                       class="modern-input" required>
+            </div>
+            <div class="chore-field-group">
+                <label class="chore-field-label">
+                    <i class="fas fa-user-circle"></i> Assign To
+                </label>
+                <div class="chore-assign-pills" id="reward-assignee-pills">
+                    {% for person in family %}
+                    <button type="button" class="chore-assign-pill reward-assign-pill"
+                            data-person="{{ person.name }}">
+                        <span class="pill-avatar">{{ person.name[:1].upper() }}</span>
+                        <span class="pill-name">{{ person.name }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="assigned_to" id="reward-assignee-hidden" required>
+            </div>
+        </div>
+
+        <!-- Description -->
+        <div class="chore-field-group">
+            <label class="chore-field-label" for="reward-description">
+                <i class="fas fa-align-left"></i> Description
+                <span class="chore-days-hint">(optional)</span>
+            </label>
+            <textarea id="reward-description" name="description"
+                      placeholder="Describe this amazing reward..."
+                      rows="2" class="modern-textarea"></textarea>
+        </div>
+
+        <!-- Image -->
+        <div class="chore-field-group reward-image-group">
+            <label class="chore-field-label">
+                <i class="fas fa-image"></i> Reward Image
+                <span class="chore-days-hint">(optional)</span>
+            </label>
+            <input type="hidden" id="reward-stock-image" name="stock_image_url">
+            <div class="reward-image-options">
+                <button type="button" id="stock-picker-toggle" onclick="toggleStockPicker()" class="stock-picker-btn">
+                    <i class="fas fa-images"></i>
+                    <span id="stock-picker-label">Choose a Stock Image</span>
+                    <i class="fas fa-chevron-down" id="stock-picker-chevron"></i>
+                </button>
+                <span class="reward-image-or">or</span>
+                <input type="text" id="reward-image" name="image_url" placeholder="Paste image URL" class="modern-input reward-url-input">
+                <span class="reward-image-or">or</span>
+                <input type="file" id="reward-image-upload" name="reward_image_file" accept="image/*" style="display:none;">
+                <button type="button" onclick="document.getElementById('reward-image-upload').click();" class="btn-upload-inline">
+                    <i class="fa-solid fa-upload"></i> Upload
+                </button>
+            </div>
+            <div class="stock-image-picker" id="stock-image-picker" style="display:none;margin-top:10px;">
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_takeout.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_takeout.svg') }}" alt="Take Out Dinner">
+                    <span>Take Out Dinner</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_order_in.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_order_in.svg') }}" alt="Order In Dinner">
+                    <span>Order In Dinner</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_shopping.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_shopping.svg') }}" alt="Shopping Trip">
+                    <span>Shopping Trip</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_movie.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_movie.svg') }}" alt="Movie Night">
+                    <span>Movie Night</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_baking.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_baking.svg') }}" alt="Baking Day">
+                    <span>Baking Day</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_minigolf.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_minigolf.svg') }}" alt="Mini Golf">
+                    <span>Mini Golf</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_screentime.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_screentime.svg') }}" alt="Screen Time">
+                    <span>Screen Time</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_tv.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_tv.svg') }}" alt="TV Time">
+                    <span>TV Time</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_icecream.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_icecream.svg') }}" alt="Ice Cream">
+                    <span>Ice Cream</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_gaming.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_gaming.svg') }}" alt="Gaming Session">
+                    <span>Gaming Session</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_swimming.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_swimming.svg') }}" alt="Swimming">
+                    <span>Swimming</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_cafe.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_cafe.svg') }}" alt="Café Treat">
+                    <span>Café Treat</span>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-add-chore">
+            <i class="fas fa-plus"></i> Create Reward
+        </button>
+    </form>
+
+    <script>
+    const initialRewardSuggestions = [
+        'Millhouse Canteen', 'MiniGolf', '1 hour of ipad',
+        '1 hour of TV', 'A Movie', 'Baking Something Yum'
+    ];
+
+    let rewardSuggestions = [];
+    let rewardEditMode = false;
+
+    function initializeRewardSuggestions() {
+        if (localStorage.getItem('rewardSuggestions')) {
+            rewardSuggestions = JSON.parse(localStorage.getItem('rewardSuggestions'));
+        } else {
+            rewardSuggestions = [...initialRewardSuggestions];
+            saveRewardSuggestions();
+        }
+    }
+
+    function renderRewardSuggestions() {
+        const container = document.querySelector('.reward-suggestions');
+        container.innerHTML = '';
+        rewardSuggestions.forEach((reward, index) => {
+            if (rewardEditMode) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'chore-suggestion-edit-item';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = reward;
+                input.className = 'modern-input';
+                input.style.cssText = 'padding:4px 8px;font-size:0.85rem;width:120px;height:32px;';
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = '&times;';
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'btn-suggestion-delete';
+                deleteBtn.onclick = () => {
+                    rewardSuggestions.splice(index, 1);
+                    saveRewardSuggestions();
+                    renderRewardSuggestions();
+                };
+                wrapper.appendChild(input);
+                wrapper.appendChild(deleteBtn);
+                container.appendChild(wrapper);
+            } else {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'chore-suggestion-chip';
+                button.textContent = reward;
+                button.onclick = function() {
+                    document.getElementById('reward-title').value = reward;
+                };
+                container.appendChild(button);
+            }
+        });
+    }
+
+    function toggleRewardEditMode() {
+        rewardEditMode = !rewardEditMode;
+        const btn = document.getElementById('reward-edit-mode-btn');
+        if (rewardEditMode) {
+            btn.innerHTML = '<i class="fas fa-save"></i> Save';
+            btn.onclick = function() {
+                const inputs = document.querySelectorAll('.reward-suggestions input[type="text"]');
+                rewardSuggestions = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+                saveRewardSuggestions();
+                rewardEditMode = false;
+                btn.innerHTML = 'Edit';
+                btn.onclick = toggleRewardEditMode;
+                renderRewardSuggestions();
+            };
+        } else {
+            btn.innerHTML = 'Edit';
+            btn.onclick = toggleRewardEditMode;
+        }
+        renderRewardSuggestions();
+    }
+
+    function addNewRewardSuggestion() {
+        const input = document.getElementById('new-reward-suggestion');
+        const newReward = input.value.trim();
+        if (newReward && !rewardSuggestions.includes(newReward)) {
+            rewardSuggestions.push(newReward);
+            saveRewardSuggestions();
+            renderRewardSuggestions();
+            input.value = '';
+        }
+        document.getElementById('suggestion-input-wrap').style.display = 'none';
+    }
+
+    function toggleSuggestionInput() {
+        const wrap = document.getElementById('suggestion-input-wrap');
+        const visible = wrap.style.display === 'flex';
+        wrap.style.display = visible ? 'none' : 'flex';
+        if (!visible) document.getElementById('new-reward-suggestion').focus();
+    }
+
+    function saveRewardSuggestions() {
+        localStorage.setItem('rewardSuggestions', JSON.stringify(rewardSuggestions));
+    }
+
+    function toggleStockPicker() {
+        const picker = document.getElementById('stock-image-picker');
+        const chevron = document.getElementById('stock-picker-chevron');
+        const open = picker.style.display !== 'none';
+        picker.style.display = open ? 'none' : 'flex';
+        chevron.style.transform = open ? '' : 'rotate(180deg)';
+    }
+
+    function selectStockImage(tile) {
+        document.querySelectorAll('.stock-image-tile').forEach(t => t.classList.remove('selected'));
+        tile.classList.add('selected');
+        document.getElementById('reward-stock-image').value = tile.dataset.url;
+        document.getElementById('reward-image').value = '';
+        const label = tile.querySelector('span').textContent;
+        document.getElementById('stock-picker-label').textContent = '\u2713 ' + label;
+        document.getElementById('stock-picker-toggle').classList.add('stock-picker-chosen');
+        document.getElementById('stock-image-picker').style.display = 'none';
+        document.getElementById('stock-picker-chevron').style.transform = '';
+    }
+
+    function clearStockSelection() {
+        document.querySelectorAll('.stock-image-tile').forEach(t => t.classList.remove('selected'));
+        document.getElementById('reward-stock-image').value = '';
+        document.getElementById('stock-picker-label').textContent = 'Choose a Stock Image';
+        document.getElementById('stock-picker-toggle').classList.remove('stock-picker-chosen');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeRewardSuggestions();
+        renderRewardSuggestions();
+
+        // Assignee pill selection
+        const pills = document.querySelectorAll('.reward-assign-pill');
+        const hiddenInput = document.getElementById('reward-assignee-hidden');
+        if (pills.length > 0) {
+            pills[0].classList.add('selected');
+            hiddenInput.value = pills[0].getAttribute('data-person');
+        }
+        pills.forEach(pill => {
+            pill.addEventListener('click', function() {
+                pills.forEach(p => p.classList.remove('selected'));
+                this.classList.add('selected');
+                hiddenInput.value = this.getAttribute('data-person');
+            });
+        });
+
+        const urlInput = document.getElementById('reward-image');
+        if (urlInput) urlInput.addEventListener('input', clearStockSelection);
+        const fileInput = document.getElementById('reward-image-upload');
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                clearStockSelection();
+                document.getElementById('reward-image').value = '';
+            });
+        }
+    });
+    </script>
+</section>
+<section class="completed-rewards collapsible-section collapsed">
+    <h2 class="section-toggle" style="text-align: center; color: #a78bfa;">
+        <i class="fas fa-trophy" style="color: #a78bfa;"></i> Redeemed Rewards
+        <i class="fas fa-chevron-down section-chevron"></i>
+    </h2>
+    {% set redeemed_rewards = rewards | selectattr('completed', 'equalto', True) | list %}
+    {% if redeemed_rewards | length == 0 %}
+    <p style="text-align: center; color: #c4c1c1; font-style: italic; margin-top: 10px;">
+        This is where you redeemed rewards will be when you redeem them
+    </p>
+    {% endif %}
+    <div id="redeemed-rewards-container" class="completed-rewards-container">
+        {% for reward in rewards %}
+        {% if reward.completed %}
+        <div class="reward-card" style="opacity:0.7; position:relative;" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward.assigned_to }}" data-assigned-to-id="{{ get_person_by_name(reward.assigned_to).id }}">
+            {% if reward.image_url %}
+            <div class="reward-image-container">
+                <img src="{{ reward.image_url }}" alt="{{ reward.title }}" class="reward-image">
+                <div class="reward-overlay">
+                    <span class="reward-points-badge">
+                        <i class="fas fa-award"></i>
+                        <span class="reward-points-value">{{ reward.points_required }}</span>
+                    </span>
+                </div>
+            </div>
+            {% else %}
+            <div class="reward-icon-container">
+                <div class="reward-icon-large">
+                    {% if reward.title == "Millhouse Canteen" %}
+                        <i class="fas fa-utensils"></i>
+                    {% elif reward.title == "MiniGolf" %}
+                        <i class="fas fa-golf-ball"></i>
+                    {% elif reward.title == "1 hour of ipad" %}
+                        <i class="fas fa-tablet-alt"></i>
+                    {% elif reward.title == "1 hour of TV" %}
+                        <i class="fas fa-tv"></i>
+                    {% elif reward.title == "A Movie" %}
+                        <i class="fas fa-film"></i>
+                    {% elif reward.title == "Baking Something Yum" %}
+                        <i class="fas fa-birthday-cake"></i>
+                    {% else %}
+                        <i class="fas fa-gift"></i>
+                    {% endif %}
+                </div>
+                <span class="reward-points-badge">
+                    <i class="fas fa-award"></i>
+                    <span class="reward-points-value">{{ reward.points_required }}</span>
+                </span>
+            </div>
+            {% endif %}
+            <div class="reward-content">
+                <h3 class="reward-title-modern">{{ reward.title }}</h3>
+                <div class="reward-points-badge" style="display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">
+                    <i class="fas fa-award" style="color:#fbbf24;"></i>
+                    <span class="reward-points-value">{{ reward.points_required }}</span>
+                </div>
+                {% if reward.description %}
+                <p class="reward-description">{{ reward.description }}</p>
+                {% endif %}
+                <div class="reward-meta">
+                    <div class="reward-assignee">
+                        <img src="{{ url_for('static', filename='uploads/' + (get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to).avatar else 'uploads/default_avatar.png')) }}" 
+                             alt="{{ reward.assigned_to }}" 
+                             class="assignee-avatar"
+                             title="{{ reward.assigned_to }}">
+                        <span class="assignee-name">{{ reward.assigned_to }}</span>
+                    </div>
+                </div>
+                <div class="reward-actions-modern" style="margin-top:8px;">
+                    <span class="completed-status" style="color:#6366f1;font-weight:600;"><i class="fas fa-check-circle"></i> Redeemed</span>
+                    <span class="completion-date" style="color:#888; font-size:0.95em; margin-left:10px;">Redeemed on: {{ reward.date_completed.strftime("%d %B %Y at %H:%M") }}</span>
+                    <button class="btn-delete" onclick="confirmDeleteReward({{ reward.id }})" aria-label="Delete reward" style="float:right; margin-left:auto;">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</section>
+<!--  Summary Section -->
+<section id="weekly-summary">
+    <h2 style="text-align: center; color: #ffd900; margin-bottom: 18px;">
+        <i class="fa-solid fa-crown" style="color: #ffd000;"></i> Weekly Summary
+    </h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; justify-content: center;">
+        {% for person in family %}
+        <div class="summary-card" style="background: #fffbe7; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px 20px; min-width: 260px; max-width: 320px; display: flex; flex-direction: column; align-items: center; position: relative;">
+            <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 10px;">
+                <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'uploads/default_avatar.png') }}" alt="{{ person.name }}" style="width: 56px; height: 56px; border-radius: 50%; border: 3px solid #ffd900; object-fit: cover;">
+                <span style="font-size: 1.35em; font-weight: 700; color: #222;">{{ person.name }}</span>
+            </div>
+            <div style="font-size: 1.1em; color: #333; margin-bottom: 8px;">
+                <b>Total Points This Week:</b> <span class="weekly-points" data-person="{{ person.name }}">0</span>
+            </div>
+            <div style="font-size: 1em; color: #444; margin-bottom: 8px;">
+                <b>Average Points/Week:</b> <span class="average-points" data-person="{{ person.name }}">0</span>
+            </div>
+            <div style="font-size: 0.98em; color: #666; margin-bottom: 8px;">
+                <b>All-Time Points:</b> <span class="alltime-points" data-person="{{ person.name }}">{{ person.points + person.bonus_points }}</span>
+            </div>
+            <div style="font-size: 0.95em; color: #888;">Week Ending: {{ end_of_week_date }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    <div id="weekly-summary-total"></div>
+</section>
+
+<script>
+// --- Add/Delete Person Logic ---
+function confirmDeletePerson(personId, personName) {
+    showUnifiedModal({
+        icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+        message: `Are you sure you want to delete <b>${personName}</b>? This action cannot be undone.`,
+        buttons: [
+            {text: 'Delete', color: '#e53935', onClick: function() { deletePerson(personId); }},
+            {text: 'Cancel', color: '#888', onClick: null}
+        ]
+    });
+}
+function deletePerson(personId) {
+    fetch('/delete_person', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person_id: personId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            showUnifiedModal({
+                icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+                message: data.error || 'Failed to delete person',
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+        }
+    });
+}
+// Add Person Modal Logic
+function openAddPersonModal() {
+    document.getElementById('add-person-modal').style.display = 'flex';
+    setTimeout(() => {
+        document.getElementById('add-person-input').focus();
+    }, 100);
+}
+function closeAddPersonModal() {
+    document.getElementById('add-person-modal').style.display = 'none';
+}
+function confirmAddPerson() {
+    const name = document.getElementById('add-person-input').value.trim();
+    if (!name) return;
+    fetch('/add_person', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            showUnifiedModal({
+                icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+                message: data.error || 'Failed to add person',
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+        }
+    });
+    closeAddPersonModal();
+}
+document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('add-person-btn');
+    if (addBtn) addBtn.addEventListener('click', openAddPersonModal);
+});
+// Example: You should replace this with real data from your backend if available
+// For now, we'll just fill in the weekly and average points with dummy values
+// You can update this logic to use AJAX or Jinja variables as needed
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Dummy data for demonstration
+    // Replace with real calculation if available
+    const weeklyPoints = {
+    {%- for person in family -%}
+    '{{ person.name }}': 0{% if not loop.last %},{% endif %}
+    {%- endfor -%}
+    };
+    const averagePoints = {
+    {%- for person in family -%}
+    '{{ person.name }}': 0{% if not loop.last %},{% endif %}
+    {%- endfor -%}
+    };
+    // Fill in the values
+    for (const name in weeklyPoints) {
+        const el = document.querySelector('.weekly-points[data-person="' + name + '"]');
+        if (el) el.textContent = weeklyPoints[name];
+    }
+    for (const name in averagePoints) {
+        const el = document.querySelector('.average-points[data-person="' + name + '"]');
+        if (el) el.textContent = averagePoints[name];
+    }
+});
+</script>
+</div> <!-- End of site-content container -->
+
+<!-- Reward Celebration Overlay -->
+<div id="reward-celebration-overlay" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:20000;background:rgba(0,0,0,0.92);justify-content:center;align-items:center;flex-direction:column;overflow:hidden;">
+    <div id="reward-celebration-message" style="color:#fff;font-size:3em;text-align:center;text-shadow:2px 2px 8px #000,0 0 40px #ffd700;font-weight:bold;z-index:2;"></div>
+    <div id="reward-celebration-graphics" style="margin-top:30px;z-index:2;">
+        <span style="font-size:5em;">🎉</span>
+        <span style="font-size:5em;">✨</span>
+        <span style="font-size:5em;">🏆</span>
+    </div>
+    <!-- Confetti, Balloons, Streamers, and Fun Elements -->
+    <div id="reward-confetti-container" style="position:absolute;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:100;"></div>
+    <div id="reward-balloons-container" style="position:absolute;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:101;"></div>
+    <div id="reward-streamers-container" style="position:absolute;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:102;"></div>
+</div>
+
+<script>
+// Global audio variables
+let celebrationSoundEnabled = true;
+let celebrationAudio; // Declare globally
+let globalMute = localStorage.getItem('globalMute') === 'true';
+
+function updateMuteIcon() {
+    const icon = document.getElementById('mute-icon');
+    if (globalMute) {
+        icon.className = 'fas fa-volume-mute';
+    } else {
+        icon.className = 'fas fa-volume-up';
+    }
+}
+    // Mute button logic
+    updateMuteIcon();
+    const muteToggle = document.getElementById('mute-toggle');
+    if (muteToggle) {
+        muteToggle.addEventListener('click', function() {
+            globalMute = !globalMute;
+            localStorage.setItem('globalMute', globalMute);
+            updateMuteIcon();
+        });
+    }
+document.addEventListener('DOMContentLoaded', function() {
+
+    // Initialize audio first
+    initializeAudio();
+
+    // Check authentication and set visibility accordingly
+
+    const pinOverlay = document.getElementById('pin-overlay');
+    const siteContent = document.getElementById('site-content');
+    if (localStorage.getItem('isAuthenticated') === 'true') {
+        if (pinOverlay) pinOverlay.style.setProperty('display', 'none', 'important');
+        if (siteContent) siteContent.style.setProperty('display', 'block', 'important');
+    } else {
+        if (pinOverlay) pinOverlay.style.setProperty('display', 'flex', 'important');
+        if (siteContent) siteContent.style.setProperty('display', 'none', 'important');
+    }
+
+    // Initialize column colors
+    const columns = document.querySelectorAll('.column');
+    columns.forEach(column => {
+        const colorInput = column.querySelector('.color-input');
+        const personId = colorInput.getAttribute('id').replace('color-picker-', '');
+        fetch(`/get_column_color/${personId}`, { method: 'GET' })
+        .then(response => response.json())
+        .then(data => {
+            let color = (data.success && data.color) ? data.color : '#cccccc';
+            column.style.backgroundColor = color;
+            colorInput.value = color;
+        })
+        .catch(error => {
+            column.style.backgroundColor = '#cccccc';
+            colorInput.value = '#cccccc';
+        });
+    });
+
+    // Initialize weekly summary
+    updateWeeklySummary();
+    
+    // Set up a MutationObserver to watch for changes to points displays
+    const pointsDisplays = document.querySelectorAll('.points-display');
+    const observer = new MutationObserver(updateWeeklySummary);
+    const config = { childList: true, characterData: true, subtree: true };
+    
+    pointsDisplays.forEach(display => {
+        observer.observe(display, config);
+    });
+});
+
+// Initialize audio objects
+function initializeAudio() {
+    try {
+        celebrationAudio = new Audio("https://www.myinstants.com/media/sounds/kids_cheering.mp3");
+        celebrationAudio.volume = 0.7;
+        celebrationAudio.preload = 'auto';
+        console.log('Celebration audio initialized successfully');
+    } catch (error) {
+        console.log('Celebration audio not supported or blocked:', error);
+    }
+}
+
+/* PIN check function removed as PIN setup moved to setup wizard */
+// function checkPin() {
+//     const pinInput = document.getElementById('pin-input').value;
+//     if (pinInput === '3701') {
+//         localStorage.setItem('isAuthenticated', 'true');
+//         document.getElementById('pin-error').style.display = 'none';
+//         document.getElementById('pin-overlay').style.display = 'none';
+//         document.getElementById('site-content').style.display = 'block';
+//     } else {
+//         document.getElementById('pin-error').style.display = 'block';
+//     }
+// }
+
+// Theme toggle
+const themeToggle = document.getElementById('theme-toggle');
+const body = document.body;
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme) {
+    body.setAttribute('data-theme', savedTheme);
+}
+if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        body.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+    });
+}
+
+// Add chore function
+function addChore(event) {
+    event.preventDefault();
+    const form = document.getElementById('add-chore-form');
+    const data = {
+        title: form['title'].value,
+        assigned_to: form['assigned_to'].value,
+        points: form['points'].value,
+    };
+    // Days of week
+    const daysChecked = Array.from(form.querySelectorAll('input[name="days_of_week"]:checked')).map(cb => cb.value);
+    if (daysChecked.length > 0) {
+        data.days_of_week = daysChecked;
+        data.is_daily = true;
+    } else {
+        data.is_daily = form.querySelector('input[name="is_daily"]').checked;
+    }
+    // Due datetime
+    const dueInput = document.getElementById('due-datetime-input');
+    if (dueInput && dueInput.value) {
+        // Convert local datetime to UTC ISO string
+        const localDate = new Date(dueInput.value);
+        const utcISOString = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
+        data.due_datetime = utcISOString;
+    }
+    fetch("{{ url_for('routes.add_chore') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(resp => {
+        if (resp.success) {
+            injectNewChoreCard(resp, data);
+            form.reset();
+            if (window.showToast) showToast('Chore added!', 'success');
+        } else {
+            alert(resp.error || 'Failed to add chore');
+        }
+    });
+    return false;
+}
+
+function _getChoreIcon(title) {
+    const t = title.toLowerCase();
+    if (t.includes('dish') || t.includes('wash up')) return '🍽️';
+    if (t.includes('laundry') || t.includes('washing')) return '🧺';
+    if (t.includes('trash') || t.includes('bin') || t.includes('rubbish')) return '🗑️';
+    if (t.includes('vacuum') || t.includes('hoover') || t.includes('sweep') || t.includes('mop')) return '🧹';
+    if (t.includes('bath') || t.includes('shower')) return '🚿';
+    if (t.includes('music') || t.includes('piano') || t.includes('guitar') || t.includes('violin') || t.includes('instrument') || t.includes('practis') || t.includes('practice')) return '🎵';
+    if (t.includes('cat')) return '🐱';
+    if (t.includes('fish')) return '🐟';
+    if (t.includes('bird')) return '🐦';
+    if (t.includes('hamster') || t.includes('rabbit')) return '🐹';
+    if (t.includes('feed') || t.includes('animal')) return '🐾';
+    if (t.includes('medicine') || t.includes('pill') || t.includes('vitamin')) return '💊';
+    if (t.includes('dog') || t.includes('sam')) return '🐶';
+    if (t.includes('walk')) return '🦮';
+    if (t.includes('sleep') || t.includes('meltdown') || t.includes('night')) return '😴';
+    if (t.includes('lunch') || t.includes('breakfast') || t.includes('snack') || t.includes('meal') || t.includes('eat') || t.includes('food')) return '🥗';
+    if (t.includes('pack')) return '🎒';
+    if (t.includes('water') || t.includes('drink') || t.includes('bottle')) return '💧';
+    if (t.includes('read') || t.includes('book')) return '📖';
+    if (t.includes('homework') || t.includes('school') || t.includes('learn') || t.includes('study')) return '🎓';
+    if (t.includes('tidy') || t.includes('organis') || t.includes('organiz')) return '📦';
+    if (t.includes('wipe') || t.includes('clean') || t.includes('sort')) return '🧽';
+    if (t.includes('playroom') || t.includes('play') || t.includes('game') || t.includes('toy')) return '🎮';
+    if (t.includes('desk')) return '🖥️';
+    if (t.includes('bedroom') || t.includes('room') || t.includes('bed')) return '🛏️';
+    if (t.includes('car') || t.includes('drive')) return '🚗';
+    if (t.includes('screen') || t.includes('ipad') || t.includes('computer') || t.includes('phone') || t.includes('tv')) return '📱';
+    return '✅';
+}
+
+function _escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+}
+
+function injectNewChoreCard(resp, formData) {
+    const personName = formData.assigned_to;
+    const column = document.querySelector(`.column[data-person="${personName}"]`);
+    if (!column) { window.location.reload(); return; }
+
+    // Don't show if chore is assigned specific days and today isn't one of them
+    if (formData.days_of_week && formData.days_of_week.length > 0) {
+        const todayName = new Date().toLocaleString('en-US', { weekday: 'long' }).toLowerCase();
+        if (!formData.days_of_week.map(d => d.toLowerCase()).includes(todayName)) {
+            if (window.showToast) showToast('Chore added! (not shown today)', 'success');
+            return;
+        }
+    }
+
+    const rewardSystem = window.REWARD_SYSTEM || 'points';
+    const isDaily = formData.is_daily || (formData.days_of_week && formData.days_of_week.length > 0);
+    const points = parseFloat(formData.points);
+    const isCash = rewardSystem === 'cash';
+
+    // Build tags HTML
+    let tagsHtml = '';
+    if (isDaily) tagsHtml += '<span class="chore-tag chore-tag-daily"><i class="fas fa-sync"></i> Daily</span>';
+    if (formData.days_of_week && formData.days_of_week.length > 0) {
+        const days = formData.days_of_week.map(d => d.trim().toLowerCase());
+        const abbr = {monday:'Mon',tuesday:'Tue',wednesday:'Wed',thursday:'Thu',friday:'Fri',saturday:'Sat',sunday:'Sun'};
+        const weekdays = ['friday','monday','thursday','tuesday','wednesday'];
+        const weekends = ['saturday','sunday'];
+        const sorted = [...days].sort();
+        let dayLabel = sorted.join(',') === weekdays.join(',') ? 'Weekdays'
+            : sorted.join(',') === weekends.join(',') ? 'Weekends'
+            : days.map(d => abbr[d] || d).join(', ');
+        tagsHtml += `<span class="chore-tag">${dayLabel}</span>`;
+    }
+
+    const pointsHtml = isCash
+        ? `<i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i><span class="chore-points-value">$${points}</span>`
+        : `<i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i><span class="chore-points-value">${points}</span>`;
+
+    const cardHtml = `<div class="chore" data-chore-id="${resp.chore_id}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px;">
+        <button class="btn-delete-chore-sm" onclick="confirmDeleteChore(${resp.chore_id}, ${isDaily})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
+        <div class="chore-header">
+            <span class="chore-icon">${_getChoreIcon(formData.title)}</span>
+            <span class="chore-title">${_escapeHtml(formData.title)}</span>
+        </div>
+        <div class="chore-meta">
+            <div class="chore-tags">${tagsHtml}</div>
+            <span class="chore-points-badge" title="Points for this chore">${pointsHtml}</span>
+        </div>
+        <button class="btn-complete-chore" onclick="completeChore(${resp.chore_id})"><i class="fas fa-check"></i> Complete</button>
+    </div>`;
+
+    // Remove empty-state messages
+    const noChoreMsg = column.querySelector('p');
+    if (noChoreMsg && noChoreMsg.textContent.includes('No chores')) noChoreMsg.remove();
+    const allDone = column.querySelector('.all-done-banner');
+    if (allDone) allDone.remove();
+
+    // Find or create the incomplete-chores-list
+    let list = column.querySelector('.incomplete-chores-list');
+    if (!list) {
+        list = document.createElement('div');
+        list.className = 'chores-list incomplete-chores-list';
+        const choresHeader = column.querySelector('.chores-to-do-header');
+        if (choresHeader) choresHeader.insertAdjacentElement('afterend', list);
+        else column.querySelector('.column-footer').insertAdjacentElement('beforebegin', list);
+    }
+    list.insertAdjacentHTML('beforeend', cardHtml);
+
+    // Update progress bar
+    const incomplete = column.querySelectorAll('.incomplete-chores-list .chore').length;
+    const completed = column.querySelectorAll('.completed-chores-list .chore.completed').length;
+    const total = incomplete + completed;
+    const pct = total > 0 ? Math.round((incomplete / total) * 100) : 0;
+    const fill = column.querySelector('.chore-progress-bar-fill');
+    const label = column.querySelector('.chore-progress-label');
+    if (fill) { fill.style.width = pct + '%'; }
+    if (label) { label.textContent = incomplete + ' left'; }
+    if (!fill && total > 0) {
+        const streakDiv = column.querySelector('.streak-display');
+        const insertTarget = streakDiv || column.querySelector('.chores-to-do-header');
+        if (insertTarget) {
+            insertTarget.insertAdjacentHTML('beforebegin', `<div class="chore-progress-wrap">
+                <div class="chore-progress-bar-container"><div class="chore-progress-bar-fill" style="width:${pct}%;"></div></div>
+                <div class="chore-progress-label">${incomplete} left</div>
+            </div>`);
+        }
+    }
+}
+
+// Complete chore function with slot machine and sparkle animation
+function completeChore(choreId) {
+    fetch("{{ url_for('routes.complete_chore') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chore_id: choreId }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Sparkle animation and achievement sound
+            const choreElem = document.querySelector(`.chore[data-chore-id="${choreId}"]`);
+            if (choreElem) {
+                // Update points immediately in the UI using backend value if available
+                const column = choreElem.closest('.column');
+                const pointsDisplay = column.querySelector('.points-display');
+                if (pointsDisplay && data.new_points !== undefined) {
+                    const pointsValue = pointsDisplay.querySelector('.chore-points-value');
+                    if (pointsValue) {
+                        if (window.REWARD_SYSTEM === 'cash') {
+                            pointsValue.textContent = `$${data.new_points}`;
+                        } else {
+                            pointsValue.textContent = data.new_points;
+                        }
+                    }
+                }
+                triggerSparkleAnimation(choreElem);
+                playAchievementSound();
+            }
+            // Show toast notification
+            if (window.showToast) showToast('Chore completed!', 'success');
+            // Badge notifications
+            if (data.new_badges && data.new_badges.length > 0) {
+                data.new_badges.forEach((badge, i) => {
+                    setTimeout(() => showBadgeEarned(badge), i * 2200 + 800);
+                });
+            }
+            // Update streak display
+            if (data.current_streak !== undefined && choreElem) {
+                const col = choreElem.closest('.column');
+                if (col) updateStreakDisplay(col, data.current_streak);
+            }
+            // Remove the completed chore from the DOM after animation
+            setTimeout(() => {
+                if (choreElem) {
+                    const column = choreElem.closest('.column');
+                    const personName = column.getAttribute('data-person');
+                    const avatarImg = column.querySelector('.avatar');
+                    const avatarUrl = avatarImg ? avatarImg.src : '';
+                    // Get person ID from the person-name element
+                    const personNameElem = column.querySelector('.person-name');
+                    const personId = personNameElem ? personNameElem.getAttribute('data-person-id') : null;
+                    choreElem.remove();
+                    // Check if there are any incomplete chores left
+                    const incompleteChores = column.querySelectorAll('.incomplete-chores-list .chore');
+                    if (incompleteChores.length === 0) {
+                        // Show celebration overlay immediately when last chore completed
+                        document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+                        document.getElementById('celebration-avatar').src = avatarUrl;
+                        document.getElementById('celebration-overlay').style.display = 'flex';
+                        playCelebrationSound();
+                        // Then show bonus animation and awarding
+                        showCelebrationWithBonus(personName, avatarUrl, personId);
+                    }
+                }
+            }, 900); // Wait for sparkle animation
+        }
+    })
+    .catch(error => {
+        if (window.showToast) showToast('Error completing chore', 'error');
+        console.error('Error completing chore:', error);
+    });
+}
+
+// Star sparkle animation function
+function triggerSparkleAnimation(targetElem) {
+    let sparkleContainer = document.createElement('div');
+    sparkleContainer.className = 'sparkle-anim-container';
+    const rect = targetElem.getBoundingClientRect();
+    sparkleContainer.style.position = 'fixed';
+    sparkleContainer.style.left = rect.left + 'px';
+    sparkleContainer.style.top = rect.top + 'px';
+    sparkleContainer.style.width = rect.width + 'px';
+    sparkleContainer.style.height = rect.height + 'px';
+    sparkleContainer.style.pointerEvents = 'none';
+    sparkleContainer.style.zIndex = 1000;
+    // Add star sparkles
+    for (let i = 0; i < 12; i++) {
+        let star = document.createElement('div');
+        star.className = 'star-sparkle-anim';
+        const angle = Math.random() * 360;
+        const distance = Math.random() * 40 + 10;
+        const x = 50 + Math.cos(angle * Math.PI / 180) * distance;
+        const y = 50 + Math.sin(angle * Math.PI / 180) * distance;
+        star.style.left = x + '%';
+        star.style.top = y + '%';
+        star.style.transform = `scale(${Math.random() * 0.6 + 0.7}) rotate(${Math.random() * 360}deg)`;
+        sparkleContainer.appendChild(star);
+    }
+    document.body.appendChild(sparkleContainer);
+    setTimeout(() => {
+        sparkleContainer.remove();
+    }, 1100);
+}
+
+function playAchievementSound() {
+    if (globalMute) return;
+    try {
+        fetch('/api/sounds')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.sounds && data.sounds.length > 0) {
+                    const sounds = data.sounds.map(sound => '/static/sounds/' + sound);
+                    const soundUrl = sounds[Math.floor(Math.random() * sounds.length)];
+                    const audio = new Audio(soundUrl);
+                    audio.volume = 0.8;
+                    audio.play().catch((err) => {
+                        console.warn('Audio play failed:', err);
+                    });
+                } else {
+                    console.warn('No sounds found in /api/sounds response');
+                }
+            })
+            .catch(err => {
+                console.warn('Error fetching sounds list:', err);
+            });
+    } catch (e) {
+        console.warn('Audio error:', e);
+    }
+}
+
+let bonusAwardingInProgress = false;
+
+function updateColumnPoints(personName) {
+    // Fetch the latest points from the backend and update the column badge
+    fetch(`/api/person_points?name=${encodeURIComponent(personName)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            const column = document.querySelector(`.column[data-person="${personName}"]`);
+            if (!column) return;
+            const badge = column.querySelector('.points-display .chore-points-badge');
+            if (!badge) return;
+            let icon, value;
+            if (window.REWARD_SYSTEM === 'cash') {
+                icon = '<i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i>';
+                value = `$${parseFloat(data.points).toFixed(2)}`;
+            } else {
+                icon = '<i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i>';
+                value = parseFloat(data.points).toFixed(2);
+            }
+            badge.innerHTML = `${icon}<span class="chore-points-value">${value}</span>`;
+        })
+        .catch(() => {});
+}
+
+function showCelebrationWithBonus(personName, avatarUrl, personId) {
+    if (bonusAwardingInProgress) {
+        console.log('Bonus awarding already in progress, ignoring duplicate call.');
+        return;
+    }
+    bonusAwardingInProgress = true;
+    console.log('Starting celebration with bonus for:', personName, 'ID:', personId);
+    // Show the quiz modal before awarding bonus
+    showQuizForBonusCelebration(personId, function(correct) {
+        // After quiz, fetch bonus settings and award points
+        fetch('/api/bonus_settings')
+        .then(response => response.json())
+        .then(settings => {
+            const bonusMode = settings.bonus_mode || 'static';
+            let bonusStatic = parseInt(settings.bonus_static) || 10;
+            let bonusMin = parseInt(settings.bonus_min) || 2;
+            let bonusMax = parseInt(settings.bonus_max) || 8;
+            // If quiz correct, increase bonus
+            if (correct) {
+                // Always award the highest possible bonus for correct answers
+                if (bonusMode === 'static') {
+                    // Use bonusStatic as is
+                } else if (bonusMode === 'range') {
+                    bonusMin = bonusMax; // Set min to max so only max is awarded
+                }
+            }
+            // If mode is 'none', do nothing
+            if (bonusMode === 'none') {
+                bonusAwardingInProgress = false;
+                return;
+            }
+            if (bonusMode === 'static') {
+                fetch('/award_bonus_points', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        person_id: parseInt(personId, 10), 
+                        bonus_points: bonusStatic 
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+                        document.getElementById('celebration-avatar').src = avatarUrl;
+                        document.getElementById('celebration-overlay').style.display = 'flex';
+                        playCelebrationSound();
+                        updateColumnPoints(personName);
+                    } else if (data.message && data.message.includes('already awarded today')) {
+                        // Do not show overlay or slot machine
+                    } else {
+                        alert("Failed to award static bonus points: " + data.message);
+                    }
+                })
+                .catch(err => {
+                    alert("Error awarding static bonus points: " + err);
+                })
+                .finally(() => {
+                    bonusAwardingInProgress = false;
+                });
+            } else if (bonusMode === 'range') {
+                let bonusPoints = Math.floor(Math.random() * (bonusMax - bonusMin + 1)) + bonusMin;
+                fetch('/award_bonus_points', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        person_id: parseInt(personId, 10), 
+                        bonus_points: bonusPoints 
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const slotContainer = document.getElementById('slot-machine-container');
+                        const slotDisplay = document.getElementById('slot-machine-display');
+                        const slotResult = document.getElementById('slot-machine-result');
+                        const awesomeButton = document.querySelector('.celebration-close');
+                        if (!slotContainer || !slotDisplay || !slotResult || !awesomeButton) {
+                            console.error('Slot machine elements or Awesome button not found!');
+                            bonusAwardingInProgress = false;
+                            return;
+                        }
+                        slotContainer.style.display = 'block';
+                        slotDisplay.textContent = '?';
+                        slotResult.style.display = 'none';
+                        slotResult.textContent = '';
+                        let elapsed = 0;
+                        const duration = 5000;
+                        const intervalTime = 100;
+                        let slotInterval = setInterval(() => {
+                            const randomNum = Math.floor(Math.random() * (bonusMax - bonusMin + 1)) + bonusMin;
+                            slotDisplay.textContent = randomNum;
+                            if (elapsed % 300 === 0) playSlotMachineSound();
+                            elapsed += intervalTime;
+                            if (elapsed >= duration) {
+                                clearInterval(slotInterval);
+                                slotDisplay.textContent = bonusPoints;
+                                slotResult.textContent = `You earned ${bonusPoints} bonus points!`;
+                                slotResult.style.display = 'block';
+                                awesomeButton.disabled = false;
+                                setTimeout(() => {
+                                    try {
+                                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                                        const oscillator = audioContext.createOscillator();
+                                        const gainNode = audioContext.createGain();
+                                        oscillator.connect(gainNode);
+                                        gainNode.connect(audioContext.destination);
+                                        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime);
+                                        oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.2);
+                                        oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.4);
+                                        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+                                        oscillator.start(audioContext.currentTime);
+                                        oscillator.stop(audioContext.currentTime + 0.8);
+                                    } catch (error) {
+                                        console.log('Victory sound not supported');
+                                    }
+                                }, 200);
+                                document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+                                document.getElementById('celebration-avatar').src = avatarUrl;
+                                document.getElementById('celebration-overlay').style.display = 'flex';
+                                playCelebrationSound();
+                                updateColumnPoints(personName);
+                            }
+                        }, intervalTime);
+                    } else if (data.message && data.message.includes('already awarded today')) {
+                        // Do not show overlay or slot machine
+                    } else {
+                        alert("Failed to award bonus points: " + data.message);
+                    }
+                })
+                .catch(err => {
+                    alert("Error awarding bonus points: " + err);
+                })
+                .finally(() => {
+                    bonusAwardingInProgress = false;
+                });
+            } else {
+                // Unknown bonus mode, fallback to static bonus awarding
+                console.warn('Unknown bonus mode:', bonusMode);
+                document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+                document.getElementById('celebration-avatar').src = avatarUrl;
+                document.getElementById('celebration-overlay').style.display = 'flex';
+                playCelebrationSound();
+                bonusAwardingInProgress = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching bonus settings:', error);
+            showCelebrationWithBonusFallback(personName, avatarUrl, personId);
+            bonusAwardingInProgress = false;
+        });
+    });
+}
+
+const awesomeButton = document.querySelector('.celebration-close');
+if (awesomeButton) {
+    awesomeButton.addEventListener('click', () => {
+        if (bonusAwardingInProgress) {
+            console.log('Awesome button clicked but bonus awarding is still in progress. Ignoring click.');
+            return;
+        }
+        closeCelebration();
+    });
+}
+
+// Backup celebration function (without slot machine)
+function showCelebration(personName, avatarUrl) {
+    document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+    document.getElementById('celebration-avatar').src = avatarUrl;
+    document.getElementById('celebration-overlay').style.display = 'flex';
+    playCelebrationSound();
+}
+
+// Close celebration function
+function closeCelebration() {
+    if (celebrationCountdownInterval) { clearInterval(celebrationCountdownInterval); celebrationCountdownInterval = null; }
+    document.getElementById('celebration-overlay').style.display = 'none';
+    // Hide slot machine container when closing
+    const slotContainer = document.getElementById('slot-machine-container');
+    if (slotContainer) {
+        slotContainer.style.display = 'none';
+    }
+    // --- Ensure points are up-to-date after celebration ---
+    // Find the celebrated person name from the message
+    const message = document.getElementById('celebration-message').textContent;
+    const match = message.match(/^(.*?) completed all their chores/);
+    if (match && match[1]) {
+        const personName = match[1];
+        // Find the column for this person
+        const column = document.querySelector(`.column[data-person="${personName}"]`);
+        if (column) {
+            // Optionally, you could fetch the latest points from the backend here
+            // For now, just trigger a UI update in case points were missed
+            // (If you have an endpoint to get points, you could fetch and update here)
+            // updateWeeklySummary() will update the summary table as well
+            updateWeeklySummary();
+        }
+    }
+}
+
+// Audio functions
+function playCelebrationSound() {
+    if (globalMute || !celebrationSoundEnabled) return;
+    try {
+        if (celebrationAudio) {
+            celebrationAudio.currentTime = 0; // Reset to beginning
+            celebrationAudio.play().then(() => {
+                console.log('Kids cheering sound played successfully');
+            }).catch(error => {
+                console.log('Audio play failed:', error);
+                // Fallback to Web Audio API if external audio fails
+                playFallbackCelebrationSound();
+            });
+        } else {
+            console.log('celebrationAudio not initialized, using fallback');
+            playFallbackCelebrationSound();
+        }
+    } catch (error) {
+        console.log('Audio not supported or blocked:', error);
+        playFallbackCelebrationSound();
+    }
+}
+
+function playFallbackCelebrationSound() {
+    if (globalMute) return;
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+        oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1); // E5
+        oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.2); // G5
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+    } catch (error) {
+        console.log('Fallback audio not supported');
+    }
+}
+
+function playSlotMachineSound() {
+    if (globalMute || !celebrationSoundEnabled) return;
+    try {
+        // Create a quick beep sound for slot machine
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // High beep
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1);
+    } catch (error) {
+        console.log('Slot audio not supported or blocked');
+    }
+}
+
+function toggleCelebrationSound() {
+    celebrationSoundEnabled = !celebrationSoundEnabled;
+    const soundIcon = document.getElementById('sound-icon');
+    if (celebrationSoundEnabled) {
+        soundIcon.className = 'fas fa-volume-up';
+    } else {
+        soundIcon.className = 'fas fa-volume-mute';
+    }
+}
+
+// Upload avatar function
+function uploadAvatar(event, personId) {
+    event.preventDefault();
+    const form = event.target.closest('form');
+    const fileInput = form.querySelector('input[type="file"]');
+    const file = fileInput.files[0];
+    if (!file) {
+        alert("Please select a file to upload.");
+        return;
+    }
+    const formData = new FormData(form);
+    fetch(`/upload_avatar/${personId}`, { method: 'POST', body: formData })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const avatarContainer = form.closest('.column').querySelector('.avatar-container');
+            const avatar = avatarContainer.querySelector('img');
+            avatar.src = data.avatar_url;
+        } else { alert(data.message || "Failed to upload avatar"); }
+    })
+    .catch(error => console.error("Error uploading avatar:", error));
+}
+
+// Change kanban color function
+function changeKanbanColor(event, personId) {
+    const colorInput = event.target;
+    const selectedColor = colorInput.value;
+    const column = colorInput.closest('.column');
+    column.style.backgroundColor = selectedColor;
+    fetch('/save_column_color', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person_id: personId, color: selectedColor }),
+    })
+    .then(response => response.json())
+    .then(data => { if (!data.success) console.error("Failed to save color preference"); })
+    .catch(error => console.error("Error saving color preference:", error));
+}
+
+// Delete reward function
+function deleteReward(rewardId) {
+    fetch("{{ url_for('routes.delete_reward') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reward_id: rewardId }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) window.location.reload();
+        else alert('Error deleting reward: ' + (data.message || 'Unknown error'));
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while deleting the reward');
+    });
+}
+
+// Delete chore function
+function deleteChore(choreId) {
+    fetch("{{ url_for('routes.delete_chore') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chore_id: choreId }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const choreElements = document.querySelectorAll(`[data-chore-id="${choreId}"]`);
+            choreElements.forEach(choreElement => {
+                if (choreElement.classList.contains('completed')) {
+                    const pointsMatch = choreElement.textContent.match(/\((\d+) points\)/);
+                    const points = pointsMatch ? parseInt(pointsMatch[1]) : 0;
+                    const personColumn = choreElement.closest('.column');
+                    const pointsDisplay = personColumn.querySelector('.points-display');
+                    if (pointsDisplay) {
+                        const currentPoints = parseInt(pointsDisplay.textContent.replace(' points', ''));
+                        pointsDisplay.textContent = `${currentPoints - points} points`;
+                    }
+                }
+                choreElement.remove();
+            });
+        } else { alert(data.message || "Failed to delete chore"); }
+    })
+    .catch(error => console.error("Error deleting chore:", error));
+}
+
+// Reset points function
+function resetPoints(personId) {
+    let newPoints = prompt("Enter new points value (default is 0):", "0");
+    if (newPoints === null) return;
+    newPoints = parseInt(newPoints, 10);
+    if (isNaN(newPoints)) {
+        alert("Invalid number entered. Please try again.");
+        return;
+    }
+    fetch("/reset_points", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person_id: personId, new_points: newPoints }),
+    })
+    .then(response => response.json())
+    .then(data => { if (data.success) window.location.reload(); else alert(data.message || "Failed to reset points"); })
+    .catch(error => console.error("Error resetting points:", error));
+}
+
+// Update column order function
+function updateColumnOrder(personId, newOrder) {
+    fetch("/update_order", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ person_id: personId, order: newOrder })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || "Failed to update order.");
+        }
+    })
+    .catch(error => {
+        console.error("Error updating order:", error);
+    });
+}
+
+// Toggle completed chores function
+function toggleCompletedChores(btn) {
+    const container = btn.closest('.completed-chores-toggle-container');
+    const completedList = container.querySelector('.completed-chores-list');
+    const icon = btn.querySelector('.fa-chevron-down, .fa-chevron-up');
+    if (completedList.style.display === "none" || completedList.style.display === "") {
+        completedList.style.display = "block";
+        icon.classList.remove("fa-chevron-down");
+        icon.classList.add("fa-chevron-up");
+        btn.querySelector("span").textContent = btn.querySelector("span").textContent.replace("Show", "Hide");
+    } else {
+        completedList.style.display = "none";
+        icon.classList.remove("fa-chevron-up");
+        icon.classList.add("fa-chevron-down");
+        btn.querySelector("span").textContent = btn.querySelector("span").textContent.replace("Hide", "Show");
+    }
+}
+
+
+// Reward celebration overlay
+function showRewardCelebration(personName, pointsSpent) {
+    const overlay = document.getElementById('reward-celebration-overlay');
+    const message = document.getElementById('reward-celebration-message');
+    if (overlay && message) {
+        message.innerHTML = `<span style='font-size:2em;'>🏆</span> ${personName} redeemed a reward!<br><span style='font-size:1.5em;'>-${pointsSpent} points</span>`;
+        overlay.style.display = 'flex';
+        // Play sound effect
+        try {
+            const audio = new Audio('https://www.myinstants.com/media/sounds/tada-fanfare.mp3');
+            audio.volume = 0.8;
+            audio.play();
+        } catch (e) {}
+        // Animate confetti, balloons, streamers
+        launchRewardCelebrationEffects();
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            clearRewardCelebrationEffects();
+        }, 3500);
+    }
+}
+
+// Animate confetti, balloons, streamers, and fun elements
+function launchRewardCelebrationEffects() {
+    // Confetti
+    const confettiContainer = document.getElementById('reward-confetti-container');
+    confettiContainer.innerHTML = '';
+    for (let i = 0; i < 60; i++) {
+        const conf = document.createElement('div');
+        conf.className = 'reward-confetti';
+        conf.style.left = Math.random() * 100 + 'vw';
+        conf.style.background = randomConfettiColor();
+        conf.style.animationDelay = (Math.random() * 1.5) + 's';
+        confettiContainer.appendChild(conf);
+    }
+    // Balloons
+    const balloonsContainer = document.getElementById('reward-balloons-container');
+    balloonsContainer.innerHTML = '';
+    for (let i = 0; i < 8; i++) {
+        const balloon = document.createElement('div');
+        balloon.className = 'reward-balloon';
+        balloon.style.left = Math.random() * 90 + 'vw';
+        balloon.style.background = randomBalloonColor();
+        balloon.style.animationDelay = (Math.random() * 1.5) + 's';
+        balloonsContainer.appendChild(balloon);
+    }
+    // Streamers
+    const streamersContainer = document.getElementById('reward-streamers-container');
+    streamersContainer.innerHTML = '';
+    for (let i = 0; i < 10; i++) {
+        const streamer = document.createElement('div');
+        streamer.className = 'reward-streamer';
+        streamer.style.left = Math.random() * 100 + 'vw';
+        streamer.style.borderColor = randomStreamerColor();
+        streamer.style.animationDelay = (Math.random() * 1.5) + 's';
+        streamersContainer.appendChild(streamer);
+    }
+}
+function clearRewardCelebrationEffects() {
+    document.getElementById('reward-confetti-container').innerHTML = '';
+    document.getElementById('reward-balloons-container').innerHTML = '';
+    document.getElementById('reward-streamers-container').innerHTML = '';
+}
+function randomConfettiColor() {
+    const colors = ['#FFD700','#FF69B4','#00CFFF','#6366f1','#FF9800','#9C27B0','#fff','#f00','#0ff','#0f0','#f0f'];
+    return colors[Math.floor(Math.random()*colors.length)];
+}
+function randomBalloonColor() {
+    const colors = ['#FFD700','#FF69B4','#00CFFF','#6366f1','#FF9800','#9C27B0','#fff','#f00','#0ff','#0f0','#f0f'];
+    return colors[Math.floor(Math.random()*colors.length)];
+}
+function randomStreamerColor() {
+    const colors = ['#FFD700','#FF69B4','#00CFFF','#6366f1','#FF9800','#9C27B0','#fff','#f00','#0ff','#0f0','#f0f'];
+    return colors[Math.floor(Math.random()*colors.length)] + ' transparent transparent transparent';
+}
+
+// Update weekly summary function
+function updateWeeklySummary() {
+    const columns = document.querySelectorAll('.column');
+    let totalWeeklyPoints = 0;
+    
+    columns.forEach(column => {
+        const personName = column.getAttribute('data-person');
+        const pointsDisplay = column.querySelector('.points-display');
+        const pointsText = pointsDisplay ? pointsDisplay.textContent : '0 points';
+        const points = parseInt(pointsText) || 0;
+        
+        // Update the corresponding cell in the summary table
+        const pointsCell = document.querySelector(`.weekly-points[data-person="${personName}"]`);
+        if (pointsCell) {
+            pointsCell.textContent = points;
+            totalWeeklyPoints += points;
+        }
+    });
+    
+    // Update the total points display
+    const totalDisplay = document.getElementById("weekly-summary-total");
+    if (totalDisplay) {
+        totalDisplay.textContent = "Total Family Points : " + totalWeeklyPoints;
+    }
+}
+
+// Name editing functions
+let currentEditingPersonId = null;
+function openEditNameModal(personId, currentName) {
+    currentEditingPersonId = personId;
+    document.getElementById('edit-name-input').value = currentName;
+    document.getElementById('edit-name-modal').style.display = 'flex';
+}
+function closeEditNameModal() {
+    document.getElementById('edit-name-modal').style.display = 'none';
+    currentEditingPersonId = null;
+}
+function confirmEditName() {
+    const newName = document.getElementById('edit-name-input').value.trim();
+    if (!newName) {
+        alert("Name cannot be empty.");
+        return;
+    }
+    fetch("/update_name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ person_id: currentEditingPersonId, new_name: newName })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("HTTP error " + response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if(data.success) {
+            const nameSpans = document.querySelectorAll(`.person-name[data-person-id="${currentEditingPersonId}"]`);
+            nameSpans.forEach(span => {
+                span.textContent = newName;
+            });
+            const column = document.querySelector(`.column [data-person-id="${currentEditingPersonId}"]`);
+            if (column) {
+                column.closest('.column').setAttribute('data-person', newName);
+            }
+            closeEditNameModal();
+        } else {
+            alert(data.message || "Failed to update the name. Please try again.");
+        }
+    })
+    .catch(error => {
+        console.error("Error updating name:", error);
+        alert("An error occurred while updating the name. See the console for details.");
+    });
+}
+</script>
+<style>
+/* Star sparkle animation for chore completion */
+.sparkle-anim-container {
+    pointer-events: none;
+    position: fixed;
+    z-index: 1000;
+}
+.star-sparkle-anim {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    opacity: 0.92;
+    animation: star-sparkle-fly 1.1s cubic-bezier(.5,0,.5,1) forwards;
+    pointer-events: none;
+}
+.star-sparkle-anim::before, .star-sparkle-anim::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(0deg);
+    width: 22px;
+    height: 4px;
+    background: linear-gradient(90deg, #fff 60%, #ffe066 100%, transparent 100%);
+    border-radius: 2px;
+}
+.star-sparkle-anim::after {
+    transform: translate(-50%, -50%) rotate(90deg);
+}
+.star-sparkle-anim {
+    filter: drop-shadow(0 0 6px #fff7b2) drop-shadow(0 0 12px #ffe066);
+}
+@keyframes star-sparkle-fly {
+    0% {
+        opacity: 1;
+        transform: scale(0.5) translateY(0) rotate(0deg);
+    }
+    60% {
+        opacity: 1;
+        transform: scale(1.2) translateY(-18px) rotate(180deg);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.7) translateY(-50px) rotate(360deg);
+    }
+}
+.chore {
+    font-size: 1.15em;
+    line-height: 1.5;
+}
+.chore .chore-title {
+    font-size: 1.1em;
+    font-weight: 600;
+}
+/* Reward Celebration Animations */
+#reward-confetti-container {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none;
+    z-index: 3;
+}
+.reward-confetti {
+    position: absolute;
+    top: -30px;
+    width: 14px;
+    height: 24px;
+    border-radius: 4px;
+    opacity: 0.85;
+    animation: reward-confetti-fall 2.2s cubic-bezier(.5,0,.5,1) forwards;
+}
+@keyframes reward-confetti-fall {
+    0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateY(100vh) rotate(360deg) scale(0.7); opacity: 0; }
+}
+#reward-balloons-container {
+    position: fixed;
+    bottom: -120px; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none;
+    z-index: 3;
+}
+.reward-balloon {
+    position: absolute;
+    bottom: -120px;
+    width: 48px;
+    height: 64px;
+    border-radius: 24px 24px 32px 32px / 32px 32px 48px 48px;
+    opacity: 0.92;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    animation: reward-balloon-rise 2.8s cubic-bezier(.4,0,.5,1) forwards;
+}
+@keyframes reward-balloon-rise {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateY(-110vh) scale(1.1); opacity: 0; }
+}
+#reward-streamers-container {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none;
+    z-index: 3;
+}
+.reward-streamer {
+    position: absolute;
+    top: -40px;
+    width: 0;
+    height: 60px;
+    border-width: 0 8px 60px 8px;
+    border-style: solid;
+    border-radius: 0 0 16px 16px;
+    opacity: 0.7;
+    animation: reward-streamer-fall 2.5s cubic-bezier(.5,0,.5,1) forwards;
+}
+@keyframes reward-streamer-fall {
+    0% { transform: translateY(0) scaleX(1) rotate(0deg); opacity: 1; }
+    60% { transform: translateY(60vh) scaleX(1.2) rotate(20deg); }
+    100% { transform: translateY(100vh) scaleX(0.8) rotate(-20deg); opacity: 0; }
+}
+</style>
+<script>
+let pendingDeleteChoreId = null;
+let pendingDeleteChoreIsDaily = false;
+let unifiedModalCallback = null;
+
+function showUnifiedModal({icon, message, buttons}) {
+    const modal = document.getElementById('unified-modal');
+    const iconDiv = document.getElementById('unified-modal-icon');
+    const msg = document.getElementById('unified-modal-message');
+    const btns = document.getElementById('unified-modal-buttons');
+    iconDiv.innerHTML = icon || '';
+    msg.innerHTML = message;
+    btns.innerHTML = '';
+    buttons.forEach(btn => {
+        const b = document.createElement('button');
+        b.textContent = btn.text;
+        b.style.background = btn.color;
+        b.style.color = '#fff';
+        b.style.border = 'none';
+        b.style.padding = '10px 18px';
+        b.style.borderRadius = '6px';
+        b.style.fontWeight = '600';
+        b.style.cursor = 'pointer';
+        b.onclick = function() {
+            closeUnifiedModal();
+            if (btn.onClick) btn.onClick();
+        };
+        btns.appendChild(b);
+    });
+    modal.style.display = 'flex';
+}
+function closeUnifiedModal() {
+    document.getElementById('unified-modal').style.display = 'none';
+    pendingDeleteChoreId = null;
+    pendingDeleteChoreIsDaily = false;
+    unifiedModalCallback = null;
+}
+
+function confirmDeleteChore(choreId, isDaily) {
+    pendingDeleteChoreId = choreId;
+    pendingDeleteChoreIsDaily = isDaily;
+    if (isDaily) {
+        showUnifiedModal({
+            icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+            message: 'Do you want to delete this daily chore permanently, or just for today?',
+            buttons: [
+                {text: 'Delete Permanently', color: '#e53935', onClick: function() { deleteChore(choreId, true); }},
+                {text: 'Delete for Today', color: '#fbc02d', onClick: function() { deleteChore(choreId, false); }},
+                {text: 'Cancel', color: '#888', onClick: null}
+            ]
+        });
+    } else {
+        showUnifiedModal({
+            icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+            message: 'Are you sure you want to delete this chore?',
+            buttons: [
+                {text: 'Delete', color: '#e53935', onClick: function() { deleteChore(choreId, true); }},
+                {text: 'Cancel', color: '#888', onClick: null}
+            ]
+        });
+    }
+}
+
+function deleteChore(choreId, permanent) {
+    fetch("{{ url_for('routes.delete_chore') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chore_id: choreId, permanent: permanent }),
+    })
+    .then(async response => {
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = { success: false, message: 'Invalid server response' };
+        }
+        if (data.success) {
+            if (window.showToast) showToast('Chore deleted!', 'success');
+            setTimeout(() => window.location.reload(), 900);
+        } else {
+            showUnifiedModal({
+                icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+                message: data.message || data.error || "Failed to delete chore",
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+            if (window.showToast) showToast(data.message || 'Failed to delete chore', 'error');
+        }
+    })
+    .catch(error => {
+        if (window.showToast) showToast('Error deleting chore', 'error');
+        showUnifiedModal({
+            icon: '<i class="fas fa-exclamation-triangle" style="color:#e53935;"></i>',
+            message: 'Error deleting chore: ' + error,
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+       });
+}
+</script>
+<script>
+// Ensure reward functions are globally available
+function confirmDeleteReward(rewardId) {
+    // Find the reward element and get reward details
+    const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+    if (!rewardElem) {
+        showUnifiedModal({
+            icon: '😢',
+            message: 'Reward not found!',
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+        return;
+    }
+    const rewardTitle = rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : 'this reward';
+    const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
+    showUnifiedModal({
+        icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
+        message: `Are you sure you want to delete "${rewardTitle}" for <b>${assignedTo}</b>?`,
+        buttons: [
+            {text: 'Delete', color: '#e53935', onClick: function() { deleteReward(rewardId); }},
+            {text: 'Cancel', color: '#888', onClick: null}
+        ]
+    });
+}
+function completeReward(rewardId) {
+    // Find the reward element and get reward details
+    const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+    if (!rewardElem) {
+        showUnifiedModal({
+            icon: '😢',
+            message: 'Reward not found!',
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+        return;
+    }
+    const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
+    const rewardTitle = rewardElem.querySelector('.reward-title-modern') ? rewardElem.querySelector('.reward-title-modern').textContent.trim() : 'this reward';
+    const pointsElem = rewardElem.querySelector('.reward-points-value');
+    const pointsMatch = pointsElem ? pointsElem.textContent.match(/(\d+)/) : null;
+    const pointsRequired = pointsMatch ? parseInt(pointsMatch[1]) : 0;
+    // Get person's current points from the points display in their column
+    const personColumn = document.querySelector(`.column[data-person="${assignedTo}"]`);
+    const pointsValueElem = personColumn ? personColumn.querySelector('.chore-points-value') : null;
+    const currentPointsText = pointsValueElem ? pointsValueElem.textContent.replace(/[^0-9.]/g, '') : '0';
+    const currentPoints = parseFloat(currentPointsText) || 0;
+    if (currentPoints < pointsRequired) {
+        showUnifiedModal({
+            icon: '😢',
+            message: `Not enough points to redeem "${rewardTitle}"! You need ${pointsRequired} points but only have ${Math.floor(currentPoints)} points.`,
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+        return;
+    }
+    // Confirmation modal using unified style
+    showUnifiedModal({
+        icon: '<i class="fas fa-check-circle" style="color:#6366f1;"></i>',
+        message: `Redeem "${rewardTitle}" for <b>${assignedTo}</b> costing ${pointsRequired} points?`,
+        buttons: [
+            {text: 'Redeem', color: '#6366f1', onClick: function() { doRedeemReward(rewardId); }},
+            {text: 'Cancel', color: '#888', onClick: null}
+        ]
+    });
+}
+</script>
+<script>
+function doRedeemReward(rewardId) {
+    const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+    const assignedToId = rewardElem.getAttribute('data-assigned-to-id');
+    fetch("{{ url_for('routes.complete_reward') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            reward_id: rewardId,
+            assigned_to_id: assignedToId 
+        }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show reward celebration overlay and animation instead of immediate reload
+            const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
+            const rewardTitle = rewardElem ? (rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : '') : '';
+            const assignedTo = rewardElem ? rewardElem.getAttribute('data-assigned-to') : '';
+            // Show celebration with points spent
+            showRewardCelebration(assignedTo, rewardTitle ? `-${rewardTitle}` : '');
+            // Reload page after celebration animation duration (3.5s + buffer)
+            setTimeout(() => {
+                window.location.reload();
+            }, 4000);
+        } else {
+            showUnifiedModal({
+                icon: '😢',
+                message: data.error || 'Could not redeem reward',
+                buttons: [
+                    {text: 'OK', color: '#888', onClick: null}
+                ]
+            });
+        }
+    })
+    .catch(error => {
+        showUnifiedModal({
+            icon: '😢',
+            message: 'Error redeeming reward',
+            buttons: [
+                {text: 'OK', color: '#888', onClick: null}
+            ]
+        });
+    });
+}
+</script>

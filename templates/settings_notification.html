@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Notification Settings - ChoresAwards</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ── Layout ── */
+        .settings-layout {
+            display: flex;
+            max-width: 1100px;
+            margin: 2rem auto;
+            background: linear-gradient(135deg, #141f33 0%, #1a2840 100%);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 16px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+            color: #fff;
+        }
+        .settings-nav {
+            width: 220px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px 0 0 16px;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            border-right: 1px solid rgba(255,255,255,0.07);
+        }
+        .settings-nav a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 0.97rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.7em;
+            padding: 0.7em 1em;
+            border-radius: 10px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .settings-nav a.active, .settings-nav a:hover {
+            background: rgba(76,175,80,0.18);
+            color: #4CAF50;
+        }
+        .settings-nav a.active { background: rgba(76,175,80,0.25); font-weight: 700; }
+        .settings-content {
+            flex: 1;
+            padding: 2rem 2.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+        .section-title {
+            font-size: 1.1rem; font-weight: 700; margin-bottom: 0.9rem;
+            color: #fff; display: flex; align-items: center; gap: 0.5em;
+        }
+        .section-title > i { color: #4CAF50; }
+        .settings-section {
+            background: linear-gradient(135deg, #1a2436 0%, #1e2d42 100%);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 14px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 14px rgba(0,0,0,0.2);
+            color: #fff;
+        }
+        .settings-field-label {
+            display: block;
+            font-size: 0.78rem; font-weight: 700;
+            letter-spacing: 0.06em; text-transform: uppercase;
+            color: rgba(255,255,255,0.5); margin-bottom: 0.45rem;
+        }
+        .save-btn {
+            padding: 0.55rem 1.2rem; border-radius: 8px; border: none;
+            cursor: pointer; font-size: 0.9rem; font-weight: 700;
+            background: #4CAF50; color: #fff;
+            box-shadow: 0 2px 8px rgba(76,175,80,0.3);
+            transition: all 0.2s;
+        }
+        .save-btn:hover { background: #45a049; box-shadow: 0 3px 14px rgba(76,175,80,0.45); }
+        .btn-secondary-action {
+            padding: 0.55rem 1.2rem; border-radius: 8px; border: none;
+            cursor: pointer; font-size: 0.9rem; font-weight: 700;
+            background: rgba(33,150,243,0.15); color: #64b5f6;
+            border: 1px solid rgba(33,150,243,0.3);
+            transition: all 0.2s;
+        }
+        .btn-secondary-action:hover { background: rgba(33,150,243,0.28); }
+        .notify-checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            margin: 0.6rem 0 1.1rem;
+        }
+        .notify-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: rgba(255,255,255,0.85);
+            font-size: 0.97rem;
+            cursor: pointer;
+        }
+        .notify-checkbox-label input[type="checkbox"] {
+            accent-color: #4CAF50;
+            width: 17px; height: 17px;
+            min-width: 17px;
+            cursor: pointer;
+        }
+        @media (max-width: 900px) {
+            .settings-layout { flex-direction: column; }
+            .settings-nav { width: 100%; border-radius: 16px 16px 0 0; flex-direction: row; flex-wrap: wrap; gap: 0.4rem; padding: 1rem; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); }
+            .settings-content { padding: 1.5rem 1rem; }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+    <header>
+        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#141f33 0%,#1a2840 100%);padding:0.75rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.07);">
+            <h2 style="color: white;">Chores and Rewards - Settings</h2>
+        </div>
+        <nav class="settings-topnav">
+            <a href="/" class="topnav-link">Home</a>
+            <a href="/activity_log" class="topnav-link">Activity Log</a>
+        </nav>
+        <style>
+        .settings-topnav {
+            margin: 0 0 28px 0;
+            display: flex;
+            justify-content: flex-start;
+            gap: 12px;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            padding-bottom: 16px;
+        }
+        .topnav-link {
+            color: #fff;
+            padding: 8px 16px;
+            text-decoration: none;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border-radius: 4px;
+            position: relative;
+        }
+        .topnav-link:hover {
+            color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        </style>
+    </header>
+    <main>
+        <div class="settings-layout">
+            <nav class="settings-nav">
+                <a href="{{ url_for('routes.settings') }}"{% if request.endpoint == 'routes.settings' %} class="active"{% endif %}><i class="fas fa-cog"></i> General Settings</a>
+                <a href="{{ url_for('routes.settings_audio') }}"{% if request.endpoint == 'routes.settings_audio' %} class="active"{% endif %}><i class="fas fa-volume-up"></i> Audio Settings</a>
+                <a href="{{ url_for('routes.settings_notification') }}"{% if request.endpoint == 'routes.settings_notification' %} class="active"{% endif %}><i class="fas fa-bell"></i> Notification Settings</a>
+            </nav>
+            <div class="settings-content">
+                <h3 class="section-title"><i class="fas fa-bell"></i> Notification Settings</h3>
+                <!-- Gotify Section -->
+                <section class="settings-section" id="gotify-section">
+                    <h4 class="section-title" style="font-size:1rem;margin-bottom:1.2rem;"><i class="fas fa-satellite-dish"></i> Gotify Push Notifications</h4>
+                    <form method="POST" action="{{ url_for('routes.settings_notification') }}" id="gotify-form" autocomplete="off" style="display:flex;flex-direction:column;gap:1rem;">
+                        <div>
+                            <label class="settings-field-label" for="gotify_url">Gotify Server URL</label>
+                            <input type="text" id="gotify_url" name="gotify_url" value="{{ gotify_url or '' }}" placeholder="https://gotify.example.com" class="modern-input" style="width:100%;" />
+                        </div>
+                        <div>
+                            <label class="settings-field-label" for="gotify_token">Gotify App Token</label>
+                            <div style="position:relative;">
+                                <input type="password" id="gotify_token" name="gotify_token" value="{{ gotify_token or '' }}" placeholder="Enter Gotify token" class="modern-input" style="width:100%;padding-right:2.8rem;" />
+                                <button type="button" id="toggle-gotify-token" style="position:absolute;right:0.8em;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#4CAF50;font-size:1.1em;padding:0;">
+                                    <i id="gotify-token-eye" class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <hr style="margin:0.5rem 0;border:none;border-top:1px solid rgba(255,255,255,0.08);">
+                        <div>
+                            <label class="settings-field-label">Notify for these people</label>
+                            <div class="notify-checkbox-group">
+                                {% for person in family %}
+                                    <label class="notify-checkbox-label">
+                                        <input type="checkbox" name="gotify_notify_people" value="{{ person.id }}" {% if person.id|string in gotify_notify_people %}checked{% endif %}> {{ person.name }}
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="settings-field-label">Notify for these events</label>
+                            <div class="notify-checkbox-group">
+                                <label class="notify-checkbox-label">
+                                    <input type="checkbox" name="gotify_notify_chores_completed" {% if gotify_notify_chores_completed %}checked{% endif %}> Notify when chores are completed
+                                </label>
+                                <label class="notify-checkbox-label">
+                                    <input type="checkbox" name="gotify_notify_rewards_added" {% if gotify_notify_rewards_added %}checked{% endif %}> Notify when rewards are added
+                                </label>
+                                <label class="notify-checkbox-label">
+                                    <input type="checkbox" name="gotify_notify_rewards_redeemed" {% if gotify_notify_rewards_redeemed %}checked{% endif %}> Notify when rewards are redeemed
+                                </label>
+                                <label class="notify-checkbox-label">
+                                    <input type="checkbox" name="gotify_notify_due_chores_expired" {% if gotify_notify_due_chores_expired %}checked{% endif %}> Notify when a reward is past its due date
+                                </label>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+                            <button type="submit" class="save-btn">Save Gotify Settings</button>
+                            <button type="button" class="btn-secondary-action" id="send-gotify-test"><i class="fas fa-paper-plane" style="margin-right:6px;"></i>Send Test Notification</button>
+                        </div>
+                    </form>
+                    {% if gotify_error %}
+                        <div style="margin-top:1rem;color:#ef9a9a;font-weight:600;background:rgba(244,67,54,0.1);border:1px solid rgba(244,67,54,0.25);border-radius:8px;padding:0.6rem 1rem;">{{ gotify_error }}</div>
+                    {% elif gotify_success %}
+                        <div style="margin-top:1rem;color:#81c784;font-weight:600;background:rgba(76,175,80,0.1);border:1px solid rgba(76,175,80,0.25);border-radius:8px;padding:0.6rem 1rem;">{{ gotify_success }}</div>
+                    {% endif %}
+                </section>
+            </div>
+        </div>
+    </main>
+    <script>
+    // Toggle Gotify token visibility
+    document.addEventListener('DOMContentLoaded', function() {
+        var tokenInput = document.getElementById('gotify_token');
+        var toggle = document.getElementById('toggle-gotify-token');
+        var eye = document.getElementById('gotify-token-eye');
+        if (toggle && tokenInput && eye) {
+            toggle.addEventListener('click', function() {
+                if (tokenInput.type === 'password') {
+                    tokenInput.type = 'text';
+                    eye.classList.remove('fa-eye');
+                    eye.classList.add('fa-eye-slash');
+                } else {
+                    tokenInput.type = 'password';
+                    eye.classList.remove('fa-eye-slash');
+                    eye.classList.add('fa-eye');
+                }
+            });
+        }
+        var testBtn = document.getElementById('send-gotify-test');
+        if (testBtn) {
+            testBtn.addEventListener('click', function() {
+                testBtn.disabled = true;
+                fetch('/settings/gotify/test', {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(res => res.text())
+                    .then(msg => {
+                        alert(msg);
+                        testBtn.disabled = false;
+                    })
+                    .catch(() => {
+                        alert('Failed to send test notification.');
+                        testBtn.disabled = false;
+                    });
+            });
+        }
+    });
+    </script>
+</body>
+</html>
