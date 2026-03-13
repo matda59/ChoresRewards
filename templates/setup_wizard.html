@@ -397,6 +397,7 @@
     <!-- ── Add New Family Members ── -->
     <div class="wizard-section">
       <h3 class="wizard-section-title"><i class="fas fa-user-plus"></i> Add Family Members</h3>
+    <p style="color:rgba(255,255,255,0.55); font-size:0.88rem; margin:0 0 1.25rem;">Add everyone who will use the app. <strong style="color:rgba(255,255,255,0.75);">Age is optional</strong> — only fill it in if you want that person to receive age-appropriate quiz questions when they complete chores.</p>
 
     <div id="people-list">
       <!-- Template person entry -->
@@ -418,8 +419,8 @@
         <input type="text" name="people[]" required maxlength="50" placeholder="Family member name" class="wz-input">
       </div>
       <div class="field-item narrow">
-        <span class="wz-label">Age</span>
-        <input type="number" name="person_age[]" min="0" placeholder="Age" class="wz-input">
+        <span class="wz-label">Age <span style="font-weight:400; text-transform:none; letter-spacing:0; color:rgba(255,255,255,0.35); font-size:0.9em;">(optional — for quiz)</span></span>
+        <input type="number" name="person_age[]" min="0" placeholder="Skip if no quiz" class="wz-input">
       </div>
     </div>
     <div class="field-item">
@@ -462,8 +463,8 @@ document.addEventListener('click', function(e) {
         <input type="text" name="people[]" required maxlength="50" placeholder="Family member name" class="wz-input">
       </div>
       <div class="field-item narrow">
-        <span class="wz-label">Age</span>
-        <input type="number" name="person_age[]" min="0" placeholder="Age" class="wz-input">
+        <span class="wz-label">Age <span style="font-weight:400; text-transform:none; letter-spacing:0; color:rgba(255,255,255,0.35); font-size:0.9em;">(optional — for quiz)</span></span>
+        <input type="number" name="person_age[]" min="0" placeholder="Skip if no quiz" class="wz-input">
       </div>
     </div>
     <div class="field-item">
@@ -784,8 +785,8 @@ function addPerson() {
           <input type="text" name="people[]" required maxlength="50" placeholder="Family member name" class="wz-input">
         </div>
         <div class="field-item narrow">
-          <span class="wz-label">Age</span>
-          <input type="number" name="person_age[]" min="0" placeholder="Age" class="wz-input">
+          <span class="wz-label">Age <span style="font-weight:400; text-transform:none; letter-spacing:0; color:rgba(255,255,255,0.35); font-size:0.9em;">(optional — for quiz)</span></span>
+          <input type="number" name="person_age[]" min="0" placeholder="Skip if no quiz" class="wz-input">
         </div>
       </div>
       <div class="field-item">
