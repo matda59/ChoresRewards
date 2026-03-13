@@ -1703,7 +1703,11 @@ function deleteReward(rewardId) {
                     <div class="all-done-subtext">Amazing work today!</div>
                 </div>
                 {% else %}
-                <p style="color: black;">No chores today 😊</p>
+                <div class="no-chores-banner">
+                    <div class="no-chores-emoji">😊</div>
+                    <div class="no-chores-text">FREE DAY!</div>
+                    <div class="no-chores-subtext">No chores today</div>
+                </div>
                 {% endif %}
             {% endif %}
             

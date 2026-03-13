@@ -124,6 +124,52 @@
     to   { transform: translateY(-8px); }
 }
 
+.no-chores-banner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 28px 16px 24px;
+    margin: 8px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    border: 2px solid #38bdf8;
+    box-shadow: 0 4px 16px rgba(56, 189, 248, 0.22);
+    animation: allDonePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.no-chores-emoji {
+    font-size: 3.5em;
+    line-height: 1;
+    animation: noChoresBob 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes noChoresBob {
+    from { transform: rotate(-8deg); }
+    to   { transform: rotate(8deg); }
+}
+
+.no-chores-text {
+    font-size: 2em;
+    font-weight: 900;
+    color: #fff;
+    background: #0369a1;
+    margin-top: 10px;
+    letter-spacing: 1px;
+    border-radius: 10px;
+    padding: 4px 18px;
+}
+
+.no-chores-subtext {
+    font-size: 1em;
+    font-weight: 700;
+    color: #fff;
+    background: #0284c7;
+    margin-top: 6px;
+    border-radius: 999px;
+    padding: 3px 14px;
+}
+
 .all-done-text {
     font-size: 2em;
     font-weight: 900;
