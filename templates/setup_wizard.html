@@ -196,7 +196,19 @@
   .person-fields .field-row { display: flex; gap: 1rem; flex-wrap: wrap; }
   .person-fields .field-item { display: flex; flex-direction: column; gap: 0.3rem; }
   .person-fields .field-item.grow { flex: 1; min-width: 140px; }
-  .person-fields .field-item.narrow { min-width: 90px; max-width: 110px; }
+  .person-fields .field-item.narrow { min-width: 100px; max-width: 140px; }
+
+  /* ── Optional hint below a field ── */
+  .wz-hint {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.38);
+    margin-top: 0.25rem;
+    line-height: 1.35;
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+  }
+  .wz-hint i { color: #4CAF50; font-size: 0.85em; }
 
   .remove-entry-btn {
     background: transparent;
@@ -419,8 +431,9 @@
         <input type="text" name="people[]" required maxlength="50" placeholder="Family member name" class="wz-input">
       </div>
       <div class="field-item narrow">
-        <span class="wz-label">Age <span style="font-weight:400; text-transform:none; letter-spacing:0; color:rgba(255,255,255,0.35); font-size:0.9em;">(optional — for quiz)</span></span>
-        <input type="number" name="person_age[]" min="0" placeholder="Skip if no quiz" class="wz-input">
+        <span class="wz-label">Age</span>
+        <input type="number" name="person_age[]" min="0" placeholder="e.g. 9" class="wz-input">
+        <span class="wz-hint"><i class="fas fa-info-circle"></i> Optional — used for quiz questions</span>
       </div>
     </div>
     <div class="field-item">
@@ -463,8 +476,9 @@ document.addEventListener('click', function(e) {
         <input type="text" name="people[]" required maxlength="50" placeholder="Family member name" class="wz-input">
       </div>
       <div class="field-item narrow">
-        <span class="wz-label">Age <span style="font-weight:400; text-transform:none; letter-spacing:0; color:rgba(255,255,255,0.35); font-size:0.9em;">(optional — for quiz)</span></span>
-        <input type="number" name="person_age[]" min="0" placeholder="Skip if no quiz" class="wz-input">
+        <span class="wz-label">Age</span>
+        <input type="number" name="person_age[]" min="0" placeholder="e.g. 9" class="wz-input">
+        <span class="wz-hint"><i class="fas fa-info-circle"></i> Optional — used for quiz questions</span>
       </div>
     </div>
     <div class="field-item">
@@ -785,8 +799,9 @@ function addPerson() {
           <input type="text" name="people[]" required maxlength="50" placeholder="Family member name" class="wz-input">
         </div>
         <div class="field-item narrow">
-          <span class="wz-label">Age <span style="font-weight:400; text-transform:none; letter-spacing:0; color:rgba(255,255,255,0.35); font-size:0.9em;">(optional — for quiz)</span></span>
-          <input type="number" name="person_age[]" min="0" placeholder="Skip if no quiz" class="wz-input">
+          <span class="wz-label">Age</span>
+          <input type="number" name="person_age[]" min="0" placeholder="e.g. 9" class="wz-input">
+          <span class="wz-hint"><i class="fas fa-info-circle"></i> Optional — used for quiz questions</span>
         </div>
       </div>
       <div class="field-item">
