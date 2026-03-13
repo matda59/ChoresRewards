@@ -16,8 +16,11 @@
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260314l">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -1540,12 +1543,13 @@ function deleteReward(rewardId) {
             {# Sort the combined list by the order field #}
             {% set sorted_family = (charlotte + others) | sort(attribute='order') %}
             {% for person in sorted_family %}
-            <div class="column" data-person="{{ person.name }}" style="display: flex; flex-direction: column; height: 100%;">
+            <div class="column" data-person="{{ person.name }}">
                 <!-- Column header with centered name and edit icon -->
                 <div class="column-header">
-                    <h3 class="name" style="color:#000;">
+                    <h3 class="name" style="position:relative !important; padding-right:28px !important;">
                         <span class="person-name" data-person-id="{{ person.id }}">{{ person.name }}</span>
                         <i class="fas fa-pencil-alt edit-name-icon"
+                           style="position:absolute !important; top:-6px !important; right:-2px !important; font-size:0.45em !important; color:#bbbbbb !important; background:rgba(0,0,0,0.45) !important; border-radius:50% !important; width:18px !important; height:18px !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; cursor:pointer !important;"
                            title="Edit Name"
                            onclick="openEditNameModal('{{ person.id }}', '{{ person.name }}')"></i>
                     </h3>
@@ -1644,7 +1648,7 @@ function deleteReward(rewardId) {
                 {% endfor %}
             </div>
 
-            <h4 class="chores-to-do-header" style="color: black; font-size: 2em;">Chores:</h4>
+            <h4 class="chores-to-do-header" style="text-align:center !important; font-size:0.68rem !important; font-weight:700 !important; letter-spacing:0.15em !important; text-transform:uppercase !important; color:rgba(0,0,0,0.38) !important; margin:10px 0 4px !important; padding:0 !important;">CHORES</h4>
             
             <!-- First, display pending (incomplete) chores at the top -->
             {% if filtered_incomplete_chores %}
@@ -1754,7 +1758,11 @@ function deleteReward(rewardId) {
             
             <!-- Drag handle for Kanban column -->
             <div class="column-footer">
-                <span class="drag-handle" title="Drag to reorder" draggable="true"><i class="fas fa-grip-lines"></i></span>
+                <span class="drag-handle" title="Hold and drag to reorder columns" draggable="true">
+                    <i class="fas fa-grip-vertical"></i>
+                    <span class="drag-handle-label">Hold to reorder</span>
+                    <i class="fas fa-grip-vertical"></i>
+                </span>
             </div>
         </div>
         {% endfor %}
@@ -1971,26 +1979,9 @@ function updateStreakDisplay(column, streakCount) {
                    class="modern-input chore-title-input" required autocomplete="off">
         </div>
 
-        <!-- Assign to -->
-        <div class="chore-field-group">
-            <label class="chore-field-label">
-                <i class="fas fa-user-circle"></i> Assign to
-            </label>
-            <div class="chore-assign-pills" id="assigned-to-btn-group">
-                {% for person in family %}
-                <button type="button" class="chore-assign-pill assigned-to-btn"
-                        data-person="{{ person.name }}">
-                    <span class="pill-avatar">{{ person.name[:1].upper() }}</span>
-                    <span class="pill-name">{{ person.name }}</span>
-                </button>
-                {% endfor %}
-            </div>
-            <input type="hidden" name="assigned_to" id="assigned-to-hidden" required>
-        </div>
-
-        <!-- Points + Repeating row -->
+        <!-- Points + Assign to row -->
         <div class="chore-meta-row">
-            <div class="chore-field-group chore-points-group">
+            <div class="chore-field-group chore-points-group" style="max-width:150px;">
                 <label class="chore-field-label" for="points-input">
                     {% if reward_system == 'cash' %}
                     <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i> Cash amount
@@ -1998,33 +1989,42 @@ function updateStreakDisplay(column, streakCount) {
                     <i class="fas fa-star" style="color:#fbbf24;"></i> Points
                     {% endif %}
                 </label>
-                <div class="chore-points-stepper">
-                    <button type="button" class="stepper-btn" onclick="adjustPoints(-0.5)">&#8722;</button>
-                    <input id="points-input" type="number" name="points"
-                           value="1" min="0" step="0.5" class="points-number-input" required>
-                    <button type="button" class="stepper-btn" onclick="adjustPoints(0.5)">&#43;</button>
-                </div>
-                <div class="chore-quick-points">
-                    <button type="button" class="quick-pt-btn" onclick="setPoints(0.5)">0.5</button>
-                    <button type="button" class="quick-pt-btn" onclick="setPoints(1)">1</button>
-                    <button type="button" class="quick-pt-btn" onclick="setPoints(2)">2</button>
-                    <button type="button" class="quick-pt-btn" onclick="setPoints(3)">3</button>
-                    <button type="button" class="quick-pt-btn" onclick="setPoints(5)">5</button>
-                </div>
+                <input type="number" id="points-input" name="points"
+                       placeholder="{% if reward_system == 'cash' %}1.00{% else %}1{% endif %}"
+                       min="0"
+                       step="{% if reward_system == 'cash' %}0.01{% else %}0.5{% endif %}"
+                       class="modern-input" required>
             </div>
 
-            <div class="chore-field-group chore-repeating-group">
+            <div class="chore-field-group">
                 <label class="chore-field-label">
-                    <i class="fas fa-sync-alt" style="color:#60a5fa;"></i> Repeating Chore
+                    <i class="fas fa-user-circle"></i> Assign to
                 </label>
-                <label class="chore-toggle-wrap">
-                    <input type="checkbox" id="show-repeating-checkbox" name="is_daily" class="chore-toggle-input">
-                    <span class="chore-toggle-track">
-                        <span class="chore-toggle-thumb"></span>
-                    </span>
-                    <span class="chore-toggle-label" id="repeating-label">Off</span>
-                </label>
+                <div class="chore-assign-pills" id="assigned-to-btn-group">
+                    {% for person in family %}
+                    <button type="button" class="chore-assign-pill assigned-to-btn"
+                            data-person="{{ person.name }}">
+                        <span class="pill-avatar">{{ person.name[:1].upper() }}</span>
+                        <span class="pill-name">{{ person.name }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="assigned_to" id="assigned-to-hidden" required>
             </div>
+        </div>
+
+        <!-- Repeating row -->
+        <div class="chore-field-group">
+            <label class="chore-field-label">
+                <i class="fas fa-sync-alt" style="color:#60a5fa;"></i> Repeating Chore
+            </label>
+            <label class="chore-toggle-wrap">
+                <input type="checkbox" id="show-repeating-checkbox" name="is_daily" class="chore-toggle-input">
+                <span class="chore-toggle-track">
+                    <span class="chore-toggle-thumb"></span>
+                </span>
+                <span class="chore-toggle-label" id="repeating-label">Off</span>
+            </label>
         </div>
 
         <!-- Days of week (shown when repeating is on) -->
@@ -2934,6 +2934,7 @@ function addChore(event) {
         const localDate = new Date(dueInput.value);
         const utcISOString = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
         data.due_datetime = utcISOString;
+        data.due_datetime_raw = dueInput.value; // keep raw local string for display
     }
     fetch("{{ url_for('routes.add_chore') }}", {
         method: 'POST',
@@ -3023,6 +3024,18 @@ function injectNewChoreCard(resp, formData) {
             : sorted.join(',') === weekends.join(',') ? 'Weekends'
             : days.map(d => abbr[d] || d).join(', ');
         tagsHtml += `<span class="chore-tag">${dayLabel}</span>`;
+    }
+    if (formData.due_datetime_raw) {
+        const dueDate = new Date(formData.due_datetime_raw);
+        const today = new Date(); today.setHours(0,0,0,0);
+        const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+        const dueDateOnly = new Date(dueDate); dueDateOnly.setHours(0,0,0,0);
+        let dateLabel;
+        if (dueDateOnly.getTime() === today.getTime()) dateLabel = 'Today';
+        else if (dueDateOnly.getTime() === tomorrow.getTime()) dateLabel = 'Tomorrow';
+        else dateLabel = dueDate.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+        let timeStr = dueDate.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true}).replace(':00 ', ' ');
+        tagsHtml += `<span class="chore-tag chore-tag-due"><i class="fas fa-clock"></i> Due ${dateLabel} ${timeStr}</span>`;
     }
 
     const pointsHtml = isCash

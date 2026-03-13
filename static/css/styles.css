@@ -1247,6 +1247,10 @@ h3 {
     color: var(--text-color);
     font-weight: 600; /* Slightly bolder */
 }
+/* Kanban name pill overrides the global h3 color — do not touch this */
+.column-header .name {
+    color: #f1f5f9 !important;
+}
 
 /* Points Display — see prominent override at top of file */
 
@@ -1871,25 +1875,35 @@ button:hover, button:focus {
     margin: 0;
 }
 
-/* Kanban Layout */
+/* ────────────────────────────────────────────────────────────────
+   KANBAN LAYOUT — SINGLE SOURCE OF TRUTH
+   Edit ONLY here. Do not add duplicate #kanban or .column rules
+   anywhere else in this file — they will silently override these.
+   ──────────────────────────────────────────────────────────────── */
 #kanban {
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    align-items: stretch;
     gap: 20px;
+    justify-content: space-between;
 }
 
 .column {
     background-color: var(--section-background);
-    border: 1px solid rgba(0,0,0,0.10);
-    border-radius: 16px;
-    padding: 14px 12px 8px;
-    width: 23%;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 18px;
+    padding: 16px 14px 10px;
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 250px;
     text-align: center;
     position: relative;
     color: var(--text-color);
     transition: box-shadow 0.25s ease, transform 0.2s ease;
     box-sizing: border-box;
-    box-shadow: 0 3px 14px rgba(0,0,0,0.13);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10);
+    display: flex;
+    flex-direction: column;
 }
 
 .column:hover {
@@ -1897,57 +1911,11 @@ button:hover, button:focus {
     transform: translateY(-2px);
 }
 
-/* Column header */
-.column-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2px 4px 8px;
-    position: relative;
-}
+/* Column header — authoritative rules are at end of file */
 
-.column-header .name {
-    margin: 0;
-    font-size: 1.75em;
-    font-weight: 800;
-    text-align: center;
-    flex: 1;
-    color: #000 !important;
-    line-height: 1.2;
-}
+/* Chores section header — authoritative rules are at end of file */
 
-.column-header .name .edit-name-icon {
-    font-size: 0.55em !important;
-    vertical-align: middle;
-    margin-left: 6px;
-    opacity: 0.55;
-    position: static !important;
-    transform: none !important;
-}
-
-/* Column footer / drag handle */
-.column-footer {
-    text-align: center;
-    padding: 5px 4px 3px;
-    margin-top: auto;
-    border-top: 1px solid rgba(0,0,0,0.12);
-}
-
-.drag-handle {
-    font-size: 1.0em;
-    color: rgba(0,0,0,0.30);
-    cursor: grab;
-    padding: 3px 14px;
-    border-radius: 6px;
-    transition: color 0.2s, background 0.2s;
-    display: inline-block;
-    user-select: none;
-}
-
-.drag-handle:hover {
-    color: rgba(0,0,0,0.55);
-    background: rgba(0,0,0,0.06);
-}
+/* Column footer / drag handle — authoritative rules are at end of file */
 
 /* Person-specific column colors */
 .column[data-person="Dad"] {
@@ -2025,7 +1993,7 @@ button:hover, button:focus {
 }
 
 /* Media Queries */
-@media (max-width: 800px) {
+@media (max-width: 500px) {
     #kanban {
         flex-direction: column;
     }
@@ -2868,22 +2836,6 @@ label,
         max-width: 96px;
     }
 }
-#kanban {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: stretch; /* Stretch columns to fill the container */
-}
-
-.column {
-  flex-grow: 1;
-  flex-basis: 0;
-  min-width: 250px; /* Minimum width for each kanban column */
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
 /* ===================================================
    Add Chore Form — Professional Revamp
    =================================================== */
@@ -3073,46 +3025,63 @@ label,
     .chore-meta-row { grid-template-columns: 1fr; }
 }
 
-/* Points stepper */
+/* Points stepper — modern pill design */
 .chore-points-stepper {
     display: inline-flex;
-    align-items: stretch;
-    border: 2px solid rgba(255,255,255,0.13);
-    border-radius: 10px;
-    overflow: hidden;
+    align-items: center;
+    gap: 6px;
     width: fit-content;
 }
 
 .stepper-btn {
-    background: rgba(255,255,255,0.07);
-    border: none;
+    background: rgba(255,255,255,0.10);
+    border: 1.5px solid rgba(255,255,255,0.18);
     color: var(--text-color);
-    width: 38px;
+    width: 40px;
     height: 40px;
-    font-size: 1.2rem;
-    font-weight: 700;
+    border-radius: 50%;
+    font-size: 1.4rem;
+    font-weight: 300;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.15s, transform 0.1s;
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    padding: 0;
 }
 
 .stepper-btn:hover {
-    background: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.20);
+    transform: scale(1.08);
+}
+
+.stepper-btn:active {
+    transform: scale(0.93);
 }
 
 .points-number-input {
-    width: 58px;
-    height: 40px;
+    width: 80px;
+    height: 48px;
     border: none;
-    border-left: 2px solid rgba(255,255,255,0.13);
-    border-right: 2px solid rgba(255,255,255,0.13);
-    background: transparent;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.10) !important;
     color: var(--text-color);
-    font-size: 1rem;
-    font-weight: 700;
+    font-size: 1.5rem;
+    font-weight: 800;
     text-align: center;
     outline: none;
     padding: 0;
+    letter-spacing: 0.02em;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+    margin-bottom: 0 !important;
+    min-height: unset !important;
+}
+
+.points-number-input:focus {
+    background: rgba(255,255,255,0.16) !important;
+    border: none !important;
 }
 
 .points-number-input::-webkit-inner-spin-button,
@@ -3123,27 +3092,48 @@ label,
 
 .chore-quick-points {
     display: flex;
-    gap: 4px;
+    gap: 6px;
     flex-wrap: wrap;
-    margin-top: 5px;
+    margin-top: 10px;
+    align-items: center;
+}
+
+/* Label above quick chips */
+.chore-quick-points::before {
+    content: 'Quick:';
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.38);
+    white-space: nowrap;
+    align-self: center;
 }
 
 .quick-pt-btn {
-    padding: 4px 10px;
-    border-radius: 6px;
-    border: 1px solid rgba(255,255,255,0.14);
-    background: rgba(255,255,255,0.05);
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1.5px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.07);
     color: var(--text-color);
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: 0.88rem;
+    font-weight: 700;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-    min-height: 28px;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    min-height: unset !important;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    line-height: 1.2;
 }
 
 .quick-pt-btn:hover {
-    background: rgba(76,175,80,0.22);
-    border-color: rgba(76,175,80,0.6);
+    background: rgba(76,175,80,0.28);
+    border-color: rgba(76,175,80,0.7);
+    transform: translateY(-1px);
+}
+
+.quick-pt-btn:active {
+    transform: scale(0.94);
 }
 
 /* Toggle switch */
@@ -3324,4 +3314,98 @@ label,
     .chore-day-pill span { min-height: 38px; font-size: 0.95rem; padding: 7px 15px; }
     .btn-add-chore { min-height: 58px; font-size: 1.15rem; }
     .quick-pt-btn { font-size: 0.9rem; padding: 6px 13px; min-height: 34px; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   KANBAN OVERRIDES — MUST STAY AT END OF FILE
+   These rules win by cascade order. Do NOT duplicate #kanban or
+   .column-header blocks elsewhere in this stylesheet.
+   ════════════════════════════════════════════════════════════════ */
+/* Force horizontal layout — overrides any media query that stacks columns */
+#kanban {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch;
+    gap: 12px;
+    overflow-x: auto;
+}
+.column {
+    min-width: 0 !important;
+    width: unset !important;
+    margin: 0 !important;
+}
+.column:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,0.22);
+    transform: translateY(-2px);
+}
+.column-header {
+    display: block;
+    text-align: center;
+    width: 100%;
+    padding: 6px 4px 8px;
+}
+.column-header .name {
+    color: #f1f5f9 !important;
+    background: #1e1e1e;
+    border: 2px solid rgba(0,0,0,0.5);
+    border-radius: 999px;
+    padding: 6px 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.5em;
+    font-weight: 800;
+    line-height: 1.2;
+    margin: 0;
+}
+.column-header .name .edit-name-icon {
+    font-size: 0.55em;
+    color: #aaaaaa;
+    cursor: pointer;
+}
+.chores-to-do-header {
+    text-align: center;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(0,0,0,0.38);
+    margin: 10px 0 4px;
+}
+
+/* Drag handle pill */
+.column-footer {
+    margin-top: auto;
+    padding: 10px 8px 6px;
+    text-align: center;
+    border-top: 1px solid rgba(0,0,0,0.10);
+}
+.drag-handle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: grab;
+    background: rgba(0,0,0,0.12);
+    border: 1.5px dashed rgba(0,0,0,0.25);
+    border-radius: 999px;
+    padding: 6px 14px;
+    color: rgba(0,0,0,0.45);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    user-select: none;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.drag-handle:hover,
+.drag-handle:active {
+    background: rgba(0,0,0,0.22);
+    color: rgba(0,0,0,0.75);
+    border-color: rgba(0,0,0,0.45);
+    cursor: grabbing;
+}
+.drag-handle .drag-handle-label {
+    font-size: 0.85em;
+    white-space: nowrap;
 }

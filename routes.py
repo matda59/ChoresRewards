@@ -474,7 +474,8 @@ def index():
     ).filter(Chore.completed == True, Chore.assigned_to_id.isnot(None)).group_by(Chore.assigned_to_id).all()
     person_total_completed = {str(pid): cnt for pid, cnt in _totals}
 
-    return render_template(
+    from flask import make_response
+    resp = make_response(render_template(
         'index.html',
         chores=chores,
         rewards=rewards,
@@ -496,7 +497,11 @@ def index():
         badge_definitions_list=badge_definitions_list,
         person_earned_keys=person_earned_keys,
         person_total_completed=person_total_completed,
-    )
+    ))
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
     # ...existing code...
 
 
