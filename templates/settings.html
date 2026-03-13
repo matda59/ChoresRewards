@@ -261,6 +261,7 @@
                 <h3 class="section-title"><i class="fas fa-cog"></i> General Settings</h3>
                 <section class="settings-section">
                     <h3 class="section-title"><i class="fas fa-trophy"></i> Reward System</h3>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Choose how chores are valued across the household. <strong style="color:rgba(255,255,255,0.8);">Points</strong> uses a virtual currency that kids accumulate and spend on rewards you create. <strong style="color:rgba(255,255,255,0.8);">Cash</strong> tracks a real dollar value — ideal if you run a pocket money system.</p>
                     <form method="POST" action="/settings" id="reward-system-form" style="margin-bottom: 1.5em;">
                         <label class="reward-system-label{% if reward_system == 'points' %} selected{% endif %}" style="margin-right: 12px;">
                             <input type="radio" class="reward-system-radio" name="reward_system" value="points" {% if reward_system == 'points' %}checked{% endif %}>
@@ -277,7 +278,7 @@
                 </section>
                 <section class="settings-section">
                     <h3 class="section-title"><i class="fas fa-users"></i> Family Members</h3>
-                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">This section allows you to delete, edit family members' names, and add family members, adding an age for each member helps define what quizz questions you get</p>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Manage everyone who uses the app. Click a name to rename them inline, update their photo, set their Kanban card colour, or adjust their age. <strong style="color:rgba(255,255,255,0.8);">Age</strong> controls which quiz questions a person receives when they complete all their chores. Use <strong style="color:rgba(255,255,255,0.8);">Change Points</strong> to manually add or deduct points, and <strong style="color:rgba(255,255,255,0.8);">Delete Person</strong> to remove them entirely.</p>
                     {% if family %}
                     <div class="family-members-grid" style="margin-bottom:2em; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto;">
                         <form method="POST" action="/settings" id="person-ages-form" style="display: contents;">
@@ -352,9 +353,8 @@
                 </section>
                 <section class="settings-section">
                     <h3 class="section-title"><i class="fas fa-tasks"></i> All Chores</h3>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">View and manage every chore in the system. <strong style="color:rgba(255,255,255,0.8);">Daily</strong> chores reset automatically each day they're scheduled. <strong style="color:rgba(255,255,255,0.8);">One-off</strong> chores disappear once completed. Use <strong style="color:rgba(255,255,255,0.8);">Edit</strong> to change the title, points value, assigned person, or which days of the week it appears. New chores are added from the main Home screen.</p>
                     <div class="table-container">
-                        <h4 class="section-title" style="font-size:1rem;margin-bottom:0.4em;">Edit Chores</h4>
-                        <p style="margin-top:0;color:rgba(255,255,255,0.6);">Edit, reassign or delete chores.</p>
                         <table class="sleek-table">
                             <thead>
                                 <tr>
@@ -401,7 +401,7 @@
                 </section>
                 <section class="settings-section">
                     <h3 class="section-title"><i class="fas fa-gift"></i> Bonus Points for Completing All Chores</h3>
-                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Configure whether a static or range-based bonus is awarded when all chores are completed.</p>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Award an extra bonus when a family member finishes every chore assigned to them for the day. <strong style="color:rgba(255,255,255,0.8);">Static</strong> gives the same fixed amount every time. <strong style="color:rgba(255,255,255,0.8);">Range</strong> picks a random value between the two numbers you set — adds an element of surprise. Enabling quiz questions here means they’ll be presented with age-appropriate questions for a chance to earn additional points on top of the bonus.</p>
                     <form method="POST" action="/settings" id="bonus-points-form">
                         <label class="bonus-mode-label{% if bonus_mode == 'static' %} selected{% endif %}" style="display:inline-flex;align-items:center;gap:6px;position:relative;">
                             <input type="radio" class="bonus-mode-radio" name="bonus_mode" value="static" {% if bonus_mode == 'static' %}checked{% endif %}> <span class="custom-radio"></span> Static
@@ -436,7 +436,7 @@
                 </section>
                 <section class="settings-section">
                     <h3 class="section-title"><i class="fas fa-clock"></i> Timezone</h3>
-                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Select your preferred timezone for displaying dates and times.</p>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Your timezone determines when daily chores reset at midnight and when overdue notifications are triggered. Pick the city or region closest to you. If chores seem to reset at the wrong time, updating this is the fix.</p>
                     <form method="POST" action="/settings" id="timezone-form">
                         <select name="timezone" id="timezone-select" class="modern-input" style="width:100%;">
             {% set timezones = [
@@ -527,7 +527,7 @@
                 </section>
                 <section class="settings-section" id="pin-change-section">
                     <h3 class="section-title"><i class="fas fa-lock"></i> Change Master PIN</h3>
-                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Change your current master PIN to a new PIN.</p>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">The Master PIN protects parent-only actions like approving reward redemptions, editing chores, and accessing Settings. Kids can complete chores without it. Enter your current PIN to set a new one — choose something only you’ll remember.</p>
                     <form id="pin-change-form" method="POST" action="/settings" autocomplete="off" style="display:flex;flex-direction:column;gap:0.9rem;max-width:360px;">
                         <input type="hidden" name="change_pin" value="1" />
                         <div>

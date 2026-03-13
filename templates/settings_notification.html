@@ -159,7 +159,8 @@
                 <h3 class="section-title"><i class="fas fa-bell"></i> Notification Settings</h3>
                 <!-- Gotify Section -->
                 <section class="settings-section" id="gotify-section">
-                    <h4 class="section-title" style="font-size:1rem;margin-bottom:1.2rem;"><i class="fas fa-satellite-dish"></i> Gotify Push Notifications</h4>
+                    <h4 class="section-title" style="font-size:1rem;margin-bottom:0.5rem;"><i class="fas fa-satellite-dish"></i> Gotify Push Notifications</h4>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;margin-bottom:1.2rem;"><a href="https://gotify.net" target="_blank" rel="noopener" style="color:#4CAF50;">Gotify</a> is a free, self-hosted push notification server. Once connected, ChoresRewards will send real-time alerts to your phone or any device running the Gotify app. Enter your server URL and an app token, choose which family members and events to watch, then hit <strong style="color:rgba(255,255,255,0.8);">Send Test Notification</strong> to confirm it’s working.</p>
                     <form method="POST" action="{{ url_for('routes.settings_notification') }}" id="gotify-form" autocomplete="off" style="display:flex;flex-direction:column;gap:1rem;">
                         <div>
                             <label class="settings-field-label" for="gotify_url">Gotify Server URL</label>
