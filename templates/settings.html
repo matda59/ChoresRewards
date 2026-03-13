@@ -77,37 +77,74 @@
             color: #fff;
         }
 
-        /* ── Table ── */
+        /* ── Chore Card List ── */
         .table-container {
-            overflow-x: auto;
             margin-bottom: 1.5rem;
         }
-        .sleek-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: rgba(0,0,0,0.2);
-            border-radius: 12px;
-            overflow: hidden;
-            color: #fff;
+        .chores-card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
         }
-        .sleek-table th,
-        .sleek-table td {
-            padding: 0.75rem 1rem;
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            color: #fff;
+        .chore-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            padding: 0.85rem 1rem;
+            transition: background 0.2s, border-color 0.2s;
         }
-        .sleek-table th {
-            background: rgba(76,175,80,0.1);
+        .chore-card:hover {
+            background: rgba(255,255,255,0.07);
+            border-color: rgba(255,255,255,0.15);
+        }
+        .chore-card-main {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        .chore-card-title-area {
+            flex: 1;
+            min-width: 0;
+        }
+        .chore-title {
+            display: block;
+            font-size: 1.0rem;
             font-weight: 700;
-            color: #4CAF50;
-            font-size: 0.78rem;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
+            color: #f1f5f9;
+            line-height: 1.35;
+            word-break: break-word;
+            margin-bottom: 0.5rem;
         }
-        .sleek-table tr:last-child td { border-bottom: none; }
-        .sleek-table tbody tr:hover td { background: rgba(255,255,255,0.03); }
-        .no-chores { text-align: center; color: #94a3b8; padding: 1.5rem; }
+        .chore-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            align-items: center;
+        }
+        .chore-meta-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.22rem;
+            padding: 0.18rem 0.62rem;
+            border-radius: 999px;
+            font-size: 0.74rem;
+            font-weight: 600;
+            line-height: 1.5;
+            white-space: nowrap;
+        }
+        .chip-person { background: rgba(139,92,246,0.18); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.3); }
+        .chip-points { background: rgba(251,191,36,0.15); color: #fde68a; border: 1px solid rgba(251,191,36,0.3); }
+        .chip-daily  { background: rgba(76,175,80,0.15);  color: #86efac; border: 1px solid rgba(76,175,80,0.3); }
+        .chip-oneoff { background: rgba(251,146,60,0.15); color: #fed7aa; border: 1px solid rgba(251,146,60,0.3); }
+        .chip-done   { background: rgba(52,211,153,0.15); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.3); }
+        .chip-days   { background: rgba(148,163,184,0.12); color: #94a3b8; border: 1px solid rgba(148,163,184,0.2); }
+        .chore-card-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            flex-shrink: 0;
+        }
+        .no-chores { text-align: center; color: #94a3b8; padding: 2rem; }
 
         /* ── Pill / assign buttons ── */
         .actions-cell { display: flex; gap: 0.5rem; }
@@ -355,48 +392,30 @@
                     <h3 class="section-title"><i class="fas fa-tasks"></i> All Chores</h3>
                     <p style="color:rgba(255,255,255,0.6);margin-top:0;">View and manage every chore in the system. <strong style="color:rgba(255,255,255,0.8);">Daily</strong> chores reset automatically each day they're scheduled. <strong style="color:rgba(255,255,255,0.8);">One-off</strong> chores disappear once completed. Use <strong style="color:rgba(255,255,255,0.8);">Edit</strong> to change the title, points value, assigned person, or which days of the week it appears. New chores are added from the main Home screen.</p>
                     <div class="table-container">
-                        <table class="sleek-table">
-                            <thead>
-                                <tr>
-                                    <th>Title</th>
-                                    <th>Assigned To</th>
-                                    <th>Points</th>
-                                    <th>Completed</th>
-                                    <th>Days</th>
-                                    <th>Type</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="all-chores-tbody">
-                                {% for chore in all_chores if not chore.completed or chore.is_daily %}
-                                <tr id="chore-row-{{ chore.id }}">
-                                    <td class="chore-title">{{ chore.title }}</td>
-                                    <td class="chore-assigned-to">{{ chore.assigned_to }}</td>
-                                    <td class="chore-points">{{ chore.points }}</td>
-                                    <td>{% if chore.completed %}Yes{% else %}No{% endif %}</td>
-                                    <td class="chore-days">
-                                        {% if chore.days_of_week %}
-                                            {% set days = chore.days_of_week.split(',') if chore.days_of_week is string else chore.days_of_week %}
-                                            {% set short_days = days|map('trim')|map('lower')|list %}
-                                            {% for d in short_days %}
-                                                {% if not loop.first %}, {% endif %}
-                                                {% if d == 'monday' %}Mon{% elif d == 'tuesday' %}Tue{% elif d == 'wednesday' %}Wed{% elif d == 'thursday' %}Thu{% elif d == 'friday' %}Fri{% elif d == 'saturday' %}Sat{% elif d == 'sunday' %}Sun{% else %}{{ d }}{% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            {% if chore.is_daily %}Daily{% else %}-{% endif %}
-                                        {% endif %}
-                                    </td>
-                                    <td>{% if chore.is_daily %}Daily{% else %}One-off{% endif %}</td>
-                                    <td class="actions-cell">
-                                        <button class="edit-btn" onclick="editChore({{ chore.id }})">Edit</button>
-                                        <button class="delete-btn" onclick="deleteDailyChore({{ chore.id }})">Delete</button>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr><td colspan="7" class="no-chores">No chores found.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                        <div class="chores-card-list" id="all-chores-tbody">
+                            {% for chore in all_chores if not chore.completed or chore.is_daily %}
+                            <div class="chore-card" id="chore-row-{{ chore.id }}">
+                                <div class="chore-card-main">
+                                    <div class="chore-card-title-area">
+                                        <span class="chore-title">{{ chore.title }}</span>
+                                        <div class="chore-card-meta">
+                                            <span class="chore-meta-chip chip-person chore-assigned-to">{{ chore.assigned_to }}</span>
+                                            <span class="chore-meta-chip chip-points"><i class="fas fa-star" style="font-size:0.7em;"></i>&nbsp;<span class="chore-points">{{ chore.points }}</span></span>
+                                            <span class="chore-meta-chip {% if chore.is_daily %}chip-daily{% else %}chip-oneoff{% endif %}">{% if chore.is_daily %}<i class="fas fa-sync-alt" style="font-size:0.7em;"></i>&nbsp;Daily{% else %}<i class="fas fa-bolt" style="font-size:0.7em;"></i>&nbsp;One-off{% endif %}</span>
+                                            {% if chore.completed %}<span class="chore-meta-chip chip-done"><i class="fas fa-check" style="font-size:0.7em;"></i>&nbsp;Done</span>{% endif %}
+                                            <span class="chore-meta-chip chip-days chore-days">{% if chore.days_of_week %}{% set days = chore.days_of_week.split(',') if chore.days_of_week is string else chore.days_of_week %}{% set short_days = days|map('trim')|map('lower')|list %}{% for d in short_days %}{% if not loop.first %}, {% endif %}{% if d == 'monday' %}Mon{% elif d == 'tuesday' %}Tue{% elif d == 'wednesday' %}Wed{% elif d == 'thursday' %}Thu{% elif d == 'friday' %}Fri{% elif d == 'saturday' %}Sat{% elif d == 'sunday' %}Sun{% else %}{{ d }}{% endif %}{% endfor %}{% else %}{% if chore.is_daily %}Daily{% else %}-{% endif %}{% endif %}</span>
+                                        </div>
+                                    </div>
+                                    <div class="chore-card-actions">
+                                        <button class="edit-btn" onclick="editChore({{ chore.id }})"><i class="fas fa-pencil-alt"></i> Edit</button>
+                                        <button class="delete-btn" onclick="deleteDailyChore({{ chore.id }})"><i class="fas fa-trash"></i> Delete</button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="no-chores">No chores found.</div>
+                            {% endfor %}
+                        </div>
                     </div>
                 </section>
                 <section class="settings-section">
