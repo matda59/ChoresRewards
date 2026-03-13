@@ -1916,11 +1916,13 @@ button:hover, button:focus {
     line-height: 1.2;
 }
 
-.column-header > .edit-name-icon {
-    position: absolute !important;
-    right: 4px;
-    top: 50%;
-    transform: translateY(-50%) !important;
+.column-header .name .edit-name-icon {
+    font-size: 0.55em !important;
+    vertical-align: middle;
+    margin-left: 6px;
+    opacity: 0.55;
+    position: static !important;
+    transform: none !important;
 }
 
 /* Column footer / drag handle */

@@ -1543,12 +1543,12 @@ function deleteReward(rewardId) {
             <div class="column" data-person="{{ person.name }}" style="display: flex; flex-direction: column; height: 100%;">
                 <!-- Column header with centered name and edit icon -->
                 <div class="column-header">
-                    <h3 class="name">
+                    <h3 class="name" style="color:#000;">
                         <span class="person-name" data-person-id="{{ person.id }}">{{ person.name }}</span>
+                        <i class="fas fa-pencil-alt edit-name-icon"
+                           title="Edit Name"
+                           onclick="openEditNameModal('{{ person.id }}', '{{ person.name }}')"></i>
                     </h3>
-                    <i class="fas fa-pencil-alt edit-name-icon"
-                       title="Edit Name"
-                       onclick="openEditNameModal('{{ person.id }}', '{{ person.name }}')"></i>
                 </div>
                 <div class="points-display">
                     <div class="balance-label">{% if reward_system == 'cash' %}Balance{% else %}Points{% endif %}</div>
