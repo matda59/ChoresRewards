@@ -1912,7 +1912,7 @@ button:hover, button:focus {
     font-weight: 800;
     text-align: center;
     flex: 1;
-    color: #000;
+    color: #000 !important;
     line-height: 1.2;
 }
 
