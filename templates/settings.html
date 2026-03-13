@@ -974,7 +974,7 @@
             const choreId = editChoreIdInput.value;
             const title = editChoreTitleInput.value.trim();
             const assignedTo = editChoreAssignedToSelect.value;
-            const points = parseInt(editChorePointsInput.value, 10);
+            const points = parseFloat(editChorePointsInput.value);
 
             if (!title || !assignedTo || isNaN(points) || points < 0) {
                 editChoreError.textContent = 'Please fill in all fields correctly.';
