@@ -178,7 +178,7 @@ def edit_chore():
         chore_id = data.get('chore_id')
         title = data.get('title')
         assigned_to = data.get('assigned_to')
-        points = int(data.get('points', 1))
+        points = float(data.get('points', 1))
         days_of_week = data.get('days_of_week', [])
         if not chore_id or not title or not assigned_to:
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400
@@ -1578,11 +1578,11 @@ def add_daily_chore():
             data = request.get_json()
             title = data.get('title')
             assigned_to = data.get('assigned_to')
-            points = int(data.get('points', 1))
+            points = float(data.get('points', 1))
         else:
             title = request.form.get('title')
             assigned_to = request.form.get('assigned_to')
-            points = int(request.form.get('points', 1))
+            points = float(request.form.get('points', 1))
         if not title or not assigned_to:
             return jsonify({
                 'success': False,
@@ -1638,7 +1638,7 @@ def edit_daily_chore():
         chore_id = data.get('chore_id')
         title = data.get('title')
         assigned_to = data.get('assigned_to')
-        points = int(data.get('points', 1))
+        points = float(data.get('points', 1))
         days_of_week = data.get('days_of_week', [])
         if not chore_id or not title or not assigned_to:
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400

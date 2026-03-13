@@ -890,7 +890,7 @@
                     {% endfor %}
                 </select><br />
                 <label for="editChorePoints">Points:</label><br />
-                <input type="number" id="editChorePoints" name="points" min="0" required style="width: 100%; margin-bottom: 10px; padding: 5px; border-radius: 6px; border: 1px solid #555; background: #333; color: white;" /><br />
+                <input type="number" id="editChorePoints" name="points" min="0" step="0.01" required style="width: 100%; margin-bottom: 10px; padding: 5px; border-radius: 6px; border: 1px solid #555; background: #333; color: white;" /><br />
                 <label style="margin-top:8px; display:block; color:#fff; font-weight:600;">Specific Day(s) of the Week:</label>
                 <div id="editChoreDaysOfWeek" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 8px;">
                     {% for day in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
