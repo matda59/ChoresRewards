@@ -54,6 +54,15 @@
   }
   .wizard-section-title i { color: #4CAF50; }
 
+  /* ── Section description ── */
+  .wz-section-desc {
+    color: rgba(255,255,255,0.52);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    margin: -0.4rem 0 1.25rem;
+  }
+  .wz-section-desc strong { color: rgba(255,255,255,0.8); font-weight: 600; }
+
   /* ── Field label ── */
   .wz-label {
     display: block;
@@ -505,6 +514,7 @@ document.addEventListener('click', function(e) {
     <!-- ── Reward System ── -->
     <div class="wizard-section">
       <h3 class="wizard-section-title"><i class="fas fa-trophy"></i> Reward System</h3>
+      <p class="wz-section-desc">Choose how you want to reward completed chores. <strong>Points</strong> uses a virtual score that kids can spend on rewards you define in Settings. <strong>Cash</strong> tracks a dollar value instead — useful if you pay real pocket money.</p>
       <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
         <label class="reward-system-label selected" id="wizard-points-label">
           <input type="radio" class="reward-system-radio" name="reward_system" value="points" checked>
@@ -520,6 +530,7 @@ document.addEventListener('click', function(e) {
     <!-- ── Bonus Points ── -->
     <div class="wizard-section">
       <h3 class="wizard-section-title"><i class="fas fa-star"></i> Bonus Points for Completing All Chores</h3>
+      <p class="wz-section-desc">Award an extra bonus when a family member finishes every chore assigned to them. <strong>Static</strong> gives a fixed amount each time. <strong>Range</strong> picks a random value between a minimum and maximum — adds a little surprise and excitement. Choose <strong>No bonus</strong> to skip this feature entirely.</p>
       <div style="display:flex; gap:1.5rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem;">
         <label class="bonus-mode-label" id="wizard-bonus-static-label">
           <input type="radio" class="bonus-mode-radio" name="bonus_mode" value="static" checked>
@@ -549,6 +560,7 @@ document.addEventListener('click', function(e) {
     <!-- ── Timezone ── -->
     <div class="wizard-section">
       <h3 class="wizard-section-title"><i class="fas fa-globe"></i> Timezone</h3>
+      <p class="wz-section-desc">Your timezone ensures chores reset at midnight and reminders fire at the right local time. Pick the city closest to you.</p>
       {% set timezones = [
             'Africa/Abidjan', 'Africa/Accra', 'Africa/Addis_Ababa', 'Africa/Algiers', 'Africa/Asmara',
             'Africa/Bamako', 'Africa/Bangui', 'Africa/Banjul', 'Africa/Bissau', 'Africa/Blantyre',
@@ -637,6 +649,7 @@ document.addEventListener('click', function(e) {
     <!-- ── Audio ── -->
     <div class="wizard-section">
       <h3 class="wizard-section-title"><i class="fas fa-volume-up"></i> Audio Preferences</h3>
+      <p class="wz-section-desc">Play a short celebratory sound when a chore is ticked off. Great for keeping kids engaged — easy to turn off if the tablet is in a quiet room.</p>
       <label class="wz-check-label">
         <input type="checkbox" name="enable_sound_effects" checked>
         Enable sound effects when chores are completed
@@ -646,6 +659,7 @@ document.addEventListener('click', function(e) {
     <!-- ── Notifications ── -->
     <div class="wizard-section">
       <h3 class="wizard-section-title"><i class="fas fa-bell"></i> Notification Preferences</h3>
+      <p class="wz-section-desc">Browser notifications appear on the device even when the app is running in the background. You'll be asked to grant permission the first time. Both options can be toggled individually — or leave them on for maximum encouragement.</p>
       <div style="display:flex; flex-direction:column; gap:0.7rem;">
         <label class="wz-check-label">
           <input type="checkbox" name="enable_notifications" checked>
@@ -705,6 +719,7 @@ document.addEventListener('click', function(e) {
     <!-- ── Master PIN ── -->
     <div class="wizard-section">
       <h3 class="wizard-section-title"><i class="fas fa-lock"></i> Master PIN</h3>
+      <p class="wz-section-desc">The Master PIN protects parent-only actions — approving reward redemptions, editing chores, and accessing Settings. Kids can complete chores without it. Choose a 4-digit number only you'll know.</p>
       <div style="max-width:240px;">
         <span class="wz-label">Set Master 4-Digit PIN</span>
         <input type="password" name="master_pin" pattern="\d{4}" maxlength="4" required
