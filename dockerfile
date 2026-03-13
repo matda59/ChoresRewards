@@ -19,7 +19,8 @@ COPY extensions.py .
 COPY routes.py .
 COPY quiz_questions.py .
 
-# Copy static and templates directories
+# Copy routes package, static and templates directories
+COPY routes /app/routes/
 COPY static /app/static/
 COPY templates /app/templates/
 
