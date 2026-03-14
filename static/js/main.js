@@ -10,51 +10,69 @@ document.addEventListener('DOMContentLoaded', () => {
         column.addEventListener('drop', drop);
     });
     
-        // --- Reward Image Edit Modal Logic ---
+        // --- Reward Edit Modal Logic ---
         let currentRewardId = null;
-    
-        window.openEditRewardImageModal = function(rewardId, imageUrl) {
-            currentRewardId = rewardId;
-            const modal = document.getElementById('edit-reward-image-modal');
-            modal.style.display = 'flex';
-            document.getElementById('reward-image-upload').value = '';
-            document.getElementById('reward-image-url').value = imageUrl || '';
+
+        window.openEditRewardModal = function(card) {
+            currentRewardId = card.dataset.rewardId;
+            document.getElementById('er-title').value = card.dataset.title || '';
+            document.getElementById('er-points').value = card.dataset.points || '';
+            document.getElementById('er-description').value = card.dataset.description || '';
+            const sel = document.getElementById('er-assigned-to');
+            if (sel) {
+                for (let i = 0; i < sel.options.length; i++) {
+                    if (sel.options[i].value === card.dataset.assignedTo) { sel.selectedIndex = i; break; }
+                }
+            }
+            document.getElementById('er-image-upload').value = '';
+            document.getElementById('er-image-url').value = card.dataset.imageUrl || '';
+            document.getElementById('edit-reward-modal').style.display = 'flex';
         };
-    
-        window.closeEditRewardImageModal = function() {
-            const modal = document.getElementById('edit-reward-image-modal');
-            modal.style.display = 'none';
+
+        window.closeEditRewardModal = function() {
+            document.getElementById('edit-reward-modal').style.display = 'none';
             currentRewardId = null;
         };
-    
-        window.saveRewardImage = function() {
-            const fileInput = document.getElementById('reward-image-upload');
-            const urlInput = document.getElementById('reward-image-url');
-            const formData = new FormData();
-            formData.append('reward_id', currentRewardId);
-            if (fileInput.files && fileInput.files[0]) {
-                formData.append('image', fileInput.files[0]);
-            } else if (urlInput.value) {
-                formData.append('image_url', urlInput.value);
-            } else {
-                alert('Please select an image or enter a URL.');
-                return;
-            }
-            fetch('/edit_reward_image', {
+
+        window.saveEditReward = function() {
+            const title = document.getElementById('er-title').value.trim();
+            const points = document.getElementById('er-points').value;
+            const description = document.getElementById('er-description').value.trim();
+            const assignedTo = document.getElementById('er-assigned-to').value;
+            const fileInput = document.getElementById('er-image-upload');
+            const imageUrl = document.getElementById('er-image-url').value.trim();
+
+            if (!title) { alert('Title is required.'); return; }
+            if (!points || isNaN(parseFloat(points))) { alert('A valid amount is required.'); return; }
+
+            // Step 1: save text fields
+            fetch('/edit_reward', {
                 method: 'POST',
-                body: formData
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reward_id: currentRewardId, title, points_required: parseFloat(points), description, assigned_to: assignedTo })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.reload();
-                } else {
-                    alert(data.error || 'Failed to update image.');
+            .then(r => r.json())
+            .then(d => {
+                if (!d.success) { alert(d.error || 'Failed to save reward.'); return; }
+                // Step 2: if an image was provided, upload it too
+                const hasFile = fileInput.files && fileInput.files[0];
+                if (hasFile || imageUrl) {
+                    const fd = new FormData();
+                    fd.append('reward_id', currentRewardId);
+                    if (hasFile) fd.append('image', fileInput.files[0]);
+                    else fd.append('image_url', imageUrl);
+                    return fetch('/edit_reward_image', { method: 'POST', body: fd })
+                        .then(r => r.json())
+                        .then(d2 => { if (!d2.success) alert(d2.error || 'Saved but image failed.'); });
                 }
             })
-            .catch(() => alert('Failed to update image.'));
-            closeEditRewardImageModal();
+            .then(() => { closeEditRewardModal(); window.location.reload(); })
+            .catch(() => alert('Failed to save reward.'));
         };
+
+        // Keep old name as alias in case any stray references exist
+        window.openEditRewardImageModal = window.openEditRewardModal;
+        window.closeEditRewardImageModal = window.closeEditRewardModal;
 });
 
 function dragStart(event) {

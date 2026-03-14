@@ -2255,3 +2255,33 @@ def edit_reward_image():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@routes_bp.route('/edit_reward', methods=['POST'])
+def edit_reward():
+    try:
+        data = request.get_json() or {}
+        reward_id = data.get('reward_id')
+        if not reward_id:
+            return jsonify({'success': False, 'error': 'Missing reward_id'}), 400
+        reward = Reward.query.get(reward_id)
+        if not reward:
+            return jsonify({'success': False, 'error': 'Reward not found'}), 404
+
+        if 'title' in data and data['title'].strip():
+            reward.title = data['title'].strip()
+        if 'description' in data:
+            reward.description = data['description'].strip()
+        if 'points_required' in data:
+            try:
+                reward.points_required = float(data['points_required'])
+            except (ValueError, TypeError):
+                return jsonify({'success': False, 'error': 'Invalid points value'}), 400
+        if 'assigned_to' in data and data['assigned_to'].strip():
+            reward.assigned_to = data['assigned_to'].strip()
+
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400

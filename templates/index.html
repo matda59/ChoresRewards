@@ -20,7 +20,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260314l">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260314n">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -409,15 +409,38 @@ window.addEventListener('DOMContentLoaded', function() {
 });
         </script>
 
-<!-- Edit Reward Image Modal (only one instance, outside all loops) -->
-<div id="edit-reward-image-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
-    <div style="background:#222; padding:32px 24px; border-radius:16px; min-width:320px; max-width:90vw; box-shadow:0 2px 16px #000; display:flex; flex-direction:column; align-items:center;">
-        <h3 style="color:#fff; margin-bottom:18px;">Edit Reward Image</h3>
-        <input type="file" id="reward-image-upload" accept="image/*" style="margin-bottom:12px; color:#fff;">
-        <input type="text" id="reward-image-url" placeholder="Or paste image URL here" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:100%; margin-bottom:18px;">
-        <div style="display:flex; gap:12px;">
-            <button class="confirm-btn" onclick="saveRewardImage()" style="background:#6366f1; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Save</button>
-            <button class="cancel-btn" onclick="closeEditRewardImageModal()" style="background:#888; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Cancel</button>
+<!-- Edit Reward Modal -->
+<div id="edit-reward-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:#1e1e2e; padding:28px 24px; border-radius:18px; min-width:320px; max-width:480px; width:90vw; box-shadow:0 4px 32px rgba(0,0,0,0.7); display:flex; flex-direction:column; gap:14px;">
+        <h3 style="color:#fff; margin:0 0 4px; font-size:1.2rem;"><i class="fas fa-edit" style="color:#a78bfa;"></i> Edit Reward</h3>
+
+        <label style="color:#aaa; font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">Title</label>
+        <input type="text" id="er-title" class="modern-input" style="margin:0;" placeholder="Reward title">
+
+        <label style="color:#aaa; font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">
+            {% if reward_system == 'cash' %}<i class="fas fa-money-bill-wave" style="color:#4ade80;"></i> Cash Required{% else %}<i class="fas fa-star" style="color:#fbbf24;"></i> Points Required{% endif %}
+        </label>
+        <input type="number" id="er-points" class="modern-input" style="margin:0;"
+               min="{% if reward_system == 'cash' %}0.01{% else %}1{% endif %}"
+               step="{% if reward_system == 'cash' %}0.01{% else %}1{% endif %}">
+
+        <label style="color:#aaa; font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">Description <span style="font-weight:400;opacity:0.6;">(optional)</span></label>
+        <textarea id="er-description" class="modern-input modern-textarea" style="margin:0;" placeholder="A short description..."></textarea>
+
+        <label style="color:#aaa; font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;"><i class="fas fa-user-circle"></i> Assigned To</label>
+        <select id="er-assigned-to" class="modern-input modern-select" style="margin:0;">
+            {% for person in family %}
+            <option value="{{ person.name }}">{{ person.name }}</option>
+            {% endfor %}
+        </select>
+
+        <label style="color:#aaa; font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">Image <span style="font-weight:400;opacity:0.6;">(optional)</span></label>
+        <input type="file" id="er-image-upload" accept="image/*" style="color:#ccc; margin:0;">
+        <input type="text" id="er-image-url" class="modern-input" style="margin:0;" placeholder="Or paste image URL">
+
+        <div style="display:flex; gap:10px; margin-top:4px;">
+            <button onclick="saveEditReward()" style="flex:1; background:#6366f1; color:#fff; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:1rem; cursor:pointer;">Save</button>
+            <button onclick="closeEditRewardModal()" style="flex:1; background:#444; color:#fff; border:none; padding:11px; border-radius:8px; font-weight:700; font-size:1rem; cursor:pointer;">Cancel</button>
         </div>
     </div>
 </div>
@@ -778,11 +801,18 @@ window.addEventListener('DOMContentLoaded', function() {
         <div class="rewards-grid">
             {% for reward in rewards %}
             {% if not reward.completed %}
-            <div class="reward-card" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward.assigned_to }}" data-assigned-to-id="{{ get_person_by_name(reward.assigned_to).id }}">
+            <div class="reward-card"
+                 data-reward-id="{{ reward.id }}"
+                 data-assigned-to="{{ reward.assigned_to }}"
+                 data-assigned-to-id="{{ get_person_by_name(reward.assigned_to).id }}"
+                 data-title="{{ reward.title | e }}"
+                 data-points="{{ reward.points_required }}"
+                 data-description="{{ (reward.description or '') | e }}"
+                 data-image-url="{{ (reward.image_url or '') | e }}">
                 {% if reward.image_url %}
                 <div class="reward-image-container" style="position:relative;">
-                    <img src="{{ reward.image_url }}" alt="{{ reward.title }}" class="reward-image" style="cursor:pointer;" onclick="openEditRewardImageModal({{ reward.id }}, '{{ reward.image_url }}')">
-                    <button class="edit-image-btn" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;padding:8px;cursor:pointer;z-index:2;" onclick="openEditRewardImageModal({{ reward.id }}, '{{ reward.image_url }}')" title="Edit image">
+                    <img src="{{ reward.image_url }}" alt="{{ reward.title }}" class="reward-image" style="cursor:pointer;" onclick="openEditRewardModal(this.closest('.reward-card'))">
+                    <button class="edit-image-btn" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;padding:8px;cursor:pointer;z-index:2;" onclick="openEditRewardModal(this.closest('.reward-card'))" title="Edit reward">
                         <i class="fas fa-pencil-alt" style="color:#fff;font-size:1.2em;"></i>
                     </button>
                     <div class="reward-overlay">
@@ -822,7 +852,7 @@ window.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-award"></i>
                         <span class="reward-points-value">{{ reward.points_required }}</span>
                     </span>
-                    <button class="edit-image-btn" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;padding:8px;cursor:pointer;z-index:2;" onclick="openEditRewardImageModal({{ reward.id }}, '')" title="Edit image">
+                    <button class="edit-image-btn" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;padding:8px;cursor:pointer;z-index:2;" onclick="openEditRewardModal(this.closest('.reward-card'))" title="Edit reward">
                         <i class="fas fa-pencil-alt" style="color:#fff;font-size:1.2em;"></i>
                     </button>
                 </div>
