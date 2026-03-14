@@ -20,6 +20,8 @@
 <DonateText/>
 <DonateLink/>
 <Requires/>
-<Config Name="Database" Target="/app/instance" Default="" Mode="rw" Description="" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/choresrewards/</Config>  <Config Name="Uploads" Target="/app/static/uploads" Default="" Mode="rw" Description="Profile pictures and reward images - must be mapped to persist across container updates" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/choresrewards/uploads/</Config><Config Name="Web" Target="3000" Default="" Mode="tcp" Description="" Type="Port" Display="always" Required="false" Mask="false">3112</Config>
+<Config Name="Database" Target="/app/instance" Default="" Mode="rw" Description="" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/choresrewards/</Config>
+<Config Name="Uploads" Target="/app/static/uploads" Default="" Mode="rw" Description="Profile pictures and reward images - must be mapped to persist across container updates" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/choresrewards/uploads/</Config>
+<Config Name="Web" Target="3000" Default="" Mode="tcp" Description="" Type="Port" Display="always" Required="false" Mask="false">3112</Config>
 <TailscaleStateDir/>
 </Container>
