@@ -20,7 +20,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260314n">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260314o">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -874,9 +874,10 @@ window.addEventListener('DOMContentLoaded', function() {
                     {% endif %}
                     <div class="reward-meta">
                         <div class="reward-assignee">
-                            <img src="{{ url_for('static', filename='uploads/' + (get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to).avatar else 'uploads/default_avatar.png')) }}" 
+                        <img src="{{ url_for('static', filename='uploads/' + get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to) and get_person_by_name(reward.assigned_to).avatar else 'default_avatar.png') }}" 
                                  alt="{{ reward.assigned_to }}" 
                                  class="assignee-avatar"
+                                 onerror="this.onerror=null;this.src='/static/default_avatar.png';"
                                  title="{{ reward.assigned_to }}">
                             <span class="assignee-name">{{ reward.assigned_to }}</span>
                         </div>
@@ -1598,10 +1599,10 @@ function deleteReward(rewardId) {
                     </span>
                 </div>
                                 <div class="avatar-container" style="margin-bottom: 0px; padding-bottom: 0px;">
-                    <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'uploads/default_avatar.png') }}"
+                    <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'default_avatar.png') }}"
                          alt="{{ person.name }}"
                          class="avatar avatar-tappable"
-                         onerror="this.onerror=null;this.src='{{ url_for('static', filename='uploads/default_avatar.png') }}';"
+                         onerror="this.onerror=null;this.src='{{ url_for('static', filename='default_avatar.png') }}';"
                          onclick="openProfileModalFromElem(this)"
                          title="View {{ person.name }}'s badges"
                          data-person-id="{{ person.id }}"
@@ -2664,9 +2665,10 @@ function updateStreakDisplay(column, streakCount) {
                 {% endif %}
                 <div class="reward-meta">
                     <div class="reward-assignee">
-                        <img src="{{ url_for('static', filename='uploads/' + (get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to).avatar else 'uploads/default_avatar.png')) }}" 
+                        <img src="{{ url_for('static', filename='uploads/' + get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to) and get_person_by_name(reward.assigned_to).avatar else 'default_avatar.png') }}" 
                              alt="{{ reward.assigned_to }}" 
                              class="assignee-avatar"
+                             onerror="this.onerror=null;this.src='/static/default_avatar.png';"
                              title="{{ reward.assigned_to }}">
                         <span class="assignee-name">{{ reward.assigned_to }}</span>
                     </div>
@@ -2693,7 +2695,7 @@ function updateStreakDisplay(column, streakCount) {
         {% for person in family %}
         <div class="summary-card" style="background: #fffbe7; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px 20px; min-width: 260px; max-width: 320px; display: flex; flex-direction: column; align-items: center; position: relative;">
             <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 10px;">
-                <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'uploads/default_avatar.png') }}" alt="{{ person.name }}" style="width: 56px; height: 56px; border-radius: 50%; border: 3px solid #ffd900; object-fit: cover;">
+                <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'default_avatar.png') }}" alt="{{ person.name }}" style="width: 56px; height: 56px; border-radius: 50%; border: 3px solid #ffd900; object-fit: cover;" onerror="this.onerror=null;this.src='/static/default_avatar.png';">
                 <span style="font-size: 1.35em; font-weight: 700; color: #222;">{{ person.name }}</span>
             </div>
             <div style="font-size: 1.1em; color: #333; margin-bottom: 8px;">

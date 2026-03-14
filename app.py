@@ -72,5 +72,29 @@ with app.app_context():
                     person.age = int(age_val)
             db.session.commit()
 
+    # Clear stale upload references: null any avatar/image_url that points to a
+    # file that no longer exists on disk (happens after container rebuilds when
+    # the uploads volume is not yet mapped).
+    import os as _os
+    from models import Person, Reward
+    upload_folder = _os.path.join(app.root_path, 'static', 'uploads')
+    changed = 0
+    for person in Person.query.all():
+        if person.avatar and person.avatar != 'default_avatar.png':
+            path = _os.path.join(upload_folder, person.avatar)
+            if not _os.path.exists(path):
+                person.avatar = None
+                changed += 1
+    for reward in Reward.query.all():
+        if reward.image_url and reward.image_url.startswith('/static/uploads/'):
+            filename = reward.image_url.split('/static/uploads/')[-1]
+            path = _os.path.join(upload_folder, filename)
+            if not _os.path.exists(path):
+                reward.image_url = None
+                changed += 1
+    if changed:
+        db.session.commit()
+        print(f"[startup] Cleared {changed} stale upload reference(s) from DB.")
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3000)

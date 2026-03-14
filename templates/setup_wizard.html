@@ -401,7 +401,7 @@
         <button class="delete-member-btn" title="Delete {{ person.name|e }}" onclick="confirmDeletePerson('{{ person.id }}', '{{ person.name|e }}', this)">
           <i class="fas fa-trash-alt"></i>
         </button>
-        <img src="{{ url_for('static', filename='uploads/' + (person.avatar if person.avatar else 'default_avatar.png')) }}" alt="{{ person.name }}">
+        <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'default_avatar.png') }}" alt="{{ person.name }}">
         <div class="member-name">{{ person.name }}</div>
         <div style="display:flex; flex-direction:column; align-items:center; gap:3px; width:100%;">
           <span class="wz-label">Kanban Color</span>
@@ -426,7 +426,7 @@
   <div class="avatar-col">
     <input type="file" name="person_avatar[]" accept="image/*" style="display:none;" onchange="showAvatarPreview(this)">
     <div class="avatar-upload-circle">
-      <img src="{{ url_for('static', filename='uploads/default_avatar.png') }}" alt="Avatar Preview" class="avatar-preview">
+      <img src="{{ url_for('static', filename='default_avatar.png') }}" alt="Avatar Preview" class="avatar-preview">
       <label class="avatar-upload-plus">
         <i class="fas fa-plus"></i>
       </label>
@@ -802,7 +802,7 @@ function addPerson() {
     <div class="avatar-col">
       <input type="file" name="person_avatar[]" accept="image/*" style="display:none;" onchange="showAvatarPreview(this)">
       <div class="avatar-upload-circle">
-        <img src="/static/uploads/default_avatar.png" alt="Avatar Preview" class="avatar-preview">
+        <img src="/static/default_avatar.png" alt="Avatar Preview" class="avatar-preview">
         <label class="avatar-upload-plus"><i class="fas fa-plus"></i></label>
       </div>
       <span class="avatar-col-label">Photo</span>

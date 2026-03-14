@@ -19,10 +19,10 @@
     <!-- Hero header -->
     <div class="profile-hero" style="background: {{ person.color or '#2d2d2d' }}22; border-color: {{ person.color or '#555' }};">
         <img
-            src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'uploads/default_avatar.png') }}"
+            src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'default_avatar.png') }}"
             alt="{{ person.name }}"
             class="profile-avatar"
-            onerror="this.onerror=null;this.src='{{ url_for('static', filename='uploads/default_avatar.png') }}';"
+            onerror="this.onerror=null;this.src='{{ url_for('static', filename='default_avatar.png') }}';"
         >
         <h1 class="profile-name">{{ person.name }}</h1>
 

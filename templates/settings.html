@@ -328,7 +328,7 @@
                             <!-- Avatar section -->
                             <div style="position: relative; margin-bottom: 16px;">
                                 <div style="width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(45deg, #4CAF50, #45a049); padding: 3px; box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);">
-                                    <img src="{{ url_for('static', filename='uploads/' + (person.avatar if person.avatar else 'default_avatar.png')) }}" alt="{{ person.name }}" class="avatar" id="avatar-{{ person.id }}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #fff;">
+                                    <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'default_avatar.png') }}" alt="{{ person.name }}" class="avatar" id="avatar-{{ person.id }}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #fff;">
                                 </div>
                                 <!-- Avatar upload overlay -->
                                 <div id="avatar-form-{{ person.id }}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
