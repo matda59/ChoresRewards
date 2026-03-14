@@ -123,11 +123,11 @@ def add_reward():
         uploaded_image_url = None
         if reward_image_file and reward_image_file.filename:
             filename = secure_filename(reward_image_file.filename)
-            upload_folder = os.path.join('static', 'uploads', 'rewards')
+            upload_folder = os.path.join(current_app.root_path, current_app.config.get('UPLOAD_FOLDER', UPLOAD_FOLDER), 'rewards')
             os.makedirs(upload_folder, exist_ok=True)
             file_path = os.path.join(upload_folder, filename)
             reward_image_file.save(file_path)
-            uploaded_image_url = '/' + file_path.replace('\\', '/').replace(os.path.sep, '/')
+            uploaded_image_url = url_for('static', filename=f'uploads/rewards/{filename}')
         final_image_url = uploaded_image_url or stock_image_url or (image_url if image_url else None)
         if not title or not points_required or not assigned_to:
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400
@@ -2240,9 +2240,8 @@ def edit_reward_image():
         image_url = request.form.get('image_url')
         if image_file:
             filename = secure_filename(str(uuid.uuid4()) + '_' + image_file.filename)
-            upload_folder = current_app.config['UPLOAD_FOLDER']
-            if not os.path.exists(upload_folder):
-                os.makedirs(upload_folder)
+            upload_folder = os.path.join(current_app.root_path, current_app.config.get('UPLOAD_FOLDER', UPLOAD_FOLDER))
+            os.makedirs(upload_folder, exist_ok=True)
             image_path = os.path.join(upload_folder, filename)
             image_file.save(image_path)
             reward.image_url = url_for('static', filename=f'uploads/{filename}')

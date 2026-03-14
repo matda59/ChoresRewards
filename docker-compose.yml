@@ -6,6 +6,10 @@ services:
       - "3112:3000"
     volumes:
       - .:/app
+      - uploads_data:/app/static/uploads
     environment:
       - TZ=Australia/Adelaide  # Adjust this to your actual timezone
     restart: always
+
+volumes:
+  uploads_data:
