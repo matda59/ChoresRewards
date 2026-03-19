@@ -61,6 +61,40 @@ View detailed reports on chore completion and reward progress.
 <img width="1891" alt="image" src="https://github.com/user-attachments/assets/db013199-a8ad-411f-b537-a3eebab6e92e" />
 <img width="3657" height="1794" alt="choresrewards-pic" src="https://github.com/user-attachments/assets/ac71831d-392f-4d33-a30e-39d45164f9c9" />
 
+## Local Nightly Channel (keep latest stable)
+
+Use the nightly compose file to test new features (like Google Calendar) without touching your stable `latest` deployment.
+
+### Start nightly locally
+
+```powershell
+docker compose -f docker-compose.nightly.yml up --build -d
+```
+
+- Nightly app URL: `http://localhost:3113`
+- Nightly data volume: `nightly_instance_data`
+- Nightly uploads volume: `nightly_uploads_data`
+
+### Stop nightly
+
+```powershell
+docker compose -f docker-compose.nightly.yml down
+```
+
+### Rebuild nightly after code changes
+
+```powershell
+docker compose -f docker-compose.nightly.yml up --build -d
+```
+
+### Optional: build image tag only (no publish)
+
+```powershell
+docker build -f dockerfile -t choresrewards:nightly .
+```
+
+This workflow is local-only and does not push anything to GitHub or GHCR.
+
 
 
 

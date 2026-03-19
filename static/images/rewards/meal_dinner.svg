@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Dinner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4c1d95"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="220" rx="24" fill="url(#bg)"/>
+  <circle cx="250" cy="56" r="22" fill="#f8fafc" opacity="0.9"/>
+  <circle cx="256" cy="52" r="22" fill="url(#bg)"/>
+  <ellipse cx="160" cy="134" rx="92" ry="28" fill="#f8fafc" opacity="0.96"/>
+  <ellipse cx="160" cy="132" rx="48" ry="15" fill="#f59e0b"/>
+  <circle cx="140" cy="128" r="6" fill="#22c55e"/>
+  <circle cx="168" cy="135" r="5" fill="#ef4444"/>
+  <circle cx="182" cy="128" r="5" fill="#22c55e"/>
+  <rect x="58" y="82" width="9" height="82" rx="4.5" fill="#f8fafc"/>
+  <rect x="246" y="82" width="9" height="82" rx="4.5" fill="#f8fafc"/>
+  <text x="74" y="198" fill="#f8fafc" font-size="30" font-family="Arial, sans-serif" font-weight="700">Dinner</text>
+</svg>

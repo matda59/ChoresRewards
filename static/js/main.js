@@ -1,3 +1,13 @@
+function formatPointsForBadge(value, rewardSystem = window.REWARD_SYSTEM) {
+    const parsed = Number(value);
+    const safe = Number.isFinite(parsed) ? parsed : 0;
+    const rounded = Math.round((safe + Number.EPSILON) * 100) / 100;
+    if (rewardSystem === 'cash') {
+        return `$${rounded.toFixed(2)}`;
+    }
+    return rounded.toFixed(2);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const chores = document.querySelectorAll('.chore');
     chores.forEach(chore => {
@@ -106,10 +116,10 @@ function drop(event) {
                     let icon, value;
                     if (window.REWARD_SYSTEM === 'cash') {
                         icon = '<i class="fas fa-money-bill-wave" style="color:#4CAF50; margin-right:4px;"></i>';
-                        value = `$${data.new_points}`;
+                        value = formatPointsForBadge(data.new_points, 'cash');
                     } else {
                         icon = '<i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i>';
-                        value = data.new_points;
+                        value = formatPointsForBadge(data.new_points, 'points');
                     }
                     badgeElem.innerHTML = `
                         ${icon}

@@ -544,6 +544,169 @@
                         <button type="submit" class="save-btn">Save Timezone</button>
                     </form>
                 </section>
+                {% if google_calendar_feature_enabled %}
+                <section class="settings-section">
+                    <h3 class="section-title"><i class="fas fa-calendar-alt"></i> Google Calendar <span style="font-size:0.72em;font-weight:600;background:rgba(96,165,250,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);border-radius:6px;padding:2px 8px;vertical-align:middle;margin-left:6px;">NIGHTLY</span></h3>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Read-only upcoming events shown on the Home screen. Uses a <strong style="color:#fff;">Service Account</strong> — your calendar stays completely private. You share it with a single Google service-account email, just like you'd share a Google Doc with a person.</p>
+
+                    <!-- Setup guide -->
+                    <details style="margin-bottom:1.25rem;">
+                        <summary style="cursor:pointer;color:#93c5fd;font-weight:600;font-size:0.95em;list-style:none;display:flex;align-items:center;gap:6px;user-select:none;">
+                            <i class="fas fa-question-circle"></i>&nbsp;Setup guide (3 steps) &nbsp;<i class="fas fa-chevron-down" style="font-size:0.72em;"></i>
+                        </summary>
+                        <div style="margin-top:0.75rem;padding:1rem;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;gap:0.75rem;color:rgba(255,255,255,0.75);font-size:0.93em;line-height:1.65;">
+                            <p style="margin:0;"><strong style="color:#fff;">Step 1 — Enable the Calendar API &amp; create a Service Account</strong><br>
+                            Go to <strong>console.cloud.google.com</strong> → create or select a project →<br>
+                            <em>APIs &amp; Services → Library</em> → search <strong>Google Calendar API</strong> → Enable it.<br>
+                            Then <em>APIs &amp; Services → Credentials</em> → <strong>Create credentials → Service account</strong> → give it any name → Done.<br>
+                            Click the service account → <em>Keys</em> tab → <strong>Add Key → Create new key → JSON</strong> → download the file.</p>
+                            <p style="margin:0;"><strong style="color:#fff;">Step 2 — Share your family calendar with the service account</strong><br>
+                            Open <strong>calendar.google.com</strong> → three-dot menu on your family calendar → <em>Settings and sharing</em> → <strong>Share with specific people</strong> → add the service account email (e.g. <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:4px;color:#4ade80;">myapp@project.iam.gserviceaccount.com</code>) with <strong>See all event details</strong> permission.<br>
+                            That's it — the calendar stays private to your family.</p>
+                            <p style="margin:0;"><strong style="color:#fff;">Step 3 — Upload the key &amp; set the Calendar ID(s)</strong><br>
+                            Upload the downloaded JSON key file below. Then find each Calendar ID in calendar Settings → <em>Integrate calendar</em> — it looks like <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:4px;color:#4ade80;">abc123@group.calendar.google.com</code>. Paste one ID, or multiple IDs separated by commas (for Jess/Matthew/Charlie calendars with different colors).</p>
+                        </div>
+                    </details>
+
+                    <!-- Service Account status + upload -->
+                    <div style="margin-bottom:1.25rem;padding:1rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;">
+                        <div class="settings-field-label" style="margin-bottom:0.6rem;"><i class="fas fa-key" style="color:#a78bfa;"></i>&nbsp; Service Account Key File</div>
+                        {% if gcal_sa_email %}
+                        <div id="gcal-sa-status" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <span style="color:#4ade80;font-weight:600;"><i class="fas fa-check-circle"></i> Key loaded</span>
+                            <code style="background:rgba(0,0,0,0.3);padding:3px 8px;border-radius:6px;font-size:0.88em;color:#93c5fd;">{{ gcal_sa_email }}</code>
+                            <button type="button" onclick="removeGcalSA()" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:5px 14px;border-radius:8px;cursor:pointer;font-size:0.85em;font-weight:600;">Remove key</button>
+                        </div>
+                        {% else %}
+                        <div id="gcal-sa-status" style="color:rgba(255,255,255,0.45);font-size:0.92em;margin-bottom:0.6rem;">No service account key uploaded yet.</div>
+                        {% endif %}
+                        <div id="gcal-sa-upload-area" style="margin-top:0.75rem;">
+                            <label class="settings-field-label" style="margin-bottom:0.35rem;">Upload JSON key from Google Cloud Console</label>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                                <input type="file" id="gcal-sa-file" accept=".json" style="color:#cbd5e1;font-size:0.9em;flex:1;min-width:200px;">
+                                <button type="button" onclick="uploadGcalSA()" class="save-btn" style="width:max-content;">Upload key</button>
+                            </div>
+                            <div id="gcal-sa-msg" style="margin-top:0.5rem;font-size:0.86em;display:none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Share URL → Calendar ID extractor -->
+                    <div style="margin-bottom:1rem;padding:0.9rem 1rem;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.2);border-radius:10px;">
+                        <label class="settings-field-label" style="color:#93c5fd;"><i class="fas fa-magic"></i>&nbsp; Extract Calendar ID from a share URL (optional helper)</label>
+                        <p style="color:rgba(255,255,255,0.45);font-size:0.84em;margin:0 0 0.5rem;">Paste the Google Calendar share link (starts with <code style="background:rgba(0,0,0,0.3);padding:1px 4px;border-radius:3px;">https://calendar.google.com/…?cid=</code>) here.</p>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <input type="text" id="gcal-share-url-input" placeholder="https://calendar.google.com/calendar/u/0?cid=..." class="modern-input" style="flex:1;min-width:260px;">
+                            <button type="button" onclick="extractGcalId()" class="save-btn" style="width:max-content;background:rgba(96,165,250,0.18);color:#60a5fa;border:1px solid rgba(96,165,250,0.35);box-shadow:none;">Extract →</button>
+                        </div>
+                        <div id="gcal-extract-msg" style="margin-top:0.4rem;font-size:0.85em;display:none;"></div>
+                    </div>
+
+                    <form method="POST" action="/settings" id="google-calendar-form" style="display:flex;flex-direction:column;gap:0.9rem;max-width:700px;">
+                        <input type="hidden" name="google_calendar_settings" value="1">
+                        <label style="display:inline-flex;align-items:center;gap:8px;color:#fff;">
+                            <input type="checkbox" name="google_calendar_enabled" {% if google_calendar_enabled %}checked{% endif %} style="accent-color:#4CAF50;width:18px;height:18px;min-width:18px;min-height:18px;">
+                            Show Upcoming Family Events section on Home
+                        </label>
+                        <div>
+                            <label class="settings-field-label" for="google_calendar_id">
+                                Calendar ID
+                                <span style="font-size:0.8em;font-weight:400;color:rgba(255,255,255,0.4);">— one ID, or multiple comma-separated IDs</span>
+                            </label>
+                            <input type="text" id="google_calendar_id" name="google_calendar_id" value="{{ google_calendar_id }}" placeholder="abc123@group.calendar.google.com, xyz456@group.calendar.google.com" class="modern-input" style="width:100%;">
+                        </div>
+                        <div>
+                            <label class="settings-field-label" for="google_calendar_color_rules">
+                                Manual color rules (optional)
+                                <span style="font-size:0.8em;font-weight:400;color:rgba(255,255,255,0.4);">— use when you don't want to authenticate all calendars</span>
+                            </label>
+                            <textarea id="google_calendar_color_rules" name="google_calendar_color_rules" class="modern-input" style="width:100%;min-height:110px;font-family:monospace;" placeholder="jess=yellow&#10;matthew=peacock&#10;charlie=purple">{{ google_calendar_color_rules }}</textarea>
+                            <p style="margin:6px 0 0;color:rgba(255,255,255,0.5);font-size:0.83em;line-height:1.5;">
+                                One rule per line: <strong>keyword=color</strong>. Keyword can match event title, location, or calendar name. Colors can be Google names (e.g. <em>peacock, purple, yellow</em>) or hex like <em>#039be5</em>.
+                            </p>
+                        </div>
+                        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                            <div style="flex:1;min-width:180px;">
+                                <label class="settings-field-label" for="google_calendar_max_results">Max events shown</label>
+                                <input type="number" min="1" max="20" id="google_calendar_max_results" name="google_calendar_max_results" value="{{ google_calendar_max_results }}" class="modern-input" style="width:100%;">
+                            </div>
+                            <div style="flex:1;min-width:180px;">
+                                <label class="settings-field-label" for="google_calendar_days_ahead">Days ahead to fetch</label>
+                                <input type="number" min="1" max="60" id="google_calendar_days_ahead" name="google_calendar_days_ahead" value="{{ google_calendar_days_ahead }}" class="modern-input" style="width:100%;">
+                            </div>
+                            <div style="flex:1;min-width:180px;">
+                                <label class="settings-field-label" for="google_calendar_refresh_minutes">Cache refresh (min)</label>
+                                <input type="number" min="1" max="60" id="google_calendar_refresh_minutes" name="google_calendar_refresh_minutes" value="{{ google_calendar_refresh_minutes }}" class="modern-input" style="width:100%;">
+                            </div>
+                        </div>
+                        <button type="submit" class="save-btn" style="width:max-content;">Save Google Calendar Settings</button>
+                    </form>
+                </section>
+
+                <script>
+                function extractGcalId() {
+                    var raw = document.getElementById('gcal-share-url-input').value.trim();
+                    var msg = document.getElementById('gcal-extract-msg');
+                    msg.style.display = 'block';
+                    var match = raw.match(/[?&]cid=([^&]+)/i);
+                    if (!match) {
+                        msg.style.color = '#f87171';
+                        msg.textContent = 'No cid= parameter found. Copy the full share link from Google Calendar.';
+                        return;
+                    }
+                    try {
+                        var decoded = atob(match[1]);
+                        document.getElementById('google_calendar_id').value = decoded;
+                        msg.style.color = '#4ade80';
+                        msg.textContent = 'Calendar ID extracted and filled: ' + decoded;
+                    } catch(e) {
+                        document.getElementById('google_calendar_id').value = match[1];
+                        msg.style.color = '#fbbf24';
+                        msg.textContent = 'Used raw cid value: ' + match[1];
+                    }
+                }
+
+                function uploadGcalSA() {
+                    var fileInput = document.getElementById('gcal-sa-file');
+                    var msg = document.getElementById('gcal-sa-msg');
+                    if (!fileInput.files.length) {
+                        msg.style.display = 'block';
+                        msg.style.color = '#f87171';
+                        msg.textContent = 'Please select a JSON key file first.';
+                        return;
+                    }
+                    var formData = new FormData();
+                    formData.append('gcal_sa_file', fileInput.files[0]);
+                    msg.style.display = 'block';
+                    msg.style.color = '#94a3b8';
+                    msg.textContent = 'Uploading...';
+                    fetch('/settings/gcal-service-account/upload', { method: 'POST', body: formData })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data.success) {
+                                msg.style.color = '#4ade80';
+                                msg.textContent = '\u2713 Key uploaded. Reload the page to see the service account email.';
+                                setTimeout(function() { window.location.reload(); }, 1200);
+                            } else {
+                                msg.style.color = '#f87171';
+                                msg.textContent = 'Error: ' + data.error;
+                            }
+                        })
+                        .catch(function() {
+                            msg.style.color = '#f87171';
+                            msg.textContent = 'Upload failed. Try again.';
+                        });
+                }
+
+                function removeGcalSA() {
+                    if (!confirm('Remove the service account key? Calendar events will stop loading.')) return;
+                    fetch('/settings/gcal-service-account/delete', { method: 'POST' })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data.success) { window.location.reload(); }
+                        });
+                }
+                </script>
+                {% endif %}
                 <section class="settings-section" id="pin-change-section">
                     <h3 class="section-title"><i class="fas fa-lock"></i> Change Master PIN</h3>
                     <p style="color:rgba(255,255,255,0.6);margin-top:0;">The Master PIN protects parent-only actions like approving reward redemptions, editing chores, and accessing Settings. Kids can complete chores without it. Enter your current PIN to set a new one — choose something only you’ll remember.</p>

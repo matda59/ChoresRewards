@@ -21,8 +21,563 @@ from datetime import datetime, timedelta, timezone, date
 import os
 import uuid
 import random
+from urllib.parse import quote
+import re
+import json as _json
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+
+try:
+    from google.oauth2 import service_account as _gsa
+    from google.auth.transport.requests import Request as _GoogleRequest
+    _GOOGLE_AUTH_AVAILABLE = True
+except ImportError:
+    _gsa = None
+    _GoogleRequest = None
+    _GOOGLE_AUTH_AVAILABLE = False
 
 routes_bp = Blueprint('routes', __name__)
+
+GOOGLE_CALENDAR_CACHE = {
+    'cache_key': None,
+    'expires_at': None,
+    'events': [],
+    'error': None,
+}
+
+
+def is_google_calendar_feature_enabled():
+    raw_value = os.getenv('ENABLE_GOOGLE_CALENDAR')
+    if raw_value is None:
+        return True
+    return raw_value.strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _safe_int(value, default, minimum, maximum):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(minimum, min(maximum, parsed))
+
+
+def _format_event_datetime(dt_obj):
+    return dt_obj.strftime('%a %d %b, %I:%M %p').lstrip('0').replace(' 0', ' ')
+
+
+def _google_event_color_hex(color_id):
+    google_palette = {
+        '1': '#7986cb',
+        '2': '#33b679',
+        '3': '#8e24aa',
+        '4': '#e67c73',
+        '5': '#f6bf26',
+        '6': '#f4511e',
+        '7': '#039be5',
+        '8': '#616161',
+        '9': '#3f51b5',
+        '10': '#0b8043',
+        '11': '#d50000',
+    }
+    return google_palette.get(str(color_id), '#4285f4')
+
+
+def _hex_to_rgba(hex_color, alpha):
+    color = (hex_color or '').lstrip('#')
+    if len(color) != 6:
+        return f'rgba(66,133,244,{alpha})'
+    try:
+        red = int(color[0:2], 16)
+        green = int(color[2:4], 16)
+        blue = int(color[4:6], 16)
+        return f'rgba({red},{green},{blue},{alpha})'
+    except ValueError:
+        return f'rgba(66,133,244,{alpha})'
+
+
+def _format_duration_minutes(total_minutes):
+    if total_minutes is None or total_minutes < 0:
+        return ''
+    hours, minutes = divmod(total_minutes, 60)
+    if hours and minutes:
+        return f'{hours}h {minutes}m'
+    if hours:
+        return f'{hours}h'
+    return f'{minutes}m'
+
+
+def _round_points(value):
+    try:
+        return float(Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+    except (InvalidOperation, TypeError, ValueError):
+        return 0.0
+
+
+MEAL_TYPES = ('breakfast', 'lunch', 'dinner')
+MEAL_WEEKDAY_KEYS = ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday')
+
+
+def _get_week_start(target_date=None):
+    target = target_date or date.today()
+    return target - timedelta(days=target.weekday())
+
+
+def _build_default_meal_plan(week_start):
+    default_plan = {}
+    for offset in range(7):
+        day_key = (week_start + timedelta(days=offset)).isoformat()
+        default_plan[day_key] = {meal_type: '' for meal_type in MEAL_TYPES}
+    return default_plan
+
+
+def _build_default_meal_recurring():
+    return {
+        weekday: {
+            meal_type: {'enabled': False, 'value': ''}
+            for meal_type in MEAL_TYPES
+        }
+        for weekday in MEAL_WEEKDAY_KEYS
+    }
+
+
+def _normalize_meal_plan(raw_plan, week_start):
+    normalized = _build_default_meal_plan(week_start)
+    if not isinstance(raw_plan, dict):
+        return normalized
+
+    for day_key, meals in normalized.items():
+        source_day = raw_plan.get(day_key, {})
+        if not isinstance(source_day, dict):
+            continue
+        for meal_type in MEAL_TYPES:
+            value = source_day.get(meal_type, '')
+            normalized[day_key][meal_type] = str(value).strip()[:120] if value is not None else ''
+    return normalized
+
+
+def _extract_meal_plan_overrides(raw_plan, week_start):
+    overrides = {}
+    if not isinstance(raw_plan, dict):
+        return overrides
+
+    for offset in range(7):
+        day_key = (week_start + timedelta(days=offset)).isoformat()
+        source_day = raw_plan.get(day_key)
+        if not isinstance(source_day, dict):
+            continue
+
+        overrides[day_key] = {}
+        for meal_type in MEAL_TYPES:
+            if meal_type not in source_day:
+                continue
+
+            value = source_day.get(meal_type, '')
+            overrides[day_key][meal_type] = str(value).strip()[:120] if value is not None else ''
+
+    return overrides
+
+
+def _normalize_meal_recurring(raw_recurring):
+    normalized = _build_default_meal_recurring()
+    if not isinstance(raw_recurring, dict):
+        return normalized
+
+    for weekday in MEAL_WEEKDAY_KEYS:
+        source_day = raw_recurring.get(weekday, {})
+        if not isinstance(source_day, dict):
+            continue
+
+        for meal_type in MEAL_TYPES:
+            source_entry = source_day.get(meal_type, {})
+            if isinstance(source_entry, dict):
+                raw_value = source_entry.get('value', '')
+                is_enabled = bool(source_entry.get('enabled'))
+            else:
+                raw_value = source_entry
+                is_enabled = bool(source_entry)
+
+            value = str(raw_value).strip()[:120] if raw_value is not None else ''
+            normalized[weekday][meal_type] = {
+                'enabled': bool(is_enabled and value),
+                'value': value,
+            }
+
+    return normalized
+
+
+def _merge_meal_plan_with_recurring(raw_plan, recurring_plan, week_start):
+    merged = _build_default_meal_plan(week_start)
+    overrides = _extract_meal_plan_overrides(raw_plan, week_start)
+
+    for offset in range(7):
+        current_day = week_start + timedelta(days=offset)
+        day_key = current_day.isoformat()
+        weekday_key = MEAL_WEEKDAY_KEYS[current_day.weekday()]
+        recurring_day = recurring_plan.get(weekday_key, {})
+
+        for meal_type in MEAL_TYPES:
+            recurring_entry = recurring_day.get(meal_type, {})
+            recurring_value = str(recurring_entry.get('value', '')).strip()
+            if recurring_entry.get('enabled') and recurring_value:
+                merged[day_key][meal_type] = recurring_value[:120]
+
+        for meal_type, value in overrides.get(day_key, {}).items():
+            merged[day_key][meal_type] = value
+
+    return merged
+
+
+def _get_meal_planner_data(week_start):
+    stored_plan = AppSetting.get('meal_planner_plan_json', '{}')
+    stored_recurring = AppSetting.get('meal_planner_recurring_json', '{}')
+    stored_suggestions = AppSetting.get('meal_planner_suggestions_json', '[]')
+
+    try:
+        raw_plan = _json.loads(stored_plan)
+    except Exception:
+        raw_plan = {}
+
+    try:
+        raw_recurring = _json.loads(stored_recurring)
+    except Exception:
+        raw_recurring = {}
+
+    try:
+        raw_suggestions = _json.loads(stored_suggestions)
+    except Exception:
+        raw_suggestions = []
+
+    recurring = _normalize_meal_recurring(raw_recurring)
+    plan = _merge_meal_plan_with_recurring(raw_plan, recurring, week_start)
+
+    suggestions = []
+    if isinstance(raw_suggestions, list):
+        seen = set()
+        for item in raw_suggestions:
+            text = str(item).strip()[:80]
+            if text and text.lower() not in seen:
+                suggestions.append(text)
+                seen.add(text.lower())
+
+    if not suggestions:
+        suggestions = ['Pancakes', 'Sandwiches', 'Spaghetti Bolognese', 'Tacos', 'Stir Fry']
+
+    return plan, suggestions, recurring
+
+
+def _build_meal_week_days(week_start):
+    return [
+        {
+            'date_iso': (week_start + timedelta(days=offset)).isoformat(),
+            'day_short': (week_start + timedelta(days=offset)).strftime('%a'),
+            'day_full': (week_start + timedelta(days=offset)).strftime('%A'),
+            'date_label': (week_start + timedelta(days=offset)).strftime('%d %b'),
+        }
+        for offset in range(7)
+    ]
+
+
+def _normalize_color_value(color_value):
+    if not color_value:
+        return None
+    value = color_value.strip().lower()
+    named_google_colors = {
+        'lavender': '#7986cb',
+        'sage': '#33b679',
+        'grape': '#8e24aa',
+        'flamingo': '#e67c73',
+        'banana': '#f6bf26',
+        'tangerine': '#f4511e',
+        'peacock': '#039be5',
+        'graphite': '#616161',
+        'blueberry': '#3f51b5',
+        'basil': '#0b8043',
+        'tomato': '#d50000',
+        'yellow': '#f6bf26',
+        'purple': '#8e24aa',
+        'blue': '#4285f4',
+        'green': '#33b679',
+        'red': '#d50000',
+    }
+    if value in named_google_colors:
+        return named_google_colors[value]
+    if re.match(r'^#[0-9a-f]{6}$', value):
+        return value
+    if re.match(r'^[0-9a-f]{6}$', value):
+        return f'#{value}'
+    return None
+
+
+def _parse_manual_color_rules(raw_rules):
+    rules = []
+    if not raw_rules:
+        return rules
+
+    for line in raw_rules.splitlines():
+        entry = line.strip()
+        if not entry or entry.startswith('#'):
+            continue
+        if '=' not in entry:
+            continue
+        keyword, color_value = entry.split('=', 1)
+        keyword = keyword.strip().lower()
+        normalized_color = _normalize_color_value(color_value)
+        if keyword and normalized_color:
+            rules.append((keyword, normalized_color))
+    return rules
+
+
+def _get_gcal_service_account_info():
+    """Returns (client_email, file_path) if a valid SA key exists, else (None, None)."""
+    sa_path = os.path.join(current_app.instance_path, 'gcal_service_account.json')
+    if not os.path.exists(sa_path):
+        return None, None
+    try:
+        with open(sa_path) as f:
+            data = _json.load(f)
+        email = data.get('client_email', '')
+        return (email, sa_path) if email else (None, None)
+    except Exception:
+        return None, None
+
+
+def fetch_google_calendar_events(app_timezone):
+    if not is_google_calendar_feature_enabled():
+        return [], None
+
+    google_calendar_enabled = AppSetting.get('google_calendar_enabled', 'false') == 'true'
+    if not google_calendar_enabled:
+        return [], None
+
+    calendar_id_raw = AppSetting.get('google_calendar_id', '').strip()
+    calendar_ids = [part.strip() for part in re.split(r'[,;\n\r]+', calendar_id_raw) if part.strip()]
+    manual_color_rules_raw = AppSetting.get('google_calendar_color_rules', '')
+    manual_color_rules = _parse_manual_color_rules(manual_color_rules_raw)
+    max_results = _safe_int(AppSetting.get('google_calendar_max_results', '8'), 8, 1, 20)
+    days_ahead = _safe_int(AppSetting.get('google_calendar_days_ahead', '14'), 14, 1, 60)
+    refresh_minutes = _safe_int(AppSetting.get('google_calendar_refresh_minutes', '10'), 10, 1, 60)
+
+    sa_email, sa_path = _get_gcal_service_account_info()
+    using_sa = bool(sa_email and sa_path and _GOOGLE_AUTH_AVAILABLE)
+    api_key = AppSetting.get('google_calendar_api_key', '').strip()
+
+    if not calendar_ids:
+        return [], 'Calendar ID is missing. Configure it in Settings → Google Calendar.'
+    if not using_sa and not api_key:
+        return [], 'No authentication configured. Upload a Service Account key in Settings → Google Calendar.'
+
+    now_utc = datetime.now(timezone.utc)
+    cache_key = (sa_email if using_sa else api_key, tuple(calendar_ids), max_results, days_ahead, app_timezone)
+    if (
+        GOOGLE_CALENDAR_CACHE['cache_key'] == cache_key
+        and GOOGLE_CALENDAR_CACHE['expires_at']
+        and GOOGLE_CALENDAR_CACHE['expires_at'] > now_utc
+    ):
+        return GOOGLE_CALENDAR_CACHE['events'], GOOGLE_CALENDAR_CACHE['error']
+
+    try:
+        tzinfo = ZoneInfo(app_timezone)
+    except Exception:
+        tzinfo = timezone.utc
+
+    try:
+        time_min = now_utc.replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+        time_max = (now_utc + timedelta(days=days_ahead)).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+        per_calendar_max = max(max_results, 10)
+
+        request_headers = None
+        auth_params = {}
+        if using_sa:
+            credentials = _gsa.Credentials.from_service_account_file(
+                sa_path,
+                scopes=['https://www.googleapis.com/auth/calendar.readonly'],
+            )
+            credentials.refresh(_GoogleRequest())
+            request_headers = {'Authorization': f'Bearer {credentials.token}'}
+        else:
+            auth_params['key'] = api_key
+
+        dynamic_event_palette = {}
+        dynamic_calendar_palette = {}
+        try:
+            colors_response = requests.get(
+                'https://www.googleapis.com/calendar/v3/colors',
+                params=auth_params,
+                headers=request_headers,
+                timeout=8,
+            )
+            if colors_response.ok:
+                colors_payload = colors_response.json()
+                dynamic_event_palette = {
+                    str(color_key): color_value.get('background')
+                    for color_key, color_value in colors_payload.get('event', {}).items()
+                    if color_value.get('background')
+                }
+                dynamic_calendar_palette = {
+                    str(color_key): color_value.get('background')
+                    for color_key, color_value in colors_payload.get('calendar', {}).items()
+                    if color_value.get('background')
+                }
+        except Exception:
+            pass
+
+        events = []
+        calendar_failures = []
+
+        for calendar_id in calendar_ids:
+            encoded_calendar_id = quote(calendar_id, safe='')
+            event_params = {
+                'singleEvents': 'true',
+                'orderBy': 'startTime',
+                'timeMin': time_min,
+                'timeMax': time_max,
+                'maxResults': per_calendar_max,
+            }
+            event_params.update(auth_params)
+
+            calendar_default_color = '#4285f4'
+            calendar_summary = calendar_id
+
+            try:
+                calendar_list_url = f"https://www.googleapis.com/calendar/v3/users/me/calendarList/{encoded_calendar_id}"
+                list_response = requests.get(calendar_list_url, params=auth_params, headers=request_headers, timeout=8)
+                if list_response.ok:
+                    calendar_meta = list_response.json()
+                    calendar_summary = calendar_meta.get('summaryOverride') or calendar_meta.get('summary') or calendar_summary
+                    if calendar_meta.get('backgroundColor'):
+                        calendar_default_color = calendar_meta.get('backgroundColor')
+                    elif calendar_meta.get('colorId'):
+                        cal_color_id = str(calendar_meta.get('colorId'))
+                        calendar_default_color = dynamic_calendar_palette.get(cal_color_id) or _google_event_color_hex(cal_color_id)
+                else:
+                    calendar_meta_url = f"https://www.googleapis.com/calendar/v3/calendars/{encoded_calendar_id}"
+                    meta_response = requests.get(calendar_meta_url, params=auth_params, headers=request_headers, timeout=8)
+                    if meta_response.ok:
+                        calendar_meta = meta_response.json()
+                        calendar_summary = calendar_meta.get('summary') or calendar_summary
+                        if calendar_meta.get('backgroundColor'):
+                            calendar_default_color = calendar_meta.get('backgroundColor')
+                        elif calendar_meta.get('colorId'):
+                            cal_color_id = str(calendar_meta.get('colorId'))
+                            calendar_default_color = dynamic_calendar_palette.get(cal_color_id) or _google_event_color_hex(cal_color_id)
+            except Exception:
+                pass
+
+            events_url = f"https://www.googleapis.com/calendar/v3/calendars/{encoded_calendar_id}/events"
+            try:
+                response = requests.get(events_url, params=event_params, headers=request_headers, timeout=8)
+                response.raise_for_status()
+                payload = response.json()
+                raw_events = payload.get('items', [])
+            except Exception as exc:
+                status_code = getattr(getattr(exc, 'response', None), 'status_code', None)
+                if status_code == 404:
+                    calendar_failures.append(f"{calendar_summary}: not found or not shared")
+                elif status_code == 403:
+                    calendar_failures.append(f"{calendar_summary}: access denied")
+                else:
+                    calendar_failures.append(f"{calendar_summary}: {exc}")
+                continue
+
+            for event in raw_events:
+                if event.get('status') == 'cancelled':
+                    continue
+
+                title = event.get('summary') or 'Untitled event'
+                location = event.get('location') or ''
+                html_link = event.get('htmlLink') or ''
+                start_obj = event.get('start', {})
+                end_obj = event.get('end', {})
+                event_color_id = event.get('colorId')
+                if event_color_id is not None:
+                    event_color_id = str(event_color_id)
+                event_color = dynamic_event_palette.get(event_color_id) if event_color_id else None
+                if not event_color and event_color_id:
+                    event_color = _google_event_color_hex(event_color_id)
+                if not event_color:
+                    event_color = calendar_default_color
+
+                event_match_text = f"{title} {location} {calendar_summary}".lower()
+                for keyword, override_color in manual_color_rules:
+                    if keyword in event_match_text:
+                        event_color = override_color
+                        break
+
+                if start_obj.get('date'):
+                    start_date = datetime.fromisoformat(start_obj['date']).date()
+                    start_display = start_date.strftime('%a %d %b %Y')
+                    all_day = True
+                    start_time_display = 'All day'
+                    start_time_sort = '00:00'
+                    end_time_display = ''
+                    end_date_raw = end_obj.get('date')
+                    duration_display = 'All day'
+                    if end_date_raw:
+                        try:
+                            end_date = datetime.fromisoformat(end_date_raw).date()
+                            day_span = max((end_date - start_date).days, 1)
+                            if day_span > 1:
+                                duration_display = f'{day_span} days'
+                        except ValueError:
+                            pass
+                elif start_obj.get('dateTime'):
+                    start_dt = datetime.fromisoformat(start_obj['dateTime'].replace('Z', '+00:00')).astimezone(tzinfo)
+                    start_display = _format_event_datetime(start_dt)
+                    all_day = False
+                    start_date = start_dt.date()
+                    start_time_display = start_dt.strftime('%I:%M %p').lstrip('0')
+                    start_time_sort = start_dt.strftime('%H:%M')
+                    duration_display = ''
+                    end_time_display = ''
+                    if end_obj.get('dateTime'):
+                        end_dt = datetime.fromisoformat(end_obj['dateTime'].replace('Z', '+00:00')).astimezone(tzinfo)
+                        end_time_display = end_dt.strftime('%I:%M %p').lstrip('0')
+                        duration_minutes = int((end_dt - start_dt).total_seconds() // 60)
+                        duration_display = _format_duration_minutes(duration_minutes)
+                else:
+                    continue
+
+                events.append({
+                    'title': title,
+                    'location': location,
+                    'html_link': html_link,
+                    'start_display': start_display,
+                    'start_time_display': start_time_display,
+                    'start_time_sort': start_time_sort,
+                    'start_date_iso': start_date.isoformat(),
+                    'weekday_name': start_date.strftime('%A'),
+                    'weekday_short': start_date.strftime('%a'),
+                    'all_day': all_day,
+                    'end_time_display': end_time_display,
+                    'duration_display': duration_display,
+                    'color': event_color,
+                    'color_tint': _hex_to_rgba(event_color, 0.20),
+                })
+
+        events.sort(key=lambda item: (item.get('start_date_iso', ''), item.get('start_time_sort', '00:00')))
+        events = events[:max_results]
+
+        combined_error = None
+        if calendar_failures and not events:
+            combined_error = 'Unable to load Google Calendar events: ' + '; '.join(calendar_failures)
+            if using_sa and sa_email:
+                combined_error += f'. Share each calendar with {sa_email} and use exact Calendar ID from Google Calendar → Settings and sharing → Integrate calendar.'
+        elif calendar_failures:
+            combined_error = 'Some calendars could not be loaded: ' + '; '.join(calendar_failures)
+            if using_sa and sa_email:
+                combined_error += f'. For failed calendars, share with {sa_email} and verify the exact Calendar ID.'
+
+        GOOGLE_CALENDAR_CACHE['cache_key'] = cache_key
+        GOOGLE_CALENDAR_CACHE['events'] = events
+        GOOGLE_CALENDAR_CACHE['error'] = combined_error
+        GOOGLE_CALENDAR_CACHE['expires_at'] = now_utc + timedelta(minutes=refresh_minutes)
+        return events, combined_error
+    except Exception as exc:
+        GOOGLE_CALENDAR_CACHE['cache_key'] = cache_key
+        GOOGLE_CALENDAR_CACHE['events'] = []
+        GOOGLE_CALENDAR_CACHE['error'] = f'Unable to load Google Calendar events: {exc}'
+        GOOGLE_CALENDAR_CACHE['expires_at'] = now_utc + timedelta(minutes=refresh_minutes)
+        return [], GOOGLE_CALENDAR_CACHE['error']
+
 @routes_bp.route('/settings/notification', methods=['GET', 'POST'])
 def settings_notification():
     if not session.get('authenticated', False):
@@ -275,7 +830,59 @@ def api_person_points():
     person = Person.query.filter_by(name=name).first()
     if not person:
         return jsonify({'success': False, 'error': 'Person not found'}), 404
-    return jsonify({'success': True, 'points': person.points + person.bonus_points})
+    return jsonify({'success': True, 'points': _round_points(person.points + person.bonus_points)})
+
+
+@routes_bp.route('/api/meal_planner', methods=['GET', 'POST'])
+def api_meal_planner():
+    try:
+        week_start = _get_week_start()
+
+        if request.method == 'GET':
+            plan, suggestions, recurring = _get_meal_planner_data(week_start)
+            return jsonify({
+                'success': True,
+                'week_start': week_start.isoformat(),
+                'week_days': _build_meal_week_days(week_start),
+                'plan': plan,
+                'recurring': recurring,
+                'suggestions': suggestions,
+            })
+
+        data = request.get_json() or {}
+        input_plan = data.get('plan', {})
+        input_recurring = data.get('recurring', {})
+        normalized_plan = _normalize_meal_plan(input_plan, week_start)
+        normalized_recurring = _normalize_meal_recurring(input_recurring)
+        AppSetting.set('meal_planner_plan_json', _json.dumps(normalized_plan))
+        AppSetting.set('meal_planner_recurring_json', _json.dumps(normalized_recurring))
+        log_activity('settings_updated', 'Meal planner was updated')
+        return jsonify({'success': True, 'plan': normalized_plan, 'recurring': normalized_recurring})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/meal_planner_suggestions', methods=['POST'])
+def api_meal_planner_suggestions():
+    try:
+        data = request.get_json() or {}
+        raw_suggestions = data.get('suggestions', [])
+        if not isinstance(raw_suggestions, list):
+            return jsonify({'success': False, 'error': 'suggestions must be a list'}), 400
+
+        cleaned = []
+        seen = set()
+        for item in raw_suggestions:
+            text = str(item).strip()[:80]
+            if text and text.lower() not in seen:
+                cleaned.append(text)
+                seen.add(text.lower())
+
+        AppSetting.set('meal_planner_suggestions_json', _json.dumps(cleaned))
+        log_activity('settings_updated', 'Meal planner suggestions were updated')
+        return jsonify({'success': True, 'suggestions': cleaned})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
 
 import bcrypt
 from flask import session
@@ -440,7 +1047,46 @@ def index():
 
     reward_system = AppSetting.get_reward_system()
 
+    meal_planner_week_start = _get_week_start()
+    meal_planner_week_days = _build_meal_week_days(meal_planner_week_start)
+    meal_planner_plan, meal_planner_suggestions, meal_planner_recurring = _get_meal_planner_data(meal_planner_week_start)
+
     timezone = AppSetting.get('timezone', 'UTC')
+    google_calendar_feature_enabled = is_google_calendar_feature_enabled()
+    google_calendar_enabled = AppSetting.get('google_calendar_enabled', 'false') == 'true'
+    google_calendar_events = []
+    google_calendar_error = None
+    google_calendar_week_columns = []
+    if google_calendar_feature_enabled and google_calendar_enabled:
+        google_calendar_events, google_calendar_error = fetch_google_calendar_events(timezone)
+        try:
+            tzinfo = ZoneInfo(timezone)
+            local_today = datetime.now(tzinfo).date()
+        except Exception:
+            local_today = date.today()
+
+        week_dates = [local_today + timedelta(days=offset) for offset in range(7)]
+        events_by_day = {day.isoformat(): [] for day in week_dates}
+
+        for event in google_calendar_events:
+            event_day = event.get('start_date_iso')
+            if event_day in events_by_day:
+                events_by_day[event_day].append(event)
+
+        for day in week_dates:
+            day_iso = day.isoformat()
+            day_events = sorted(
+                events_by_day[day_iso],
+                key=lambda item: (0 if item.get('all_day') else 1, item.get('start_time_sort', '23:59'))
+            )
+            google_calendar_week_columns.append({
+                'day_name': day.strftime('%a'),
+                'day_full': day.strftime('%A'),
+                'date_label': day.strftime('%d %b'),
+                'date_iso': day_iso,
+                'events': day_events,
+            })
+
     quiz_questions_enabled = AppSetting.get('quiz_questions_enabled', 'true').lower() == 'true'
     from quiz_questions import quiz_questions
     
@@ -486,9 +1132,19 @@ def index():
         celebrate_avatar=celebrate_avatar,
         master_pin_set=bool(master_pin),
         reward_system=reward_system,
+        meal_planner_week_start=meal_planner_week_start.isoformat(),
+        meal_planner_week_days=meal_planner_week_days,
+        meal_planner_plan=meal_planner_plan,
+        meal_planner_recurring=meal_planner_recurring,
+        meal_planner_suggestions=meal_planner_suggestions,
         timedelta=timedelta,
         current_date=date.today(),
         timezone=timezone,
+        google_calendar_feature_enabled=google_calendar_feature_enabled,
+        google_calendar_enabled=google_calendar_enabled,
+        google_calendar_events=google_calendar_events,
+        google_calendar_week_columns=google_calendar_week_columns,
+        google_calendar_error=google_calendar_error,
         quiz_questions=filtered_questions,
         quiz_questions_enabled=quiz_questions_enabled,
         person_ages=person_ages,
@@ -724,8 +1380,8 @@ def complete_chore():
                 overdue = False
 
             if not overdue:
-                person.points += chore.points
-                points_awarded = chore.points
+                person.points = _round_points(person.points + chore.points)
+                points_awarded = _round_points(chore.points)
                 db.session.commit()
                 session['celebrate_person'] = chore.assigned_to
                 if person.avatar:
@@ -777,9 +1433,9 @@ def complete_chore():
                 'completed': completed,
                 'total': total
             },
-            'new_points': (person.points + person.bonus_points) if person else 0,
-            'points_awarded': points_awarded,
-            'bonus_awarded': bonus_awarded,
+            'new_points': _round_points(person.points + person.bonus_points) if person else 0,
+            'points_awarded': _round_points(points_awarded),
+            'bonus_awarded': _round_points(bonus_awarded),
             'overdue': overdue,
             'new_badges': new_badges,
             'current_streak': current_streak,
@@ -1119,21 +1775,22 @@ def award_bonus_points():
             if last_awarded_local.date() == now.date():
                 return jsonify({'success': False, 'message': 'Bonus points already awarded today.'}), 400
 
+        bonus_points_value = _round_points(float(bonus_points))
         # Add bonus points to permanent points and reset bonus_points
-        person.points += float(bonus_points)
+        person.points = _round_points(person.points + bonus_points_value)
         person.bonus_points = 0
         person.last_bonus_awarded = datetime.now(timezone.utc)
         db.session.commit()
         # Log the bonus points activity
         log_activity(
             'bonus_points_awarded',
-            f"{bonus_points} bonus points were awarded to {person.name}",
+            f"{bonus_points_value} bonus points were awarded to {person.name}",
             user_name=person.name
         )
         return jsonify({
             'success': True,
-            'new_points': person.points,
-            'bonus_awarded': bonus_points
+            'new_points': _round_points(person.points),
+            'bonus_awarded': bonus_points_value
         })
 
     except Exception as e:
@@ -1464,6 +2121,32 @@ def settings():
                 db.session.commit()
                 log_activity('settings_updated', f"Timezone was changed to {timezone}")
                 success = f"Timezone changed to {timezone}"
+        elif 'google_calendar_settings' in request.form and is_google_calendar_feature_enabled():
+            google_calendar_enabled = 'google_calendar_enabled' in request.form
+            google_calendar_api_key = request.form.get('google_calendar_api_key', '').strip()
+            google_calendar_id = request.form.get('google_calendar_id', '').strip()
+            google_calendar_color_rules = request.form.get('google_calendar_color_rules', '').strip()
+            google_calendar_max_results = _safe_int(request.form.get('google_calendar_max_results', '8'), 8, 1, 20)
+            google_calendar_days_ahead = _safe_int(request.form.get('google_calendar_days_ahead', '14'), 14, 1, 60)
+            google_calendar_refresh_minutes = _safe_int(request.form.get('google_calendar_refresh_minutes', '10'), 10, 1, 60)
+
+            # Validate: API key must not be a URL
+            if google_calendar_api_key.startswith('http') or 'calendar.google.com' in google_calendar_api_key:
+                error = (
+                    'Google Calendar: The API Key field contains a URL, not a key. '
+                    'A Google API key starts with "AIzaSy…". '
+                    'Use the "Extract Calendar ID from share URL" helper to get your Calendar ID instead.'
+                )
+            else:
+                AppSetting.set('google_calendar_enabled', 'true' if google_calendar_enabled else 'false')
+                AppSetting.set('google_calendar_api_key', google_calendar_api_key)
+                AppSetting.set('google_calendar_id', google_calendar_id)
+                AppSetting.set('google_calendar_color_rules', google_calendar_color_rules)
+                AppSetting.set('google_calendar_max_results', str(google_calendar_max_results))
+                AppSetting.set('google_calendar_days_ahead', str(google_calendar_days_ahead))
+                AppSetting.set('google_calendar_refresh_minutes', str(google_calendar_refresh_minutes))
+                log_activity('settings_updated', 'Google Calendar settings were updated')
+                success = 'Google Calendar settings saved.'
 
     # Load bonus points settings
     bonus_mode = AppSetting.get('bonus_mode', 'static')
@@ -1481,6 +2164,15 @@ def settings():
     gotify_notify_people = gotify_notify_people.split(',') if gotify_notify_people else []
     gotify_notify_rewards_added = AppSetting.get('gotify_notify_rewards_added', 'false') == 'true'
     gotify_notify_rewards_redeemed = AppSetting.get('gotify_notify_rewards_redeemed', 'false') == 'true'
+    google_calendar_feature_enabled = is_google_calendar_feature_enabled()
+    google_calendar_enabled = AppSetting.get('google_calendar_enabled', 'false') == 'true'
+    google_calendar_api_key = AppSetting.get('google_calendar_api_key', '')
+    google_calendar_id = AppSetting.get('google_calendar_id', '')
+    google_calendar_color_rules = AppSetting.get('google_calendar_color_rules', '')
+    google_calendar_max_results = _safe_int(AppSetting.get('google_calendar_max_results', '8'), 8, 1, 20)
+    google_calendar_days_ahead = _safe_int(AppSetting.get('google_calendar_days_ahead', '14'), 14, 1, 60)
+    google_calendar_refresh_minutes = _safe_int(AppSetting.get('google_calendar_refresh_minutes', '10'), 10, 1, 60)
+    gcal_sa_email, _ = _get_gcal_service_account_info() if google_calendar_feature_enabled else (None, None)
 
     all_chores = Chore.query.filter_by(deleted=False).all()
     family = Person.query.all()
@@ -1521,10 +2213,61 @@ def settings():
         gotify_notify_people=gotify_notify_people,
         gotify_notify_rewards_added=gotify_notify_rewards_added,
         gotify_notify_rewards_redeemed=gotify_notify_rewards_redeemed,
+        google_calendar_feature_enabled=google_calendar_feature_enabled,
+        google_calendar_enabled=google_calendar_enabled,
+        google_calendar_api_key=google_calendar_api_key,
+        google_calendar_id=google_calendar_id,
+        google_calendar_color_rules=google_calendar_color_rules,
+        google_calendar_max_results=google_calendar_max_results,
+        google_calendar_days_ahead=google_calendar_days_ahead,
+        google_calendar_refresh_minutes=google_calendar_refresh_minutes,
+        gcal_sa_email=gcal_sa_email,
         error=error,
         success=success,
         person_ages=person_ages
     )
+
+
+@routes_bp.route('/settings/gcal-service-account/upload', methods=['POST'])
+def gcal_sa_upload():
+    if not session.get('authenticated', False):
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 403
+    if not is_google_calendar_feature_enabled():
+        return jsonify({'success': False, 'error': 'Feature not enabled'}), 403
+    if 'gcal_sa_file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file received'}), 400
+    f = request.files['gcal_sa_file']
+    if not f.filename.lower().endswith('.json'):
+        return jsonify({'success': False, 'error': 'File must be a .json file'}), 400
+    try:
+        data = _json.load(f)
+    except Exception:
+        return jsonify({'success': False, 'error': 'Invalid JSON file'}), 400
+    if data.get('type') != 'service_account':
+        return jsonify({'success': False, 'error': 'Not a service account key. Download it from Google Cloud Console → IAM → Service Accounts → Keys → Add Key → JSON.'}), 400
+    client_email = data.get('client_email', '')
+    if not client_email:
+        return jsonify({'success': False, 'error': 'client_email missing from key file'}), 400
+    sa_path = os.path.join(current_app.instance_path, 'gcal_service_account.json')
+    os.makedirs(current_app.instance_path, exist_ok=True)
+    with open(sa_path, 'w') as out:
+        _json.dump(data, out)
+    log_activity('settings_updated', 'Google Calendar service account key uploaded')
+    return jsonify({'success': True, 'email': client_email})
+
+
+@routes_bp.route('/settings/gcal-service-account/delete', methods=['POST'])
+def gcal_sa_delete():
+    if not session.get('authenticated', False):
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 403
+    if not is_google_calendar_feature_enabled():
+        return jsonify({'success': False, 'error': 'Feature not enabled'}), 403
+    sa_path = os.path.join(current_app.instance_path, 'gcal_service_account.json')
+    if os.path.exists(sa_path):
+        os.remove(sa_path)
+        log_activity('settings_updated', 'Google Calendar service account key removed')
+    return jsonify({'success': True})
+
 
 # New API endpoint to list all sound files in static/sounds
 @routes_bp.route('/api/sounds', methods=['GET'])
@@ -1989,8 +2732,8 @@ def reset_points():
         except (ValueError, TypeError):
             return jsonify({'success': False, 'error': 'Invalid points value. It must be an integer.'}), 400
         
-        old_points = person.points
-        person.points = new_points
+        old_points = _round_points(person.points)
+        person.points = _round_points(new_points)
         person.bonus_points = 0
         db.session.commit()
         
@@ -2004,7 +2747,7 @@ def reset_points():
         return jsonify({
             'success': True,
             'message': f'Points for {person.name} have been set to {person.points} (bonus points reset to 0)',
-            'new_points': person.points + person.bonus_points
+            'new_points': _round_points(person.points + person.bonus_points)
         })
         
     except Exception as e:
@@ -2056,11 +2799,14 @@ def complete_reward():
 
         print(f"[complete_reward] Person {person.name} has {person.points} points, reward requires {reward.points_required} points")
 
-        if person.points < reward.points_required:
+        available_points = _round_points(person.points)
+        required_points = _round_points(reward.points_required)
+
+        if available_points < required_points:
             return jsonify({'success': False, 'error': f'Not enough points to complete this reward. {person.name} has {person.points} points but needs {reward.points_required}'}), 400
 
         # Update the reward and person
-        person.points -= reward.points_required
+        person.points = _round_points(person.points - reward.points_required)
         reward.completed = True
         # Apply timezone to reward completion
         from zoneinfo import ZoneInfo
@@ -2101,7 +2847,7 @@ def complete_reward():
         return jsonify({
             'success': True,
             'message': f'Reward "{reward.title}" has been completed by {person.name}',
-            'new_points': person.points
+            'new_points': _round_points(person.points)
         })
         
     except Exception as e:

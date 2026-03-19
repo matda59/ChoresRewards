@@ -1,0 +1,23 @@
+name: choresrewards-nightly
+
+services:
+  choresawards-nightly:
+    container_name: choresrewards-nightly
+    image: choresrewards:nightly
+    build:
+      context: .
+      dockerfile: dockerfile
+    ports:
+      - "3113:3000"
+    volumes:
+      - .:/app
+      - nightly_instance_data:/app/instance
+      - nightly_uploads_data:/app/static/uploads
+    environment:
+      - TZ=Australia/Adelaide
+      - ENABLE_GOOGLE_CALENDAR=true
+    restart: unless-stopped
+
+volumes:
+  nightly_instance_data:
+  nightly_uploads_data:

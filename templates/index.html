@@ -20,7 +20,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260314o">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260316d">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -887,12 +887,14 @@ window.addEventListener('DOMContentLoaded', function() {
                     {% if person %}
                         {% set current_points = person.points + person.bonus_points %}
                         {% set percent = (current_points / reward.points_required * 100) if reward.points_required > 0 else 0 %}
+                        {% set achieved_percent = percent if percent < 100 else 100 %}
+                        {% set left_percent = 100 - achieved_percent %}
                         <div class="reward-progress-container">
                             <div class="reward-progress-bar-bg">
-                                <div class="reward-progress-bar-fill" style="width: {{ percent if percent < 100 else 100 }}%;"></div>
+                                <div class="reward-progress-bar-fill" style="width: {{ achieved_percent }}%;"></div>
                             </div>
                             <div class="reward-progress-label">
-                                {{ percent|round(1) if percent < 100 else 100 }}% to redeem ({{ current_points|round(2) }}/{{ reward.points_required|round(2) }})
+                                {{ achieved_percent|round(1) }}% achieved • {{ left_percent|round(1) }}% left
                             </div>
                         </div>
                     {% endif %}
@@ -1042,6 +1044,75 @@ window.addEventListener('DOMContentLoaded', function() {
             {% endfor %}
         </div>
     </section>
+
+    {% if google_calendar_feature_enabled and google_calendar_enabled %}
+    <section class="rewards-section collapsible-section" style="margin-top:1rem;">
+        <h2 class="section-title section-toggle">
+            <i class="fas fa-calendar-alt" style="color:#60a5fa;"></i> <span style="color:#60a5fa;">Upcoming Family Events</span>
+            <i class="fas fa-chevron-down section-chevron"></i>
+        </h2>
+        {% if google_calendar_error %}
+        <div class="empty-state" style="padding:1rem;">
+            <i class="fas fa-exclamation-triangle" style="font-size:2em;color:#f59e0b;margin-bottom:0.75rem;"></i>
+            <p style="margin:0 0 6px;">Calendar unavailable</p>
+            <p class="subtitle" style="margin:0;">{{ google_calendar_error }}</p>
+        </div>
+        {% elif google_calendar_events|length == 0 %}
+        <div class="empty-state" style="padding:1rem;">
+            <i class="fas fa-calendar-check" style="font-size:2em;color:#64748b;margin-bottom:0.75rem;"></i>
+            <p style="margin:0 0 6px;">No upcoming events found</p>
+            <p class="subtitle" style="margin:0;">Try increasing "Days ahead" in Settings.</p>
+        </div>
+        {% else %}
+        {% set week_ns = namespace(total=0) %}
+        {% for day in google_calendar_week_columns %}
+            {% set week_ns.total = week_ns.total + (day.events|length) %}
+        {% endfor %}
+
+        {% if week_ns.total == 0 %}
+        <div class="empty-state" style="padding:1rem;">
+            <i class="fas fa-calendar-week" style="font-size:2em;color:#64748b;margin-bottom:0.75rem;"></i>
+            <p style="margin:0 0 6px;">No events in the next 7 days</p>
+            <p class="subtitle" style="margin:0;">Your calendar is connected. Upcoming items further out will show closer to their date.</p>
+        </div>
+        {% else %}
+        <div class="google-week-calendar">
+            <div class="gcal-week-grid">
+                {% for day in google_calendar_week_columns %}
+                <div class="gcal-day-column">
+                    <div class="gcal-day-header">
+                        <div class="gcal-day-name">{{ day.day_name }}</div>
+                        <div class="gcal-day-date">{{ day.date_label }}</div>
+                    </div>
+                    <div class="gcal-day-events">
+                        {% if day.events|length == 0 %}
+                        <div class="gcal-no-events">No events</div>
+                        {% else %}
+                            {% for event in day.events %}
+                            <div class="gcal-event-card" style="--gcal-event-color: {{ event.color }}; --gcal-event-color-tint: {{ event.color_tint }};">
+                                <div class="gcal-event-time">
+                                    {{ event.start_time_display }}{% if event.end_time_display %} - {{ event.end_time_display }}{% endif %}
+                                    {% if event.duration_display %}<span class="gcal-event-duration">({{ event.duration_display }})</span>{% endif %}
+                                </div>
+                                <div class="gcal-event-title">{{ event.title }}</div>
+                                {% if event.location %}
+                                <div class="gcal-event-location">{{ event.location }}</div>
+                                {% endif %}
+                                {% if event.html_link %}
+                                <a href="{{ event.html_link }}" target="_blank" rel="noopener" class="gcal-event-open">Open</a>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+    </section>
+    {% endif %}
 
 <!-- Unified Modal -->
 <div id="unified-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
@@ -1284,11 +1355,7 @@ function doRedeemReward(rewardId) {
                 if (personColumn) {
                     const pointsValue = personColumn.querySelector('.chore-points-value');
                     if (pointsValue) {
-                        if (window.REWARD_SYSTEM === 'cash') {
-                            pointsValue.textContent = `$${data.new_points}`;
-                        } else {
-                            pointsValue.textContent = data.new_points;
-                        }
+                        pointsValue.textContent = formatPointsValue(data.new_points, window.REWARD_SYSTEM);
                     }
                 }
             }
@@ -1492,6 +1559,822 @@ function deleteReward(rewardId) {
 }
 
 // (Removed duplicate suggestion system. Only the initializeChoreSuggestions/renderChoreSuggestions system is used now.)
+</script>
+
+
+{% set meal_types = [
+    ('breakfast', 'Breakfast', 'images/rewards/meal_breakfast.svg'),
+    ('lunch', 'Lunch', 'images/rewards/meal_lunch.svg'),
+    ('dinner', 'Dinner', 'images/rewards/meal_dinner.svg')
+] %}
+
+{% set meal_planner_ns = namespace(has_content=false) %}
+{% for day in meal_planner_week_days %}
+    {% set day_breakfast = meal_planner_plan.get(day.date_iso, {}).get('breakfast', '')|trim %}
+    {% set day_lunch = meal_planner_plan.get(day.date_iso, {}).get('lunch', '')|trim %}
+    {% set day_dinner = meal_planner_plan.get(day.date_iso, {}).get('dinner', '')|trim %}
+    {% if day_breakfast or day_lunch or day_dinner %}
+        {% set meal_planner_ns.has_content = true %}
+    {% endif %}
+{% endfor %}
+
+<section class="meal-planner-section collapsible-section{% if not meal_planner_ns.has_content %} collapsed{% endif %}">
+    <h2 class="section-title section-toggle meal-planner-title">
+        <i class="fas fa-utensils"></i> <span>Weekly Meal Planner</span>
+        <i class="fas fa-chevron-down section-chevron"></i>
+    </h2>
+
+    <div class="meal-week-display" id="meal-week-display">
+        {% for day in meal_planner_week_days %}
+        {% set breakfast_val = meal_planner_plan.get(day.date_iso, {}).get('breakfast', '')|trim %}
+        {% set lunch_val = meal_planner_plan.get(day.date_iso, {}).get('lunch', '')|trim %}
+        {% set dinner_val = meal_planner_plan.get(day.date_iso, {}).get('dinner', '')|trim %}
+        {% set has_any = breakfast_val or lunch_val or dinner_val %}
+        {% set is_today = day.date_iso == current_date.isoformat() %}
+        <div class="meal-day-card{% if is_today %} meal-day-card-today{% endif %}" data-day="{{ day.date_iso }}">
+            <div class="meal-day-header">
+                <strong>{{ day.day_full }}</strong>
+                <span>{{ day.date_label }}</span>
+            </div>
+            <div class="meal-day-items">
+                {% for meal_key, meal_label, meal_image in meal_types %}
+                {% set meal_val = meal_planner_plan.get(day.date_iso, {}).get(meal_key, '')|trim %}
+                {% set recurring_state = meal_planner_recurring.get(day.day_full|lower, {}).get(meal_key, {}) %}
+                {% set recurring_enabled = recurring_state.get('enabled', false) %}
+                <div class="meal-day-item" data-day="{{ day.date_iso }}" data-meal="{{ meal_key }}" draggable="true" title="Drag to swap meals" {% if not meal_val %}style="display:none;"{% endif %}>
+                    <img src="{{ url_for('static', filename=meal_image) }}" alt="{{ meal_label }}" class="meal-day-item-image">
+                    <div class="meal-day-item-content">
+                        <div class="meal-day-item-top">
+                            <span class="meal-day-item-label">{{ meal_label }}</span>
+                            <div class="meal-day-item-tools">
+                                <span class="meal-day-recurring-badge{% if not recurring_enabled or not meal_val %} hidden{% endif %}" data-day="{{ day.date_iso }}" data-meal="{{ meal_key }}">
+                                    <i class="fas fa-repeat" aria-hidden="true"></i>
+                                </span>
+                                <i class="fas fa-grip-lines meal-day-drag-cue" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                        <span class="meal-display-value" data-day="{{ day.date_iso }}" data-meal="{{ meal_key }}">{{ meal_val }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+                <div class="meal-day-empty" data-empty-for-day="{{ day.date_iso }}" {% if has_any %}style="display:none;"{% endif %}>Nothing planned yet.</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="meal-planner-section meal-planner-editor collapsible-section collapsed">
+    <h2 class="section-title section-toggle meal-planner-title">
+        <i class="fas fa-pen"></i> <span>Plan / Edit Weekly Meals</span>
+        <i class="fas fa-chevron-down section-chevron"></i>
+    </h2>
+    <div class="meal-planner-subtitle">Expand to plan meals, drag/drop between slots, and update suggestions.</div>
+    <div class="meal-planner-grid-wrap">
+        <table class="meal-planner-grid" id="meal-planner-grid">
+            <thead>
+                <tr>
+                    <th>Meal</th>
+                    {% for day in meal_planner_week_days %}
+                    <th title="{{ day.day_full }}">{{ day.day_short }}<br><span>{{ day.date_label }}</span></th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for meal_key, meal_label, meal_image in meal_types %}
+                <tr>
+                    <td class="meal-label-cell">
+                        <div class="meal-label-card">
+                            <img src="{{ url_for('static', filename=meal_image) }}" alt="{{ meal_label }}" class="meal-label-image">
+                            <span>{{ meal_label }}</span>
+                        </div>
+                    </td>
+                    {% for day in meal_planner_week_days %}
+                    {% set cell_value = meal_planner_plan.get(day.date_iso, {}).get(meal_key, '') %}
+                    {% set recurring_state = meal_planner_recurring.get(day.day_full|lower, {}).get(meal_key, {}) %}
+                    {% set recurring_enabled = recurring_state.get('enabled', false) %}
+                    <td>
+                        <div class="meal-slot" data-day="{{ day.date_iso }}" data-meal="{{ meal_key }}" data-weekday="{{ day.day_full|lower }}">
+                            <div class="meal-slot-toolbar">
+                                <label class="chore-toggle-wrap meal-recurring-wrap" title="Make this reoccur each week on this day" aria-label="Make this reoccur each week on this day">
+                                    <i class="fas fa-repeat meal-recurring-wrap-icon" aria-hidden="true"></i>
+                                    <input type="checkbox" class="chore-toggle-input meal-recurring-input" {% if recurring_enabled %}checked{% endif %}>
+                                    <span class="chore-toggle-track meal-recurring-track">
+                                        <span class="chore-toggle-thumb"></span>
+                                    </span>
+                                </label>
+                                <button type="button" class="meal-drag-handle" draggable="true" title="Drag to swap meals">
+                                    <i class="fas fa-grip-lines"></i>
+                                </button>
+                            </div>
+                            <input
+                                type="text"
+                                class="meal-input"
+                                value="{{ cell_value }}"
+                                maxlength="120"
+                                placeholder="Type meal..."
+                                aria-label="{{ meal_label }} for {{ day.day_full }}"
+                            >
+                            <select class="meal-quick-add" aria-label="Quick add suggested meal">
+                                <option value="">Quick add</option>
+                                {% for suggestion in meal_planner_suggestions %}
+                                <option value="{{ suggestion }}">{{ suggestion }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="meal-planner-actions">
+        <div class="meal-recurring-actions" aria-label="Clear recurring meals">
+            <span class="meal-recurring-actions-label">Clear repeats:</span>
+            {% for meal_key, meal_label, meal_image in meal_types %}
+            <button type="button" class="meal-clear-recurring-btn" data-clear-recurring="{{ meal_key }}">{{ meal_label }}</button>
+            {% endfor %}
+        </div>
+        <button type="button" class="save-btn" id="save-meal-plan-btn">
+            <i class="fas fa-save"></i> Save Weekly Meals
+        </button>
+    </div>
+    <div class="meal-suggestions-panel">
+        <label class="meal-suggestions-title">Suggested meals</label>
+        <div class="meal-suggestion-add-row">
+            <input type="text" id="meal-suggestion-input" class="modern-input" placeholder="Add suggested meal..." maxlength="80">
+            <button type="button" class="edit-btn" id="meal-suggestion-add-btn">Add</button>
+            <button type="button" class="save-btn" id="save-meal-suggestions-btn">Save Suggestions</button>
+        </div>
+        <div id="meal-suggestions-list" class="meal-suggestions-list"></div>
+    </div>
+</section>
+
+<script>
+(() => {
+    const plannerGrid = document.getElementById('meal-planner-grid');
+    if (!plannerGrid) return;
+
+    const weekStart = "{{ meal_planner_week_start }}";
+    const savePlanButton = document.getElementById('save-meal-plan-btn');
+    const addSuggestionButton = document.getElementById('meal-suggestion-add-btn');
+    const saveSuggestionsButton = document.getElementById('save-meal-suggestions-btn');
+    const suggestionInput = document.getElementById('meal-suggestion-input');
+    const suggestionList = document.getElementById('meal-suggestions-list');
+
+    let suggestions = {{ meal_planner_suggestions | tojson }};
+    let recurringRules = {{ meal_planner_recurring | tojson }};
+    let draggedSlot = null;
+    let draggedReadOnlyItem = null;
+    let pickedSlot = null;
+    let pickedReadOnlyItem = null;
+
+    const normalizeText = (value) => (value || '').trim();
+
+    // Smart meal icon mapping - matches meal keywords to emoji
+    const mealEmojiMap = {
+        // Meal types
+        'lunch': '🍱', 'lunchbox': '🍱',
+        'takeout': '🛵', 'take out': '🛵', 'delivery': '🛵', 'ordered': '🛵',
+        
+        // Asian dishes
+        'rice paper rolls': '🥟', 'spring rolls': '🥟', 'egg rolls': '🥟', 'lumpia': '🥟',
+        'pho': '🍜', 'ramen': '🍜', 'udon': '🍜', 'noodle soup': '🍜', 'noodles': '🍝',
+        'pad thai': '🍝', 'lo mein': '🍝', 'chow mein': '🍝',
+        'fried rice': '🍚', 'rice bowl': '🍚', 'rice': '🍚', 'risotto': '🍚',
+        'dumpling': '🥟', 'gyoza': '🥟', 'potsticker': '🥟', 'dim sum': '🥟',
+        'sushi': '🍣', 'sashimi': '🍣',
+        'curry': '🍛', 'thai curry': '🍛', 'tikka masala': '🍛',
+        'teriyaki': '🍗', 'katsu': '🍗',
+        'edamame': '🫘', 'miso soup': '🍲',
+        
+        // Mexican
+        'taco': '🌮', 'tacos': '🌮',
+        'burrito': '🌯', 'burritos': '🌯',
+        'enchilada': '🌯',
+        'quesadilla': '🧀', 'nachos': '🧀',
+        'salsa': '🍅', 'guacamole': '🥑', 'guac': '🥑',
+
+        // Mediterranean/Middle Eastern
+        'falafel': '🫘', 'hummus': '🫘',
+        'greek salad': '🥗', 'salad': '🥗', 'caesar salad': '🥗', 'caprese': '🍅',
+        'pizza': '🍕', 'focaccia': '🍞',
+        'pasta': '🍝', 'spaghetti': '🍝', 'fettuccine': '🍝', 'linguine': '🍝',
+        'risotto': '🍚',
+        'kebab': '🍗', 'shawarma': '🌯', 'gyro': '🌯',
+        'moussaka': '🍆', 'dolma': '🫘',
+
+        // European
+        'schnitzel': '🍗', 'wiener schnitzel': '🍗',
+        'goulash': '🍲', 'beef stew': '🍲', 'stew': '🍲',
+        'stroganoff': '🍝', 'beef stroganoff': '🍝',
+        'cassoulet': '🫘', 'coq au vin': '🍷',
+
+        // American
+        'burger': '🍔', 'hamburger': '🍔', 'cheeseburger': '🍔',
+        'hot dog': '🌭', 'hotdog': '🌭',
+        'bbq': '🍖', 'barbecue': '🍖', 'ribs': '🍖', 'brisket': '🍖',
+        'mac and cheese': '🧀', 'mac & cheese': '🧀', 'mac n cheese': '🧀',
+        'chicken wings': '🍗', 'wings': '🍗', 'buffalo wings': '🍗',
+        'fried chicken': '🍗', 'chicken fried': '🍗',
+        'meatloaf': '🍖',
+        'chili': '🌶️', 'chilli': '🌶️',
+        'cornbread': '🌽',
+
+        // Seafood
+        'salmon': '🐟', 'tuna': '🐟', 'fish': '🐟', 'tilapia': '🐟', 'cod': '🐟',
+        'shrimp': '🍤', 'prawn': '🍤', 'scallop': '🍤', 'calamari': '🦑', 'squid': '🦑',
+        'lobster': '🦞', 'crab': '🦀', 'clam': '🦪', 'oyster': '🦪', 'mussel': '🦪',
+        'fish and chips': '🐟', 'fish fry': '🐟',
+
+        // Vegetarian/Vegan
+        'vegetable': '🥬', 'salad': '🥗', 'greens': '🥬', 'spinach': '🥬',
+        'roasted vegetables': '🥦', 'broccoli': '🥦', 'cauliflower': '🥦',
+        'carrot': '🥕', 'sweet potato': '🍠', 'potato': '🥔', 'fries': '🍟',
+        'bean': '🫘', 'lentil': '🫘', 'chickpea': '🫘',
+        'tofu': '▪️', 'tempeh': '▪️',
+        'mushroom': '🍄', 'pasta primavera': '🍝',
+        'caprese': '🍅', 'tomato': '🍅',
+
+        // Breakfast
+        'eggs': '🥚', 'scrambled eggs': '🥚', 'omelette': '🥚', 'omelet': '🥚',
+        'bacon': '🥓', 'sausage': '🌭',
+        'pancake': '🥞', 'waffle': '🧇', 'french toast': '🍞',
+        'oatmeal': '🥣', 'cereal': '🥣', 'granola': '🥣', 'yogurt': '🥛', 'yoghurt': '🥛',
+        'toast': '🍞', 'bread': '🍞', 'bagel': '🍞', 'croissant': '🥐', 'muffin': '🧁',
+        'donut': '🍩', 'doughnut': '🍩', 'pastry': '🥐',
+        'hash brown': '🥔', 'hash browns': '🥔',
+        'smoothie': '🥤', 'juice': '🥤', 'coffee': '☕', 'tea': '🫖',
+        'acai bowl': '🫗', 'açai': '🫗',
+
+        // Lunch items
+        'sandwich': '🥪', 'sub': '🥪', 'submarine': '🥪',
+        'wrap': '🌯', 'pita': '🫓',
+        'grilled cheese': '🧀', 'cheese sandwich': '🧀',
+
+        // Soups
+        'soup': '🍲', 'broth': '🍲', 'chowder': '🍲', 'bisque': '🍲', 'consommé': '🍲',
+        'tomato soup': '🍅', 'minestrone': '🍲', 'vegetable soup': '🥬',
+
+        // Desserts
+        'cake': '🎂', 'cupcake': '🧁', 'cheesecake': '🍰',
+        'pie': '🥧', 'tart': '🥧', 'cream pie': '🥧',
+        'ice cream': '🍦', 'sorbet': '🍧', 'gelato': '🍦',
+        'pudding': '🍮', 'mousse': '🍮',
+        'chocolate': '🍫', 'candy': '🍬', 'chocolate chip': '🍪', 'cookie': '🍪', 'cookies': '🍪',
+        'brownie': '🍫', 'truffle': '🍫',
+        'fruit': '🍎', 'berries': '🫐', 'strawberry': '🍓', 'blueberry': '🫐',
+
+        // Drinks
+        'wine': '🍷', 'beer': '🍺', 'cocktail': '🍸', 'margarita': '🍹', 'smoothie': '🥤',
+
+        // Asian noodles and rice
+        'dandan noodles': '🍜', 'mapo tofu': '🍛', 'bok choy': '🥬', 'chow bok choy': '🥬',
+
+        // Indian
+        'samosa': '🫓', 'dal': '🫘', 'naan': '🍞', 'tandoori': '🍗', 'biryani': '🍚',
+
+        // Generic/Catch-all with meal name
+        'chicken': '🍗', 'beef': '🍖', 'pork': '🍖', 'lamb': '🐑', 'turkey': '🦃',
+        'meat': '🍖', 'roast': '🍖', 'steak': '🥩', 'chop': '🥩',
+        'pie': '🥧', 'bake': '🥐',
+    };
+
+    function getMealEmoji(mealName) {
+        if (!mealName) return '🍽️'; // default plate emoji
+        
+        const normalized = mealName.toLowerCase().trim();
+        
+        // Direct match
+        if (mealEmojiMap[normalized]) {
+            return mealEmojiMap[normalized];
+        }
+        
+        // Substring matching - find the first keyword match
+        for (const [keyword, emoji] of Object.entries(mealEmojiMap)) {
+            if (normalized.includes(keyword)) {
+                return emoji;
+            }
+        }
+        
+        // No match found, return default
+        return '🍽️';
+    }
+
+    function updateMealIcon(imageElement, mealName) {
+        if (!imageElement) return;
+        
+        // Change from image to emoji text
+        if (imageElement.tagName === 'IMG') {
+            const emoji = getMealEmoji(mealName);
+            imageElement.outerHTML = `<div class="meal-icon-emoji" style="font-size: 2.5rem; line-height: 1; display: flex; align-items: center; justify-content: center;">${emoji}</div>`;
+        } else if (imageElement.classList && imageElement.classList.contains('meal-icon-emoji')) {
+            imageElement.textContent = getMealEmoji(mealName);
+        }
+    }
+
+    function showPlannerToast(message, type = 'success') {
+        if (window.showToast) {
+            window.showToast(message, type);
+        }
+    }
+
+    function clearPickedSlot() {
+        if (pickedSlot) {
+            pickedSlot.classList.remove('meal-slot-picked');
+        }
+        pickedSlot = null;
+    }
+
+    function clearPickedReadOnlyItem() {
+        if (pickedReadOnlyItem) {
+            pickedReadOnlyItem.classList.remove('meal-slot-picked');
+        }
+        pickedReadOnlyItem = null;
+    }
+
+    function getPlannerSlot(day, meal) {
+        if (!day || !meal) return null;
+        return plannerGrid.querySelector(`.meal-slot[data-day="${day}"][data-meal="${meal}"]`);
+    }
+
+    function setRecurringButtonState(input, isActive) {
+        if (!input) return;
+        input.checked = !!isActive;
+    }
+
+    function getSlotRecurringButton(slot) {
+        return slot ? slot.querySelector('.meal-recurring-input') : null;
+    }
+
+    function isSlotRecurring(slot) {
+        const button = getSlotRecurringButton(slot);
+        return !!button && button.checked;
+    }
+
+    function setReadOnlyDropTargetsVisible(visible) {
+        document.querySelectorAll('.meal-day-item').forEach(item => {
+            const isEmpty = !normalizeText(item.querySelector('.meal-display-value')?.textContent);
+            if (!isEmpty) return;
+
+            item.style.display = visible ? '' : 'none';
+        });
+    }
+
+    function swapReadOnlyItems(sourceItem, targetItem) {
+        if (!sourceItem || !targetItem || sourceItem === targetItem) return false;
+
+        const sourceDay = sourceItem.dataset.day;
+        const sourceMeal = sourceItem.dataset.meal;
+        const targetDay = targetItem.dataset.day;
+        const targetMeal = targetItem.dataset.meal;
+
+        const sourceSlot = getPlannerSlot(sourceDay, sourceMeal);
+        const targetSlot = getPlannerSlot(targetDay, targetMeal);
+        if (!sourceSlot || !targetSlot) return false;
+
+        if (!swapMealSlots(sourceSlot, targetSlot)) return false;
+        updateReadOnlyPlanner(collectMealPlan());
+        return true;
+    }
+
+    function swapMealSlots(sourceSlot, targetSlot) {
+        if (!sourceSlot || !targetSlot || sourceSlot === targetSlot) return false;
+
+        const sourceInput = sourceSlot.querySelector('.meal-input');
+        const targetInput = targetSlot.querySelector('.meal-input');
+        const sourceRecurringButton = getSlotRecurringButton(sourceSlot);
+        const targetRecurringButton = getSlotRecurringButton(targetSlot);
+        if (!sourceInput || !targetInput) return false;
+
+        const sourceValue = sourceInput.value;
+        const sourceRecurring = sourceRecurringButton?.checked || false;
+        sourceInput.value = targetInput.value;
+        targetInput.value = sourceValue;
+
+        if (sourceRecurringButton && targetRecurringButton) {
+            setRecurringButtonState(sourceRecurringButton, targetRecurringButton.checked);
+            setRecurringButtonState(targetRecurringButton, sourceRecurring);
+        }
+        return true;
+    }
+
+    function collectMealPlan() {
+        const plan = {};
+        document.querySelectorAll('.meal-slot').forEach(slot => {
+            const day = slot.dataset.day;
+            const meal = slot.dataset.meal;
+            const input = slot.querySelector('.meal-input');
+            if (!plan[day]) {
+                plan[day] = { breakfast: '', lunch: '', dinner: '' };
+            }
+            plan[day][meal] = normalizeText(input ? input.value : '');
+        });
+        return plan;
+    }
+
+    function collectRecurringPlan() {
+        const recurring = {
+            monday: { breakfast: { enabled: false, value: '' }, lunch: { enabled: false, value: '' }, dinner: { enabled: false, value: '' } },
+            tuesday: { breakfast: { enabled: false, value: '' }, lunch: { enabled: false, value: '' }, dinner: { enabled: false, value: '' } },
+            wednesday: { breakfast: { enabled: false, value: '' }, lunch: { enabled: false, value: '' }, dinner: { enabled: false, value: '' } },
+            thursday: { breakfast: { enabled: false, value: '' }, lunch: { enabled: false, value: '' }, dinner: { enabled: false, value: '' } },
+            friday: { breakfast: { enabled: false, value: '' }, lunch: { enabled: false, value: '' }, dinner: { enabled: false, value: '' } },
+            saturday: { breakfast: { enabled: false, value: '' }, lunch: { enabled: false, value: '' }, dinner: { enabled: false, value: '' } },
+            sunday: { breakfast: { enabled: false, value: '' }, lunch: { enabled: false, value: '' }, dinner: { enabled: false, value: '' } }
+        };
+
+        document.querySelectorAll('.meal-slot').forEach(slot => {
+            const weekday = slot.dataset.weekday;
+            const meal = slot.dataset.meal;
+            const input = slot.querySelector('.meal-input');
+            const recurringButton = getSlotRecurringButton(slot);
+            if (!weekday || !meal || !recurring[weekday]) return;
+
+            recurring[weekday][meal] = {
+                enabled: recurringButton?.checked || false,
+                value: normalizeText(input ? input.value : '')
+            };
+        });
+
+        return recurring;
+    }
+
+    function syncRecurringButtons(rules) {
+        recurringRules = rules || recurringRules;
+        document.querySelectorAll('.meal-slot').forEach(slot => {
+            const weekday = slot.dataset.weekday;
+            const meal = slot.dataset.meal;
+            const button = getSlotRecurringButton(slot);
+            const isActive = !!recurringRules?.[weekday]?.[meal]?.enabled;
+            setRecurringButtonState(button, isActive);
+        });
+        updateReadOnlyRecurringIndicators();
+    }
+
+    function updateReadOnlyRecurringIndicators() {
+        document.querySelectorAll('.meal-day-recurring-badge').forEach(badge => {
+            const day = badge.dataset.day;
+            const meal = badge.dataset.meal;
+            const slot = getPlannerSlot(day, meal);
+            const input = slot ? slot.querySelector('.meal-input') : null;
+            const hasValue = !!normalizeText(input ? input.value : '');
+            badge.classList.toggle('hidden', !(hasValue && isSlotRecurring(slot)));
+        });
+    }
+
+    function updateReadOnlyPlanner(plan) {
+        document.querySelectorAll('.meal-day-card').forEach(dayCard => {
+            const day = dayCard.dataset.day;
+            let hasAny = false;
+
+            ['breakfast', 'lunch', 'dinner'].forEach(meal => {
+                const value = normalizeText(plan?.[day]?.[meal] || '');
+                const displayValue = document.querySelector(`.meal-display-value[data-day="${day}"][data-meal="${meal}"]`);
+                const item = document.querySelector(`.meal-day-item[data-day="${day}"][data-meal="${meal}"]`);
+
+                if (displayValue) {
+                    displayValue.textContent = value;
+                }
+                if (item) {
+                    item.style.display = value ? '' : 'none';
+                    // Update the meal icon based on what's being served - look for either original img or converted emoji div
+                    let mealImage = item.querySelector('.meal-day-item-image');
+                    if (!mealImage) {
+                        mealImage = item.querySelector('.meal-icon-emoji');
+                    }
+                    if (mealImage) {
+                        updateMealIcon(mealImage, value);
+                    }
+                }
+                if (value) {
+                    hasAny = true;
+                }
+            });
+
+            const emptyState = document.querySelector(`.meal-day-empty[data-empty-for-day="${day}"]`);
+            if (emptyState) {
+                emptyState.style.display = hasAny ? 'none' : '';
+            }
+        });
+
+        updateReadOnlyRecurringIndicators();
+    }
+
+    function renderSuggestionList() {
+        suggestionList.innerHTML = '';
+        if (!suggestions.length) {
+            suggestionList.innerHTML = '<span class="meal-suggestion-empty">No suggested meals yet.</span>';
+            return;
+        }
+
+        suggestions.forEach((text, index) => {
+            const chip = document.createElement('div');
+            chip.className = 'meal-suggestion-chip';
+            chip.innerHTML = `<span>${text}</span><button type="button" data-index="${index}" aria-label="Remove ${text}">×</button>`;
+            suggestionList.appendChild(chip);
+        });
+
+        suggestionList.querySelectorAll('button[data-index]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.dataset.index, 10);
+                suggestions.splice(index, 1);
+                renderSuggestionList();
+                refreshQuickAddDropdowns();
+            });
+        });
+    }
+
+    function refreshQuickAddDropdowns() {
+        document.querySelectorAll('.meal-quick-add').forEach(select => {
+            const selected = select.value;
+            select.innerHTML = '<option value="">Quick add</option>';
+            suggestions.forEach(text => {
+                const option = document.createElement('option');
+                option.value = text;
+                option.textContent = text;
+                select.appendChild(option);
+            });
+            if (selected && suggestions.includes(selected)) {
+                select.value = selected;
+            } else {
+                select.value = '';
+            }
+        });
+    }
+
+    plannerGrid.querySelectorAll('.meal-quick-add').forEach(select => {
+        select.addEventListener('change', () => {
+            if (!select.value) return;
+            const slot = select.closest('.meal-slot');
+            const input = slot ? slot.querySelector('.meal-input') : null;
+            if (input) {
+                input.value = select.value;
+                updateReadOnlyPlanner(collectMealPlan());
+            }
+            select.value = '';
+        });
+    });
+
+    // Update meal icons when user types or changes a meal input
+    plannerGrid.querySelectorAll('.meal-input').forEach(input => {
+        input.addEventListener('input', () => {
+            updateReadOnlyPlanner(collectMealPlan());
+        });
+        input.addEventListener('change', () => {
+            updateReadOnlyPlanner(collectMealPlan());
+        });
+    });
+
+    plannerGrid.querySelectorAll('.meal-recurring-input').forEach(button => {
+        button.addEventListener('change', () => {
+            updateReadOnlyRecurringIndicators();
+            showPlannerToast(button.checked ? 'Meal will repeat weekly for this slot' : 'Weekly repeat removed for this slot', 'success');
+        });
+    });
+
+    document.querySelectorAll('.meal-clear-recurring-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const mealType = button.dataset.clearRecurring;
+            let clearedCount = 0;
+
+            plannerGrid.querySelectorAll(`.meal-slot[data-meal="${mealType}"]`).forEach(slot => {
+                const recurringButton = getSlotRecurringButton(slot);
+                if (recurringButton && recurringButton.checked) {
+                    setRecurringButtonState(recurringButton, false);
+                    clearedCount += 1;
+                }
+            });
+
+            updateReadOnlyRecurringIndicators();
+            showPlannerToast(clearedCount ? `Cleared ${clearedCount} recurring ${mealType} slot${clearedCount === 1 ? '' : 's'}` : `No recurring ${mealType} slots to clear`, 'success');
+        });
+    });
+
+    plannerGrid.querySelectorAll('.meal-drag-handle').forEach(handle => {
+        handle.addEventListener('dragstart', event => {
+            const slot = handle.closest('.meal-slot');
+            draggedSlot = slot;
+            clearPickedSlot();
+            if (event.dataTransfer) {
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', slot ? `${slot.dataset.day}:${slot.dataset.meal}` : 'meal-slot');
+            }
+        });
+
+        handle.addEventListener('dragend', () => {
+            draggedSlot = null;
+        });
+
+        handle.addEventListener('click', event => {
+            event.preventDefault();
+            const slot = handle.closest('.meal-slot');
+            if (!slot) return;
+
+            if (!pickedSlot) {
+                pickedSlot = slot;
+                pickedSlot.classList.add('meal-slot-picked');
+                showPlannerToast('Meal picked up. Tap another handle to place it.', 'success');
+                return;
+            }
+
+            if (pickedSlot === slot) {
+                clearPickedSlot();
+                return;
+            }
+
+            if (swapMealSlots(pickedSlot, slot)) {
+                showPlannerToast('Meal swapped', 'success');
+            }
+            clearPickedSlot();
+        });
+    });
+
+    plannerGrid.querySelectorAll('.meal-slot').forEach(slot => {
+        slot.addEventListener('dragover', event => {
+            event.preventDefault();
+            if (event.dataTransfer) {
+                event.dataTransfer.dropEffect = 'move';
+            }
+            slot.classList.add('meal-slot-drop-target');
+        });
+
+        slot.addEventListener('dragleave', () => {
+            slot.classList.remove('meal-slot-drop-target');
+        });
+
+        slot.addEventListener('drop', event => {
+            event.preventDefault();
+            slot.classList.remove('meal-slot-drop-target');
+            if (!draggedSlot || draggedSlot === slot) return;
+
+            if (swapMealSlots(draggedSlot, slot)) {
+                showPlannerToast('Meal swapped', 'success');
+            }
+            clearPickedSlot();
+        });
+    });
+
+    document.querySelectorAll('.meal-day-item').forEach(item => {
+        item.addEventListener('dragstart', event => {
+            if (!normalizeText(item.querySelector('.meal-display-value')?.textContent)) {
+                event.preventDefault();
+                return;
+            }
+
+            draggedReadOnlyItem = item;
+            clearPickedReadOnlyItem();
+            setReadOnlyDropTargetsVisible(true);
+            if (event.dataTransfer) {
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', `${item.dataset.day}:${item.dataset.meal}`);
+            }
+        });
+
+        item.addEventListener('dragend', () => {
+            draggedReadOnlyItem = null;
+            item.classList.remove('meal-slot-drop-target');
+            setReadOnlyDropTargetsVisible(false);
+        });
+
+        item.addEventListener('dragover', event => {
+            event.preventDefault();
+            if (event.dataTransfer) {
+                event.dataTransfer.dropEffect = 'move';
+            }
+            item.classList.add('meal-slot-drop-target');
+        });
+
+        item.addEventListener('dragleave', () => {
+            item.classList.remove('meal-slot-drop-target');
+        });
+
+        item.addEventListener('drop', event => {
+            event.preventDefault();
+            item.classList.remove('meal-slot-drop-target');
+            if (!draggedReadOnlyItem || draggedReadOnlyItem === item) return;
+
+            if (swapReadOnlyItems(draggedReadOnlyItem, item)) {
+                showPlannerToast('Meal swapped. Save Weekly Meals to keep changes.', 'success');
+            }
+            clearPickedReadOnlyItem();
+            setReadOnlyDropTargetsVisible(false);
+        });
+
+        item.addEventListener('click', event => {
+            event.preventDefault();
+            const itemHasValue = !!normalizeText(item.querySelector('.meal-display-value')?.textContent);
+
+            if (!pickedReadOnlyItem) {
+                if (!itemHasValue) {
+                    return;
+                }
+                pickedReadOnlyItem = item;
+                pickedReadOnlyItem.classList.add('meal-slot-picked');
+                setReadOnlyDropTargetsVisible(true);
+                showPlannerToast('Meal picked up. Tap another meal to place it.', 'success');
+                return;
+            }
+
+            if (pickedReadOnlyItem === item) {
+                clearPickedReadOnlyItem();
+                setReadOnlyDropTargetsVisible(false);
+                return;
+            }
+
+            if (swapReadOnlyItems(pickedReadOnlyItem, item)) {
+                showPlannerToast('Meal swapped. Save Weekly Meals to keep changes.', 'success');
+            }
+            clearPickedReadOnlyItem();
+            setReadOnlyDropTargetsVisible(false);
+        });
+    });
+
+    if (addSuggestionButton) {
+        addSuggestionButton.addEventListener('click', () => {
+            const newValue = normalizeText(suggestionInput ? suggestionInput.value : '');
+            if (!newValue) return;
+
+            const exists = suggestions.some(item => item.toLowerCase() === newValue.toLowerCase());
+            if (!exists) {
+                suggestions.push(newValue);
+                suggestions.sort((a, b) => a.localeCompare(b));
+                renderSuggestionList();
+                refreshQuickAddDropdowns();
+            }
+            if (suggestionInput) {
+                suggestionInput.value = '';
+                suggestionInput.focus();
+            }
+        });
+    }
+
+    if (suggestionInput) {
+        suggestionInput.addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addSuggestionButton && addSuggestionButton.click();
+            }
+        });
+    }
+
+    if (savePlanButton) {
+        savePlanButton.addEventListener('click', async () => {
+            savePlanButton.disabled = true;
+            try {
+                const mealPlan = collectMealPlan();
+                const recurringPlan = collectRecurringPlan();
+                const response = await fetch('/api/meal_planner', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ week_start: weekStart, plan: mealPlan, recurring: recurringPlan })
+                });
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to save meal plan');
+                }
+                syncRecurringButtons(data.recurring || recurringPlan);
+                updateReadOnlyPlanner(data.plan || mealPlan);
+                showPlannerToast('Weekly meals saved', 'success');
+            } catch (error) {
+                showPlannerToast(error.message || 'Failed to save meal plan', 'error');
+            } finally {
+                savePlanButton.disabled = false;
+            }
+        });
+    }
+
+    if (saveSuggestionsButton) {
+        saveSuggestionsButton.addEventListener('click', async () => {
+            saveSuggestionsButton.disabled = true;
+            try {
+                const response = await fetch('/api/meal_planner_suggestions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ suggestions })
+                });
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to save suggestions');
+                }
+                suggestions = Array.isArray(data.suggestions) ? data.suggestions : suggestions;
+                renderSuggestionList();
+                refreshQuickAddDropdowns();
+                showPlannerToast('Meal suggestions saved', 'success');
+            } catch (error) {
+                showPlannerToast(error.message || 'Failed to save suggestions', 'error');
+            } finally {
+                saveSuggestionsButton.disabled = false;
+            }
+        });
+    }
+
+    renderSuggestionList();
+    syncRecurringButtons(recurringRules);
+    refreshQuickAddDropdowns();
+    updateReadOnlyPlanner(collectMealPlan());
+})();
 </script>
 
 
@@ -1802,6 +2685,16 @@ function deleteReward(rewardId) {
 
 <script>
     // --- Profile modal ---
+function formatPointsValue(value, rewardSystem = window.REWARD_SYSTEM) {
+    const parsed = Number(value);
+    const safe = Number.isFinite(parsed) ? parsed : 0;
+    const rounded = Math.round((safe + Number.EPSILON) * 100) / 100;
+    if (rewardSystem === 'cash') {
+        return `$${rounded.toFixed(2)}`;
+    }
+    return rounded.toFixed(2);
+}
+
 function openProfileModalFromElem(img) {
     const personId = img.dataset.personId;
     const name = img.dataset.name;
@@ -1817,9 +2710,7 @@ function openProfileModalFromElem(img) {
     const badgeDefs = window.BADGE_DEFINITIONS || [];
     const earnedSet = new Set(earnedKeys);
 
-    const pointsDisplay = rewardSystem === 'cash'
-        ? '$' + points.toFixed(2)
-        : Math.round(points);
+    const pointsDisplay = formatPointsValue(points, rewardSystem);
     const pointsLabel = rewardSystem === 'cash' ? 'Balance' : 'Points';
 
     const badgeHTML = badgeDefs.map(badge => {
@@ -2021,6 +2912,7 @@ function updateStreakDisplay(column, streakCount) {
                     {% endif %}
                 </label>
                 <input type="number" id="points-input" name="points"
+                      value="{% if reward_system == 'cash' %}1.00{% else %}1{% endif %}"
                        placeholder="{% if reward_system == 'cash' %}1.00{% else %}1{% endif %}"
                        min="0"
                        step="{% if reward_system == 'cash' %}0.01{% else %}0.5{% endif %}"
@@ -2278,6 +3170,7 @@ function updateStreakDisplay(column, streakCount) {
                     pills[0].classList.add('selected');
                     hiddenInput.value = pills[0].getAttribute('data-person');
                 }
+                setPoints(1);
                 if (daysRow) daysRow.style.display = 'none';
                 if (repeatingLabel) repeatingLabel.textContent = 'Off';
                 if (dueWrap) dueWrap.style.display = 'none';
@@ -3144,11 +4037,7 @@ function completeChore(choreId) {
                 if (pointsDisplay && data.new_points !== undefined) {
                     const pointsValue = pointsDisplay.querySelector('.chore-points-value');
                     if (pointsValue) {
-                        if (window.REWARD_SYSTEM === 'cash') {
-                            pointsValue.textContent = `$${data.new_points}`;
-                        } else {
-                            pointsValue.textContent = data.new_points;
-                        }
+                        pointsValue.textContent = formatPointsValue(data.new_points, window.REWARD_SYSTEM);
                     }
                 }
                 triggerSparkleAnimation(choreElem);
@@ -3271,10 +4160,10 @@ function updateColumnPoints(personName) {
             let icon, value;
             if (window.REWARD_SYSTEM === 'cash') {
                 icon = '<i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i>';
-                value = `$${parseFloat(data.points).toFixed(2)}`;
+                value = formatPointsValue(data.points, 'cash');
             } else {
                 icon = '<i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i>';
-                value = parseFloat(data.points).toFixed(2);
+                value = formatPointsValue(data.points, 'points');
             }
             badge.innerHTML = `${icon}<span class="chore-points-value">${value}</span>`;
         })

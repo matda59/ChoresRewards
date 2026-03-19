@@ -2858,9 +2858,9 @@ label,
 }
 
 .chore-suggestions-label {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.07em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: rgba(255,255,255,0.4);
     flex: 1;
@@ -2877,16 +2877,16 @@ label,
 .chore-suggestion-chip {
     display: inline-flex;
     align-items: center;
-    padding: 6px 13px;
+    padding: 4px 10px;
     border-radius: 20px;
     border: 1px solid rgba(255,255,255,0.14);
     background: rgba(255,255,255,0.06);
     color: var(--text-color);
-    font-size: 0.88rem;
+    font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
-    margin: 3px 2px;
+    margin: 2px 2px;
 }
 
 .chore-suggestion-chip:hover {
@@ -3316,6 +3316,527 @@ label,
     .quick-pt-btn { font-size: 0.9rem; padding: 6px 13px; min-height: 34px; }
 }
 
+/* Weekly meal planner */
+.meal-planner-section {
+    background: linear-gradient(135deg, #141f33 0%, #1a2840 100%);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 16px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.24);
+    padding: 14px 14px 16px;
+    margin: 0 0 16px;
+}
+
+.meal-planner-title {
+    margin-bottom: 8px;
+    color: #f8fafc;
+}
+
+.meal-planner-subtitle {
+    color: rgba(255,255,255,0.62);
+    font-size: 0.9rem;
+    margin: 0 0 10px;
+    padding: 0 4px;
+}
+
+.meal-week-display {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(170px, 1fr));
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.meal-day-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 12px;
+    padding: 10px;
+    min-height: 160px;
+    transition: all 0.2s ease;
+}
+
+.meal-day-card-today {
+    background: rgba(139, 195, 74, 0.12);
+    border: 1.5px solid rgba(139, 195, 74, 0.4);
+    box-shadow: 0 0 12px rgba(139, 195, 74, 0.15);
+}
+
+.meal-day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 6px;
+}
+
+.meal-day-header strong {
+    color: #f8fafc;
+    font-size: 0.9rem;
+}
+
+.meal-day-header span {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.78rem;
+}
+
+.meal-day-items {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.meal-day-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 9px;
+    padding: 6px;
+}
+
+.meal-day-item-image {
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,0.15);
+    flex-shrink: 0;
+}
+
+.meal-icon-emoji {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 7px !important;
+    border: 1px solid rgba(255,255,255,0.15) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.8rem !important;
+    line-height: 1 !important;
+    flex-shrink: 0;
+    background-color: rgba(255,255,255,0.05);
+}
+
+.meal-day-item-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.meal-day-item-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.meal-day-item-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.meal-day-item-label {
+    color: rgba(255,255,255,0.68);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.meal-day-drag-cue {
+    color: rgba(255,255,255,0.45);
+    font-size: 0.72rem;
+    flex-shrink: 0;
+}
+
+.meal-day-recurring-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: rgba(34,197,94,0.15);
+    border: 1px solid rgba(34,197,94,0.35);
+    color: #dcfce7;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+}
+
+.meal-day-recurring-badge.hidden {
+    display: none;
+}
+
+.meal-display-value {
+    color: #f8fafc;
+    font-size: 0.84rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.meal-day-empty {
+    color: rgba(255,255,255,0.52);
+    font-size: 0.83rem;
+    font-style: italic;
+    padding: 8px 4px;
+}
+
+.meal-planner-editor {
+    margin-top: 10px;
+    background: linear-gradient(135deg, #101a2d 0%, #15243a 100%);
+}
+
+.meal-planner-grid-wrap {
+    overflow-x: auto;
+    margin-top: 4px;
+    border-radius: 12px;
+}
+
+.meal-planner-grid {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+}
+
+.meal-planner-grid th,
+.meal-planner-grid td {
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 6px;
+    vertical-align: top;
+}
+
+.meal-planner-grid th {
+    color: #e2e8f0;
+    background: rgba(0,0,0,0.26);
+    font-weight: 700;
+    font-size: 0.88rem;
+}
+
+.meal-planner-grid th span {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.7);
+}
+
+.meal-label-cell {
+    min-width: 140px;
+    font-weight: 700;
+    color: #f8fafc;
+    background: rgba(0,0,0,0.18);
+}
+
+.meal-label-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 6px 7px;
+}
+
+.meal-label-card span {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.meal-label-image {
+    width: 46px;
+    height: 46px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+.meal-slot {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-height: 108px;
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 12px;
+    padding: 7px;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+}
+
+.meal-slot:hover {
+    border-color: rgba(96,165,250,0.45);
+    background: rgba(96,165,250,0.08);
+}
+
+.meal-slot-drop-target {
+    outline: 2px dashed #60a5fa;
+    background: rgba(96,165,250,0.12);
+}
+
+.meal-slot-picked {
+    outline: 2px solid #22c55e;
+    background: rgba(34,197,94,0.16);
+    border-color: rgba(34,197,94,0.55);
+}
+
+.meal-slot-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.meal-recurring-wrap {
+    gap: 8px;
+    margin: 0;
+    user-select: none;
+}
+
+.meal-recurring-wrap-icon {
+    color: rgba(255,255,255,0.72);
+    font-size: 0.82rem;
+    transition: color 0.2s ease;
+}
+
+.meal-recurring-wrap:has(.meal-recurring-input:checked) .meal-recurring-wrap-icon {
+    color: #86efac;
+}
+
+.meal-recurring-track {
+    width: 44px;
+    height: 24px;
+}
+
+.meal-recurring-track .chore-toggle-thumb {
+    width: 16px;
+    height: 16px;
+}
+
+.meal-recurring-input:checked + .meal-recurring-track .chore-toggle-thumb {
+    transform: translateX(18px);
+}
+
+.meal-drag-handle {
+    border: none;
+    background: rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.8);
+    border-radius: 6px;
+    padding: 2px;
+    cursor: grab;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.meal-drag-handle:active {
+    cursor: grabbing;
+}
+
+.meal-input {
+    width: 100%;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(0,0,0,0.2);
+    color: #fff;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    min-height: 36px;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.meal-input:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.15);
+    background: rgba(0,0,0,0.25);
+}
+
+.meal-input::placeholder {
+    color: rgba(255,255,255,0.5);
+}
+
+.meal-quick-add {
+    width: 100%;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(0,0,0,0.2);
+    color: #fff;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    min-height: 36px;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 20px;
+    padding-right: 36px;
+}
+
+.meal-quick-add:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.15);
+    background-color: rgba(0,0,0,0.25);
+}
+
+.meal-quick-add:hover {
+    border-color: rgba(255,255,255,0.25);
+    background-color: rgba(0,0,0,0.3);
+}
+
+.meal-quick-add option {
+    background: #1a1f2e;
+    color: #fff;
+    padding: 8px;
+}
+
+.meal-planner-actions {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.meal-recurring-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.meal-recurring-actions-label {
+    color: rgba(255,255,255,0.68);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.meal-clear-recurring-btn {
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.07);
+    color: #f8fafc;
+    border-radius: 999px;
+    padding: 5px 11px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+
+.meal-clear-recurring-btn:hover {
+    background: rgba(248,113,113,0.14);
+    border-color: rgba(248,113,113,0.32);
+}
+
+.meal-suggestions-panel {
+    margin-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(255,255,255,0.12);
+}
+
+.meal-suggestions-title {
+    display: block;
+    color: rgba(255,255,255,0.8);
+    font-weight: 700;
+    margin-bottom: 0.55rem;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(255,255,255,0.4);
+}
+
+.meal-suggestion-add-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 0.55rem;
+}
+
+#meal-suggestion-input {
+    min-width: 200px;
+    flex: 1;
+}
+
+.meal-suggestions-list {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.meal-suggestion-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    color: #f8fafc;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    margin: 2px 2px;
+}
+
+.meal-suggestion-chip:hover {
+    background: rgba(76,175,80,0.18);
+    border-color: rgba(76,175,80,0.55);
+}
+
+@media (max-width: 900px) {
+    .meal-week-display {
+        grid-template-columns: repeat(7, minmax(150px, 1fr));
+    }
+
+    .meal-planner-actions {
+        justify-content: stretch;
+    }
+
+    .meal-planner-actions .save-btn {
+        width: 100%;
+    }
+
+    .meal-recurring-actions {
+        width: 100%;
+    }
+}
+
+.meal-suggestion-chip button {
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.85);
+    font-size: 0.9rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    margin: 0;
+    transition: color 0.15s;
+}
+
+.meal-suggestion-chip button:hover {
+    color: rgba(76,175,80,0.9);
+}
+
+.meal-suggestion-empty {
+    color: rgba(255,255,255,0.5);
+    font-size: 0.82rem;
+}
+
 /* ════════════════════════════════════════════════════════════════
    KANBAN OVERRIDES — MUST STAY AT END OF FILE
    These rules win by cascade order. Do NOT duplicate #kanban or
@@ -3331,8 +3852,10 @@ label,
     overflow-x: auto;
 }
 .column {
-    min-width: 0 !important;
-    width: unset !important;
+    flex: 0 0 clamp(260px, 30vw, 360px) !important;
+    min-width: 260px !important;
+    max-width: 360px;
+    width: auto !important;
     margin: 0 !important;
 }
 .column:hover {
@@ -3359,11 +3882,24 @@ label,
     font-weight: 800;
     line-height: 1.2;
     margin: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 .column-header .name .edit-name-icon {
     font-size: 0.55em;
     color: #aaaaaa;
     cursor: pointer;
+}
+.points-display .chore-points-badge {
+    max-width: 100%;
+    font-size: clamp(1.25rem, 2.2vw, 2rem);
+    padding: 6px 12px;
+}
+
+.chore-points-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 .chores-to-do-header {
     text-align: center;
@@ -3408,4 +3944,137 @@ label,
 .drag-handle .drag-handle-label {
     font-size: 0.85em;
     white-space: nowrap;
+}
+
+@media (min-width: 600px) and (max-width: 1024px) {
+    #kanban {
+        gap: 10px;
+    }
+
+    .column {
+        flex-basis: 300px !important;
+        min-width: 300px !important;
+        max-width: 340px;
+    }
+}
+
+/* Google Calendar weekly view */
+.google-week-calendar {
+    width: 100%;
+}
+
+.gcal-week-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(130px, 1fr));
+    gap: 10px;
+    width: 100%;
+}
+
+.gcal-day-column {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.gcal-day-header {
+    padding: 10px 10px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: rgba(15, 23, 42, 0.35);
+}
+
+.gcal-day-name {
+    font-size: 0.92em;
+    font-weight: 700;
+    color: #bfdbfe;
+}
+
+.gcal-day-date {
+    font-size: 0.8em;
+    color: rgba(255,255,255,0.55);
+}
+
+.gcal-day-events {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gcal-no-events {
+    font-size: 0.82em;
+    color: rgba(255,255,255,0.35);
+    border: 1px dashed rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 8px;
+    text-align: center;
+}
+
+.gcal-event-card {
+    border-left: 5px solid var(--gcal-event-color, #4285f4);
+    background: var(--gcal-event-color-tint, rgba(66,133,244,0.20));
+    border-radius: 9px;
+    padding: 8px 8px 7px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.gcal-event-time {
+    font-size: 0.76em;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: 0.02em;
+}
+
+.gcal-event-duration {
+    font-weight: 600;
+    color: rgba(255,255,255,0.78);
+    margin-left: 3px;
+}
+
+.gcal-event-title {
+    font-size: 0.87em;
+    font-weight: 700;
+    color: #f1f5f9;
+    line-height: 1.25;
+    word-break: break-word;
+}
+
+.gcal-event-location {
+    font-size: 0.78em;
+    color: #94a3b8;
+    word-break: break-word;
+}
+
+.gcal-event-open {
+    margin-top: 2px;
+    font-size: 0.76em;
+    font-weight: 600;
+    color: #60a5fa;
+    text-decoration: none;
+    align-self: flex-start;
+}
+
+.gcal-event-open:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 1100px) {
+    .gcal-week-grid {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        scroll-snap-type: x proximity;
+    }
+
+    .gcal-day-column {
+        min-width: 180px;
+        flex: 0 0 180px;
+        scroll-snap-align: start;
+    }
 }

@@ -6,3 +6,4 @@ gunicorn==20.1.0
 bcrypt
 tzlocal
 pytz
+google-auth>=2.0.0

@@ -1,15 +1,17 @@
-version: '3.8'
 services:
   choresawards:
-    build: .
+    image: ghcr.io/matda59/choresrewards:latest
+    pull_policy: always
     ports:
       - "3112:3000"
     volumes:
-      - .:/app
+      - instance_data:/app/instance
       - uploads_data:/app/static/uploads
     environment:
       - TZ=Australia/Adelaide  # Adjust this to your actual timezone
+      - ENABLE_GOOGLE_CALENDAR=true
     restart: always
 
 volumes:
+  instance_data:
   uploads_data:

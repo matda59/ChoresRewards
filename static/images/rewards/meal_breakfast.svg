@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-label="Breakfast">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#60a5fa"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="220" rx="24" fill="url(#bg)"/>
+  <circle cx="235" cy="58" r="26" fill="#fde68a" opacity="0.95"/>
+  <ellipse cx="132" cy="136" rx="76" ry="24" fill="#f8fafc" opacity="0.95"/>
+  <ellipse cx="130" cy="132" rx="40" ry="14" fill="#fbbf24"/>
+  <ellipse cx="105" cy="132" rx="8" ry="7" fill="#fff"/>
+  <ellipse cx="151" cy="132" rx="7" ry="6" fill="#fff"/>
+  <rect x="48" y="66" width="55" height="36" rx="8" fill="#f8fafc" opacity="0.9"/>
+  <rect x="53" y="71" width="45" height="26" rx="6" fill="#fb923c"/>
+  <text x="22" y="198" fill="#f8fafc" font-size="28" font-family="Arial, sans-serif" font-weight="700">Breakfast</text>
+</svg>
