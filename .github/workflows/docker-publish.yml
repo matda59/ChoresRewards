@@ -32,4 +32,6 @@ jobs:
           context: .
           file: ./dockerfile
           push: true
-          tags: ghcr.io/matda59/choresrewards:latest
+          tags: |
+            ghcr.io/matda59/choresrewards:latest
+            ghcr.io/matda59/choresrewards:nightly
