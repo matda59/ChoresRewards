@@ -3878,6 +3878,437 @@ label,
     cursor: not-allowed;
 }
 
+/* ── Shopping List ─────────────────────────────────────────────── */
+.shopping-list-section {
+    margin-top: 10px;
+}
+
+.shopping-stores-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+    margin-bottom: 12px;
+}
+
+.shopping-store-col {
+    background: rgba(0,0,0,0.22);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.shopping-store-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 13px;
+    background: rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #f8fafc;
+}
+
+.shopping-store-icon { font-size: 1.15rem; }
+.shopping-store-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.shopping-store-rename-btn {
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.32);
+    cursor: pointer;
+    font-size: 0.72rem;
+    padding: 3px 5px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    transition: color 0.2s, background 0.2s;
+    line-height: 1;
+}
+.shopping-store-rename-btn:hover {
+    color: #93c5fd;
+    background: rgba(147,197,253,0.12);
+}
+
+.shopping-store-name-input {
+    flex: 1;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(147,197,253,0.4);
+    border-radius: 6px;
+    color: #f8fafc;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    outline: none;
+    min-width: 0;
+    max-width: 160px;
+}
+
+.shopping-store-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: rgba(248,113,113,0.18);
+    border: 1px solid rgba(248,113,113,0.35);
+    color: #fca5a5;
+    border-radius: 999px;
+    padding: 2px 9px;
+    transition: background 0.3s, border-color 0.3s, color 0.3s;
+}
+
+.shopping-store-badge-done {
+    background: rgba(34,197,94,0.15);
+    border-color: rgba(34,197,94,0.35);
+    color: #86efac;
+}
+
+.shopping-store-items {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 60px;
+}
+
+.shopping-meal-groups-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+    align-items: start;
+}
+
+.shopping-meal-group {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    overflow: hidden;
+    break-inside: avoid;
+}
+
+.shopping-meal-group-planned {
+    border-color: rgba(96,165,250,0.28);
+    background: rgba(96,165,250,0.06);
+}
+
+.shopping-meal-group-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 7px 10px;
+    background: rgba(255,255,255,0.06);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.shopping-meal-group-planned .shopping-meal-group-header {
+    background: rgba(96,165,250,0.10);
+    border-bottom-color: rgba(96,165,250,0.18);
+}
+
+.shopping-meal-group-name {\n    flex: 1;\n    min-width: 0;\n    overflow: hidden;\n    text-overflow: ellipsis;\n    white-space: nowrap;\n}\n\n.shopping-meal-group-remove {\n    flex-shrink: 0;\n    margin-left: auto;\n    font-size: 0.8rem;\n    padding: 2px 6px;\n    opacity: 0.55;\n    transition: opacity 0.15s;\n}\n\n.shopping-meal-group-remove:hover {\n    opacity: 1;\n    color: #f87171;\n    background: rgba(248,113,113,0.1);\n}\n\n.shopping-planned-badge {
+    font-size: 0.6rem;
+    font-weight: 700;
+    background: rgba(96,165,250,0.18);
+    border: 1px solid rgba(96,165,250,0.35);
+    color: #93c5fd;
+    border-radius: 999px;
+    padding: 1px 7px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+
+.shopping-general-section {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(76,175,80,0.18);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.shopping-section-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    background: rgba(76,175,80,0.1);
+    border-bottom: 1px solid rgba(76,175,80,0.15);
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #86efac;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.shopping-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.15s;
+}
+
+.shopping-item:last-child { border-bottom: none; }
+.shopping-item:hover { background: rgba(255,255,255,0.04); }
+.shopping-item[draggable="true"] { cursor: grab; }
+.shopping-item[draggable="true"]:active { cursor: grabbing; }
+
+.shopping-item-dragging {
+    opacity: 0.45;
+    outline: 2px dashed rgba(147,197,253,0.5);
+    outline-offset: -2px;
+    border-radius: 6px;
+}
+
+.shopping-store-drop-target {
+    outline: 2px dashed rgba(147,197,253,0.6);
+    outline-offset: 3px;
+    background: rgba(147,197,253,0.04);
+    border-radius: 14px;
+}
+
+.shopping-item-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    flex: 1;
+    min-width: 0;
+}
+
+.shopping-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #4ade80;
+    flex-shrink: 0;
+}
+
+.shopping-item-name {
+    font-size: 0.85rem;
+    color: #f8fafc;
+    transition: opacity 0.2s, text-decoration 0.2s;
+}
+
+.shopping-item-qty {
+    color: rgba(255,255,255,0.42);
+    font-size: 0.75rem;
+    margin-left: 5px;
+}
+
+.shopping-item-checked .shopping-item-name {
+    text-decoration: line-through;
+    opacity: 0.38;
+}
+
+.shopping-remove-btn {
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.35);
+    cursor: pointer;
+    font-size: 0.95rem;
+    line-height: 1;
+    padding: 2px 5px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: color 0.2s, background 0.2s;
+}
+
+.shopping-remove-btn:hover {
+    color: #f87171;
+    background: rgba(248,113,113,0.1);
+}
+
+.shopping-empty-msg {
+    color: rgba(255,255,255,0.38);
+    font-size: 0.8rem;
+    font-style: italic;
+    padding: 8px 10px;
+}
+
+.shopping-action-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.shopping-manage-wrap {
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin-top: 6px;
+    padding-top: 4px;
+}
+
+.shopping-manage-toggle {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.68);
+    padding: 8px 2px;
+    margin: 0 0 6px;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    transition: color 0.2s;
+}
+
+.shopping-manage-toggle:hover { color: #f8fafc; }
+
+.shopping-manage-block {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+}
+
+.shopping-manage-label {
+    display: block;
+    color: rgba(255,255,255,0.55);
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+}
+
+.shopping-add-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.shopping-store-select {
+    max-width: 140px;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    min-height: 36px !important;
+}
+
+.shopping-qty-input { max-width: 130px; }
+
+.shopping-ingredients-library { margin-top: 6px; }
+
+.shopping-lib-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 8px;
+    align-items: start;
+}
+
+.shopping-lib-group {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 10px;
+    overflow: hidden;
+    break-inside: avoid;
+}
+
+.shopping-lib-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 7px 8px;
+    background: rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.shopping-lib-group-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.shopping-lib-remove-all {
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    padding: 2px 6px;
+}
+
+.shopping-lib-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.shopping-lib-item:last-child { border-bottom: none; }
+
+.shopping-lib-item-name {
+    flex: 1;
+    font-size: 0.81rem;
+    color: #f8fafc;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.shopping-lib-item-qty {
+    color: rgba(255,255,255,0.4);
+    font-size: 0.74rem;
+}
+
+.shopping-lib-store-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.shopping-lib-store-dot.shopping-lib-store-aldi {
+    background: #fbbf24;
+    box-shadow: 0 0 4px rgba(251,191,36,0.5);
+}
+
+.shopping-lib-store-dot.shopping-lib-store-woolworths {
+    background: #4ade80;
+    box-shadow: 0 0 4px rgba(74,222,128,0.5);
+}
+
+.shopping-lib-store-chip {
+    font-size: 0.68rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 2px 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+
+.shopping-lib-store-aldi {
+    background: rgba(255,196,0,0.14);
+    border: 1px solid rgba(255,196,0,0.32);
+    color: #fde68a;
+}
+
+.shopping-lib-store-woolworths {
+    background: rgba(34,197,94,0.12);
+    border: 1px solid rgba(34,197,94,0.28);
+    color: #86efac;
+}
+
+@media (max-width: 680px) {
+    .shopping-stores-row { grid-template-columns: 1fr; }
+}
+
 /* ════════════════════════════════════════════════════════════════
    KANBAN OVERRIDES — MUST STAY AT END OF FILE
    These rules win by cascade order. Do NOT duplicate #kanban or

@@ -276,6 +276,44 @@ def _build_meal_week_days(week_start):
     ]
 
 
+def _get_shopping_stores():
+    try:
+        raw = _json.loads(AppSetting.get('shopping_stores_json', '[]'))
+    except Exception:
+        raw = []
+    stores = raw if isinstance(raw, list) else []
+    existing_ids = {s['id'] for s in stores if isinstance(s, dict) and 'id' in s}
+    defaults = [{'id': 'aldi', 'name': 'Aldi'}, {'id': 'woolworths', 'name': 'Woolworths'}]
+    for d in reversed(defaults):
+        if d['id'] not in existing_ids:
+            stores.insert(0, d)
+    return stores
+
+
+def _get_shopping_data():
+    try:
+        raw_ing = _json.loads(AppSetting.get('meal_ingredients_json', '{}'))
+    except Exception:
+        raw_ing = {}
+    try:
+        raw_list = _json.loads(AppSetting.get('shopping_list_json', '{}'))
+    except Exception:
+        raw_list = {}
+
+    ingredients = raw_ing if isinstance(raw_ing, dict) else {}
+    checked = raw_list.get('checked', {}) if isinstance(raw_list, dict) else {}
+    general = raw_list.get('general', []) if isinstance(raw_list, dict) else []
+    hidden = raw_list.get('hidden', {}) if isinstance(raw_list, dict) else {}
+    stores = _get_shopping_stores()
+    return (
+        ingredients,
+        checked if isinstance(checked, dict) else {},
+        general if isinstance(general, list) else [],
+        hidden if isinstance(hidden, dict) else {},
+        stores,
+    )
+
+
 def _normalize_color_value(color_value):
     if not color_value:
         return None
@@ -905,6 +943,134 @@ def api_meal_planner_suggestions():
     except Exception as exc:
         return jsonify({'success': False, 'error': str(exc)}), 400
 
+
+@routes_bp.route('/api/meal_ingredients', methods=['GET', 'POST'])
+def api_meal_ingredients():
+    try:
+        if request.method == 'GET':
+            try:
+                data = _json.loads(AppSetting.get('meal_ingredients_json', '{}'))
+            except Exception:
+                data = {}
+            return jsonify({'success': True, 'ingredients': data if isinstance(data, dict) else {}})
+
+        data = request.get_json() or {}
+        raw = data.get('ingredients', {})
+        if not isinstance(raw, dict):
+            return jsonify({'success': False, 'error': 'ingredients must be an object'}), 400
+
+        cleaned = {}
+        for meal_name, items in raw.items():
+            key = str(meal_name).strip().lower()[:80]
+            if not key or not isinstance(items, list):
+                continue
+            clean_items = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                name = str(item.get('name', '')).strip()[:80]
+                store = re.sub(r'[^a-z0-9\-]', '', str(item.get('store', 'aldi')).strip().lower())[:50]
+                if not store:
+                    store = 'aldi'
+                qty = str(item.get('qty', '')).strip()[:40]
+                if name:
+                    clean_items.append({'name': name, 'store': store, 'qty': qty})
+            if clean_items:
+                cleaned[key] = clean_items
+
+        AppSetting.set('meal_ingredients_json', _json.dumps(cleaned))
+        log_activity('settings_updated', 'Meal ingredients updated')
+        return jsonify({'success': True, 'ingredients': cleaned})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/shopping_list', methods=['GET', 'POST'])
+def api_shopping_list():
+    try:
+        if request.method == 'GET':
+            try:
+                data = _json.loads(AppSetting.get('shopping_list_json', '{}'))
+            except Exception:
+                data = {}
+            if not isinstance(data, dict):
+                data = {}
+            return jsonify({'success': True,
+                            'checked': data.get('checked', {}),
+                            'general': data.get('general', []),
+                            'hidden': data.get('hidden', {})})
+
+        data = request.get_json() or {}
+        checked = data.get('checked', {})
+        general = data.get('general', [])
+        hidden = data.get('hidden', {})
+        if not isinstance(checked, dict):
+            checked = {}
+        if not isinstance(general, list):
+            general = []
+        if not isinstance(hidden, dict):
+            hidden = {}
+
+        clean_checked = {str(k).strip()[:200]: bool(v) for k, v in checked.items() if str(k).strip()}
+        seen = set()
+        clean_general = []
+        for item in general:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get('name', '')).strip()[:80]
+            store = re.sub(r'[^a-z0-9\-]', '', str(item.get('store', 'aldi')).strip().lower())[:50]
+            if not store:
+                store = 'aldi'
+            if name and name.lower() not in seen:
+                clean_general.append({'name': name, 'store': store})
+                seen.add(name.lower())
+
+        clean_hidden = {}
+        for store_id, meal_keys in hidden.items():
+            sid = re.sub(r'[^a-z0-9\-]', '', str(store_id).strip().lower())[:50]
+            if sid and isinstance(meal_keys, list):
+                clean_hidden[sid] = [str(k).strip()[:80] for k in meal_keys if str(k).strip()]
+
+        payload = {'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden}
+        AppSetting.set('shopping_list_json', _json.dumps(payload))
+        return jsonify({'success': True, 'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/shopping_stores', methods=['GET', 'POST'])
+def api_shopping_stores():
+    try:
+        if request.method == 'GET':
+            return jsonify({'success': True, 'stores': _get_shopping_stores()})
+
+        data = request.get_json() or {}
+        raw = data.get('stores', [])
+        if not isinstance(raw, list):
+            return jsonify({'success': False, 'error': 'stores must be an array'}), 400
+
+        cleaned = []
+        seen_ids = set()
+        for s in raw:
+            if not isinstance(s, dict):
+                continue
+            store_id = re.sub(r'[^a-z0-9\-]', '', str(s.get('id', '')).strip().lower())[:50]
+            name = str(s.get('name', '')).strip()[:80]
+            if not store_id or not name or store_id in seen_ids:
+                continue
+            cleaned.append({'id': store_id, 'name': name})
+            seen_ids.add(store_id)
+
+        if not cleaned:
+            return jsonify({'success': False, 'error': 'at least one valid store required'}), 400
+
+        AppSetting.set('shopping_stores_json', _json.dumps(cleaned))
+        log_activity('settings_updated', 'Shopping stores updated')
+        return jsonify({'success': True, 'stores': cleaned})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
 import bcrypt
 from flask import session
 
@@ -1071,6 +1237,7 @@ def index():
     meal_planner_week_start = _get_week_start()
     meal_planner_week_days = _build_meal_week_days(meal_planner_week_start)
     meal_planner_plan, meal_planner_suggestions, meal_planner_recurring = _get_meal_planner_data(meal_planner_week_start)
+    meal_ingredients, shopping_list_checked, shopping_list_general, shopping_hidden, shopping_stores = _get_shopping_data()
 
     timezone = AppSetting.get('timezone', 'UTC')
     google_calendar_feature_enabled = is_google_calendar_feature_enabled()
@@ -1158,6 +1325,11 @@ def index():
         meal_planner_plan=meal_planner_plan,
         meal_planner_recurring=meal_planner_recurring,
         meal_planner_suggestions=meal_planner_suggestions,
+        meal_ingredients=meal_ingredients,
+        shopping_list_checked=shopping_list_checked,
+        shopping_list_general=shopping_list_general,
+        shopping_hidden=shopping_hidden,
+        shopping_stores=shopping_stores,
         timedelta=timedelta,
         current_date=date.today(),
         timezone=timezone,

@@ -1871,6 +1871,7 @@ function deleteReward(rewardId) {
         // No match found, return default
         return '🍽️';
     }
+    window.getMealEmoji = getMealEmoji;
 
     function updateMealIcon(imageElement, mealName) {
         if (!imageElement) return;
@@ -2471,6 +2472,7 @@ function deleteReward(rewardId) {
             updateNavLabels(currentWeekStart);
             updateEditorForWeek(data.week_days, data.plan, data.recurring);
             updateViewerForWeek(data.week_days, data.plan, data.recurring);
+            window.renderShoppingList && window.renderShoppingList();
         } catch (e) {
             showPlannerToast(e.message || 'Failed to load week', 'error');
         } finally {
@@ -2490,6 +2492,540 @@ function deleteReward(rewardId) {
 })();
 </script>
 
+<section class="meal-planner-section shopping-list-section collapsible-section collapsed" id="shopping-list-section">
+    <h2 class="section-title section-toggle meal-planner-title">
+        <i class="fas fa-cart-shopping"></i> <span>Shopping List</span>
+        <i class="fas fa-chevron-down section-chevron"></i>
+    </h2>
+    <p class="meal-planner-subtitle">Items needed for your planned meals this week plus general weekly shopping &mdash; split by store.</p>
+
+    <div class="shopping-stores-row" id="shopping-stores-row">
+        <!-- Store columns rendered by JS -->
+    </div>
+
+    <div class="shopping-action-row">
+        <button type="button" class="edit-btn" id="clear-checked-shopping-btn"><i class="fas fa-broom"></i> Clear Checked</button>
+        <button type="button" class="edit-btn" id="add-store-btn"><i class="fas fa-plus"></i> Add Store</button>
+    </div>
+
+    <div class="shopping-manage-wrap collapsible-section collapsed">
+        <h3 class="shopping-manage-toggle section-toggle">
+            <i class="fas fa-sliders"></i> Manage Items &amp; Meal Ingredients
+            <i class="fas fa-chevron-down section-chevron"></i>
+        </h3>
+
+        <div class="shopping-manage-block">
+            <label class="shopping-manage-label"><i class="fas fa-list-check"></i>&ensp;Add General Shopping Item</label>
+            <div class="shopping-add-row">
+                <input type="text" id="shopping-general-input" class="modern-input" placeholder="e.g. Bread, Milk..." maxlength="80">
+                <select id="shopping-general-store" class="meal-quick-add shopping-store-select shopping-dynamic-store-select"></select>
+                <button type="button" class="edit-btn" id="shopping-add-general-btn">Add</button>
+            </div>
+        </div>
+
+        <div class="shopping-manage-block">
+            <label class="shopping-manage-label"><i class="fas fa-utensils"></i>&ensp;Add Ingredients for a Meal</label>
+            <div class="shopping-add-row">
+                <input type="text" id="shopping-meal-name-input" class="modern-input" placeholder="Meal name (e.g. Pizza)..." maxlength="80" list="shopping-meal-datalist" autocomplete="off">
+                <datalist id="shopping-meal-datalist"></datalist>
+            </div>
+            <div class="shopping-add-row" style="margin-top:6px;">
+                <input type="text" id="shopping-ingredient-input" class="modern-input" placeholder="Ingredient..." maxlength="80">
+                <input type="text" id="shopping-ingredient-qty" class="modern-input shopping-qty-input" placeholder="Qty (optional)" maxlength="40">
+                <select id="shopping-ingredient-store" class="meal-quick-add shopping-store-select shopping-dynamic-store-select"></select>
+                <button type="button" class="edit-btn" id="shopping-add-ingredient-btn">Add</button>
+            </div>
+        </div>
+
+        <label class="shopping-manage-label" style="margin-top:12px;"><i class="fas fa-book-open"></i>&ensp;Meals</label>
+        <div class="shopping-ingredients-library" id="shopping-ingredients-library"></div>
+    </div>
+</section>
+
+<script>
+(() => {
+    let mealIngredients = {{ meal_ingredients | tojson }};
+    let shoppingChecked = {{ shopping_list_checked | tojson }};
+    let shoppingGeneral = {{ shopping_list_general | tojson }};
+    let shoppingHidden = {{ shopping_hidden | tojson }};
+    let storeConfig = {{ shopping_stores | tojson }};
+
+    const STORE_COLORS = ['#f59e0b', '#22c55e', '#60a5fa', '#a78bfa', '#f97316', '#ec4899'];
+
+    function getEmoji(name) {
+        return (window.getMealEmoji && window.getMealEmoji(name)) || '🍽️';
+    }
+
+    function getStoreName(storeId) {
+        return storeConfig.find(s => s.id === storeId)?.name || storeId;
+    }
+
+    function getStoreColor(storeId) {
+        const idx = storeConfig.findIndex(s => s.id === storeId);
+        return STORE_COLORS[Math.max(0, idx) % STORE_COLORS.length];
+    }
+
+    function getPlannedMeals() {
+        const map = {};
+        document.querySelectorAll('.meal-slot').forEach(slot => {
+            const val = (slot.querySelector('.meal-input')?.value || '').trim();
+            if (!val) return;
+            const k = val.toLowerCase();
+            if (!map[k]) map[k] = val;
+        });
+        return map;
+    }
+
+    let saveCheckedTimer = null;
+    function debouncedSave() {
+        clearTimeout(saveCheckedTimer);
+        saveCheckedTimer = setTimeout(() => {
+            fetch('/api/shopping_list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ checked: shoppingChecked, general: shoppingGeneral, hidden: shoppingHidden })
+            }).catch(() => {});
+        }, 900);
+    }
+
+    let saveIngTimer = null;
+    function debouncedIngredientSave() {
+        clearTimeout(saveIngTimer);
+        saveIngTimer = setTimeout(() => {
+            fetch('/api/meal_ingredients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ingredients: mealIngredients })
+            }).catch(() => {});
+        }, 900);
+    }
+
+    let saveStoreTimer = null;
+    function debouncedStoreSave() {
+        clearTimeout(saveStoreTimer);
+        saveStoreTimer = setTimeout(() => {
+            fetch('/api/shopping_stores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stores: storeConfig })
+            }).catch(() => {});
+        }, 900);
+    }
+
+    let dragState = null;
+
+    function createItem(name, qty, key, removable, dragData) {
+        const checked = !!shoppingChecked[key];
+        const el = document.createElement('div');
+        el.className = 'shopping-item' + (checked ? ' shopping-item-checked' : '');
+        el.dataset.key = key;
+        const qtyHtml = qty ? `<span class="shopping-item-qty">${qty}</span>` : '';
+        const removeHtml = removable
+            ? `<button type="button" class="shopping-remove-btn" aria-label="Remove">&#x2715;</button>`
+            : '';
+        el.innerHTML = `
+            <label class="shopping-item-label">
+                <input type="checkbox" class="shopping-checkbox"${checked ? ' checked' : ''}>
+                <span class="shopping-item-name">${name}${qtyHtml}</span>
+            </label>${removeHtml}`;
+        el.querySelector('.shopping-checkbox').addEventListener('change', e => {
+            shoppingChecked[key] = e.target.checked;
+            el.classList.toggle('shopping-item-checked', e.target.checked);
+            updateBadges();
+            debouncedSave();
+        });
+        if (removable) {
+            el.querySelector('.shopping-remove-btn').addEventListener('click', () => {
+                shoppingGeneral = shoppingGeneral.filter(i => i.name.toLowerCase() !== name.toLowerCase());
+                delete shoppingChecked[key];
+                renderShoppingList();
+                debouncedSave();
+            });
+        }
+        if (dragData) {
+            el.draggable = true;
+            el.addEventListener('dragstart', e => {
+                dragState = dragData;
+                el.classList.add('shopping-item-dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', key);
+            });
+            el.addEventListener('dragend', () => {
+                el.classList.remove('shopping-item-dragging');
+                document.querySelectorAll('.shopping-store-drop-target').forEach(c => c.classList.remove('shopping-store-drop-target'));
+            });
+        }
+        return el;
+    }
+
+    function setupDropZone(container, storeId) {
+        container.addEventListener('dragover', e => {
+            if (dragState && dragState.fromStore !== storeId) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            }
+        });
+        container.addEventListener('dragenter', e => {
+            if (dragState && dragState.fromStore !== storeId) {
+                container.closest('.shopping-store-col')?.classList.add('shopping-store-drop-target');
+            }
+        });
+        container.addEventListener('dragleave', e => {
+            if (!container.contains(e.relatedTarget)) {
+                container.closest('.shopping-store-col')?.classList.remove('shopping-store-drop-target');
+            }
+        });
+        container.addEventListener('drop', e => {
+            e.preventDefault();
+            container.closest('.shopping-store-col')?.classList.remove('shopping-store-drop-target');
+            if (!dragState || dragState.fromStore === storeId) { dragState = null; return; }
+            if (dragState.type === 'general') {
+                const item = shoppingGeneral.find(i => i.name.toLowerCase() === dragState.name);
+                if (item) { item.store = storeId; debouncedSave(); }
+            } else if (dragState.type === 'meal') {
+                const ings = mealIngredients[dragState.mealKey];
+                if (ings) {
+                    const ing = ings.find(i => i.name.toLowerCase() === dragState.ingName);
+                    if (ing) { ing.store = storeId; debouncedIngredientSave(); }
+                }
+            }
+            dragState = null;
+            renderShoppingList();
+        });
+    }
+
+    function renderStoreColumn(storeId, container) {
+        container.innerHTML = '';
+        const planned = getPlannedMeals();
+        const hiddenForStore = shoppingHidden[storeId] || [];
+        let unchecked = 0;
+
+        const mealEntries = Object.entries(mealIngredients).filter(
+            ([mealKey, items]) => items.some(i => i.store === storeId) && !hiddenForStore.includes(mealKey)
+        );
+        mealEntries.sort(([a], [b]) => {
+            const aP = !!planned[a], bP = !!planned[b];
+            if (aP !== bP) return aP ? -1 : 1;
+            return a.localeCompare(b);
+        });
+
+        if (mealEntries.length) {
+            const grid = document.createElement('div');
+            grid.className = 'shopping-meal-groups-grid';
+            mealEntries.forEach(([mealKey, allIngredients]) => {
+                const ingredients = allIngredients.filter(i => i.store === storeId);
+                if (!ingredients.length) return;
+                const isPlanned = !!planned[mealKey];
+                const displayName = planned[mealKey] || mealKey;
+                const group = document.createElement('div');
+                group.className = 'shopping-meal-group' + (isPlanned ? ' shopping-meal-group-planned' : '');
+                const plannedBadge = isPlanned ? `<span class="shopping-planned-badge">This week</span>` : '';
+                const removeGroupBtn = `<button type="button" class="shopping-remove-btn shopping-meal-group-remove" title="Hide from ${getStoreName(storeId)}">&#x2715;</button>`;
+                group.innerHTML = `<div class="shopping-meal-group-header"><span>${getEmoji(displayName)}</span><span class="shopping-meal-group-name">${displayName}</span>${plannedBadge}${removeGroupBtn}</div>`;
+                group.querySelector('.shopping-meal-group-remove').addEventListener('click', () => {
+                    if (!shoppingHidden[storeId]) shoppingHidden[storeId] = [];
+                    if (!shoppingHidden[storeId].includes(mealKey)) shoppingHidden[storeId].push(mealKey);
+                    renderShoppingList();
+                    debouncedSave();
+                });
+                ingredients.forEach(ing => {
+                    const itemKey = `meal::${mealKey}::${ing.name.toLowerCase()}`;
+                    if (!shoppingChecked[itemKey]) unchecked++;
+                    group.appendChild(createItem(
+                        ing.name, ing.qty, itemKey, false,
+                        { type: 'meal', mealKey, ingName: ing.name.toLowerCase(), fromStore: storeId }
+                    ));
+                });
+                grid.appendChild(group);
+            });
+            container.appendChild(grid);
+        }
+
+        const storeGeneral = shoppingGeneral.filter(i => i.store === storeId);
+        const genDiv = document.createElement('div');
+        genDiv.className = 'shopping-general-section';
+        genDiv.innerHTML = `<div class="shopping-section-header"><i class="fas fa-list-check" aria-hidden="true"></i>&ensp;General Shopping</div>`;
+        if (!storeGeneral.length) {
+            genDiv.innerHTML += `<div class="shopping-empty-msg">No general items yet &mdash; add some below.</div>`;
+        } else {
+            storeGeneral.forEach(item => {
+                const itemKey = `general::${item.name.toLowerCase()}`;
+                if (!shoppingChecked[itemKey]) unchecked++;
+                genDiv.appendChild(createItem(
+                    item.name, '', itemKey, true,
+                    { type: 'general', name: item.name.toLowerCase(), fromStore: storeId }
+                ));
+            });
+        }
+        container.appendChild(genDiv);
+
+        const badge = document.getElementById(`${storeId}-badge`);
+        if (badge) {
+            badge.textContent = unchecked ? `${unchecked} to get` : '\u2713 All done';
+            badge.className = 'shopping-store-badge' + (unchecked === 0 ? ' shopping-store-badge-done' : '');
+        }
+    }
+
+    function buildStoreHeader(store) {
+        const header = document.createElement('div');
+        header.className = 'shopping-store-header';
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'shopping-store-name';
+        nameSpan.id = `store-name-${store.id}`;
+        nameSpan.textContent = store.name;
+        const renameBtn = document.createElement('button');
+        renameBtn.type = 'button';
+        renameBtn.className = 'shopping-store-rename-btn';
+        renameBtn.title = 'Rename store';
+        renameBtn.innerHTML = '<i class="fas fa-pencil" aria-hidden="true"></i>';
+        renameBtn.addEventListener('click', () => startRenameStore(store.id, header));
+        const badge = document.createElement('span');
+        badge.className = 'shopping-store-badge';
+        badge.id = `${store.id}-badge`;
+        header.innerHTML = '<span class="shopping-store-icon">\uD83D\uDED2</span>';
+        header.appendChild(nameSpan);
+        header.appendChild(renameBtn);
+        header.appendChild(badge);
+        return header;
+    }
+
+    function startRenameStore(storeId, header) {
+        const nameSpan = header.querySelector('.shopping-store-name');
+        const renameBtn = header.querySelector('.shopping-store-rename-btn');
+        if (!nameSpan) return;
+        const currentName = storeConfig.find(s => s.id === storeId)?.name || '';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'shopping-store-name-input';
+        input.value = currentName;
+        nameSpan.replaceWith(input);
+        renameBtn.style.display = 'none';
+        input.focus();
+        input.select();
+        const finish = () => {
+            const newName = input.value.trim();
+            if (newName && newName !== currentName) {
+                const s = storeConfig.find(s => s.id === storeId);
+                if (s) s.name = newName;
+                debouncedStoreSave();
+                populateStoreSelects();
+            }
+            renderShoppingList();
+        };
+        input.addEventListener('blur', finish);
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+            if (e.key === 'Escape') { input.value = currentName; input.blur(); }
+        });
+    }
+
+    function renderStoresRow() {
+        const row = document.getElementById('shopping-stores-row');
+        if (!row) return;
+        row.innerHTML = '';
+        storeConfig.forEach(store => {
+            const col = document.createElement('div');
+            col.className = 'shopping-store-col';
+            col.dataset.store = store.id;
+            col.appendChild(buildStoreHeader(store));
+            const items = document.createElement('div');
+            items.className = 'shopping-store-items';
+            items.id = `shopping-${store.id}-items`;
+            setupDropZone(items, store.id);
+            col.appendChild(items);
+            row.appendChild(col);
+        });
+    }
+
+    function updateBadges() {
+        storeConfig.forEach(store => {
+            const c = document.getElementById(`shopping-${store.id}-items`);
+            if (!c) return;
+            const total = c.querySelectorAll('.shopping-checkbox').length;
+            const done = c.querySelectorAll('.shopping-checkbox:checked').length;
+            const left = total - done;
+            const badge = document.getElementById(`${store.id}-badge`);
+            if (badge) {
+                badge.textContent = left ? `${left} to get` : '\u2713 All done';
+                badge.className = 'shopping-store-badge' + (left === 0 && total > 0 ? ' shopping-store-badge-done' : '');
+            }
+        });
+    }
+
+    function renderIngredientsLibrary() {
+        const lib = document.getElementById('shopping-ingredients-library');
+        if (!lib) return;
+        lib.innerHTML = '';
+        const keys = Object.keys(mealIngredients).sort();
+        if (!keys.length) {
+            lib.innerHTML = '<div class="shopping-empty-msg" style="margin:4px 0 8px;">No meals defined yet &mdash; add ingredients above.</div>';
+            refreshMealDatalist();
+            return;
+        }
+
+        const grid = document.createElement('div');
+        grid.className = 'shopping-lib-grid';
+
+        keys.forEach(mealKey => {
+            const items = mealIngredients[mealKey];
+            const group = document.createElement('div');
+            group.className = 'shopping-lib-group';
+
+            const header = document.createElement('div');
+            header.className = 'shopping-lib-group-header';
+            const title = document.createElement('span');
+            title.className = 'shopping-lib-group-title';
+            title.textContent = `${getEmoji(mealKey)} ${mealKey}`;
+            const removeAllBtn = document.createElement('button');
+            removeAllBtn.type = 'button';
+            removeAllBtn.className = 'shopping-remove-btn shopping-lib-remove-all';
+            removeAllBtn.title = 'Remove this meal and all its ingredients';
+            removeAllBtn.innerHTML = '&#x2715;';
+            removeAllBtn.addEventListener('click', () => {
+                delete mealIngredients[mealKey];
+                // Clear from hidden lists so it can be re-added later
+                Object.keys(shoppingHidden).forEach(sid => {
+                    shoppingHidden[sid] = shoppingHidden[sid].filter(k => k !== mealKey);
+                });
+                renderIngredientsLibrary();
+                renderShoppingList();
+                debouncedIngredientSave();
+                debouncedSave();
+            });
+            header.appendChild(title);
+            header.appendChild(removeAllBtn);
+            group.appendChild(header);
+
+            items.forEach((item, idx) => {
+                const row = document.createElement('div');
+                row.className = 'shopping-lib-item';
+                const color = getStoreColor(item.store);
+                const storeName = getStoreName(item.store);
+                row.innerHTML = `
+                    <span class="shopping-lib-item-name">${item.name}${item.qty ? `<span class="shopping-lib-item-qty"> &middot; ${item.qty}</span>` : ''}</span>
+                    <span class="shopping-lib-store-dot" style="background:${color}" title="${storeName}"></span>
+                    <button type="button" class="shopping-remove-btn" aria-label="Remove ingredient">&#x2715;</button>`;
+                row.querySelector('.shopping-remove-btn').addEventListener('click', () => {
+                    mealIngredients[mealKey].splice(idx, 1);
+                    if (!mealIngredients[mealKey].length) delete mealIngredients[mealKey];
+                    renderIngredientsLibrary();
+                    renderShoppingList();
+                    debouncedIngredientSave();
+                });
+                group.appendChild(row);
+            });
+
+            grid.appendChild(group);
+        });
+
+        lib.appendChild(grid);
+        refreshMealDatalist();
+    }
+
+    function populateStoreSelects() {
+        document.querySelectorAll('.shopping-dynamic-store-select').forEach(sel => {
+            const current = sel.value;
+            sel.innerHTML = storeConfig.map(s =>
+                `<option value="${s.id}"${s.id === current ? ' selected' : ''}>${s.name}</option>`
+            ).join('');
+            if (!storeConfig.find(s => s.id === current) && storeConfig.length) {
+                sel.value = storeConfig[0].id;
+            }
+        });
+    }
+
+    function refreshMealDatalist() {
+        const dl = document.getElementById('shopping-meal-datalist');
+        if (!dl) return;
+        dl.innerHTML = '';
+        const planned = getPlannedMeals();
+        const all = new Set([...Object.keys(mealIngredients), ...Object.keys(planned)]);
+        all.forEach(k => {
+            const opt = document.createElement('option');
+            opt.value = k;
+            dl.appendChild(opt);
+        });
+    }
+
+    function renderShoppingList() {
+        renderStoresRow();
+        storeConfig.forEach(store => {
+            const container = document.getElementById(`shopping-${store.id}-items`);
+            if (container) renderStoreColumn(store.id, container);
+        });
+        renderIngredientsLibrary();
+        refreshMealDatalist();
+        populateStoreSelects();
+    }
+    window.renderShoppingList = renderShoppingList;
+
+    // Add store
+    document.getElementById('add-store-btn')?.addEventListener('click', () => {
+        const name = prompt('Enter store name:')?.trim();
+        if (!name) return;
+        const id = name.toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') + '-' + Math.floor(Math.random() * 9000 + 1000);
+        storeConfig.push({ id, name });
+        debouncedStoreSave();
+        renderShoppingList();
+    });
+
+    // Clear checked
+    document.getElementById('clear-checked-shopping-btn')?.addEventListener('click', () => {
+        Object.keys(shoppingChecked).forEach(k => { shoppingChecked[k] = false; });
+        renderShoppingList();
+        debouncedSave();
+    });
+
+    // Add general item
+    const generalInput = document.getElementById('shopping-general-input');
+    const generalStoreSelect = document.getElementById('shopping-general-store');
+    const doAddGeneral = () => {
+        const name = generalInput?.value.trim();
+        if (!name) return;
+        const store = generalStoreSelect?.value || storeConfig[0]?.id || 'aldi';
+        if (!shoppingGeneral.some(i => i.name.toLowerCase() === name.toLowerCase())) {
+            shoppingGeneral.push({ name, store });
+            renderShoppingList();
+            debouncedSave();
+        }
+        if (generalInput) generalInput.value = '';
+    };
+    document.getElementById('shopping-add-general-btn')?.addEventListener('click', doAddGeneral);
+    generalInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAddGeneral(); } });
+
+    // Add meal ingredient
+    const mealNameInput = document.getElementById('shopping-meal-name-input');
+    const ingredientInput = document.getElementById('shopping-ingredient-input');
+    const ingredientQtyInput = document.getElementById('shopping-ingredient-qty');
+    const ingredientStoreSelect = document.getElementById('shopping-ingredient-store');
+    const doAddIngredient = () => {
+        const mealKey = mealNameInput?.value.trim().toLowerCase();
+        const ingName = ingredientInput?.value.trim();
+        if (!mealKey || !ingName) return;
+        const qty = ingredientQtyInput?.value.trim() || '';
+        const store = ingredientStoreSelect?.value || storeConfig[0]?.id || 'aldi';
+        if (!mealIngredients[mealKey]) mealIngredients[mealKey] = [];
+        if (!mealIngredients[mealKey].some(i => i.name.toLowerCase() === ingName.toLowerCase())) {
+            mealIngredients[mealKey].push({ name: ingName, store, qty });
+            renderIngredientsLibrary();
+            renderShoppingList();
+            debouncedIngredientSave();
+        }
+        if (ingredientInput) ingredientInput.value = '';
+        if (ingredientQtyInput) ingredientQtyInput.value = '';
+    };
+    document.getElementById('shopping-add-ingredient-btn')?.addEventListener('click', doAddIngredient);
+    ingredientInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAddIngredient(); } });
+
+    // Re-render shopping list whenever a meal input changes
+    document.getElementById('meal-planner-grid')?.addEventListener('input', renderShoppingList);
+    document.getElementById('meal-planner-grid')?.addEventListener('change', renderShoppingList);
+
+    renderShoppingList();
+})();
+</script>
 
 
     <section>
