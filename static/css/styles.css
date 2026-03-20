@@ -3837,6 +3837,47 @@ label,
     font-size: 0.82rem;
 }
 
+.meal-week-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 0 10px;
+}
+
+.meal-week-nav-label {
+    color: #f8fafc;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: center;
+    flex: 1;
+}
+
+.meal-nav-btn {
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.07);
+    color: #f8fafc;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    transition: background 0.2s, border-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.meal-nav-btn:hover {
+    background: rgba(96,165,250,0.15);
+    border-color: rgba(96,165,250,0.45);
+}
+
+.meal-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 /* ════════════════════════════════════════════════════════════════
    KANBAN OVERRIDES — MUST STAY AT END OF FILE
    These rules win by cascade order. Do NOT duplicate #kanban or

@@ -1583,6 +1583,11 @@ function deleteReward(rewardId) {
         <i class="fas fa-utensils"></i> <span>Weekly Meal Planner</span>
         <i class="fas fa-chevron-down section-chevron"></i>
     </h2>
+    <div class="meal-week-nav">
+        <button type="button" class="meal-nav-btn meal-prev-week-btn"><i class="fas fa-chevron-left"></i> Prev week</button>
+        <span class="meal-week-nav-label"></span>
+        <button type="button" class="meal-nav-btn meal-next-week-btn">Next week <i class="fas fa-chevron-right"></i></button>
+    </div>
 
     <div class="meal-week-display" id="meal-week-display">
         {% for day in meal_planner_week_days %}
@@ -1630,6 +1635,11 @@ function deleteReward(rewardId) {
         <i class="fas fa-chevron-down section-chevron"></i>
     </h2>
     <div class="meal-planner-subtitle">Expand to plan meals, drag/drop between slots, and update suggestions.</div>
+    <div class="meal-week-nav">
+        <button type="button" class="meal-nav-btn meal-prev-week-btn"><i class="fas fa-chevron-left"></i> Prev week</button>
+        <span class="meal-week-nav-label"></span>
+        <button type="button" class="meal-nav-btn meal-next-week-btn">Next week <i class="fas fa-chevron-right"></i></button>
+    </div>
     <div class="meal-planner-grid-wrap">
         <table class="meal-planner-grid" id="meal-planner-grid">
             <thead>
@@ -1716,7 +1726,7 @@ function deleteReward(rewardId) {
     const plannerGrid = document.getElementById('meal-planner-grid');
     if (!plannerGrid) return;
 
-    const weekStart = "{{ meal_planner_week_start }}";
+    let currentWeekStart = "{{ meal_planner_week_start }}";
     const savePlanButton = document.getElementById('save-meal-plan-btn');
     const addSuggestionButton = document.getElementById('meal-suggestion-add-btn');
     const saveSuggestionsButton = document.getElementById('save-meal-suggestions-btn');
@@ -2328,7 +2338,7 @@ function deleteReward(rewardId) {
                 const response = await fetch('/api/meal_planner', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ week_start: weekStart, plan: mealPlan, recurring: recurringPlan })
+                    body: JSON.stringify({ week_start: currentWeekStart, plan: mealPlan, recurring: recurringPlan })
                 });
                 const data = await response.json();
                 if (!data.success) {
@@ -2374,6 +2384,109 @@ function deleteReward(rewardId) {
     syncRecurringButtons(recurringRules);
     refreshQuickAddDropdowns();
     updateReadOnlyPlanner(collectMealPlan());
+
+    // ── Week navigation ──────────────────────────────────────────────────────
+
+    function addDaysToIso(isoDate, days) {
+        const d = new Date(isoDate + 'T00:00:00');
+        d.setDate(d.getDate() + days);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function getWeekLabel(weekStartIso) {
+        const start = new Date(weekStartIso + 'T00:00:00');
+        const end = new Date(weekStartIso + 'T00:00:00');
+        end.setDate(end.getDate() + 6);
+        const opts = { day: 'numeric', month: 'short' };
+        const optsYear = { day: 'numeric', month: 'short', year: 'numeric' };
+        return start.toLocaleDateString('en-GB', opts) + ' \u2013 ' + end.toLocaleDateString('en-GB', optsYear);
+    }
+
+    function updateNavLabels(weekStartIso) {
+        document.querySelectorAll('.meal-week-nav-label').forEach(el => {
+            el.textContent = getWeekLabel(weekStartIso);
+        });
+    }
+
+    function updateViewerForWeek(weekDays, plan, recurring) {
+        const display = document.getElementById('meal-week-display');
+        if (!display) return;
+        const today = new Date().toISOString().split('T')[0];
+        const dayCards = display.querySelectorAll('.meal-day-card');
+        dayCards.forEach((card, i) => {
+            const day = weekDays[i];
+            if (!day) return;
+            const newIso = day.date_iso;
+            card.dataset.day = newIso;
+            card.classList.toggle('meal-day-card-today', newIso === today);
+            const strong = card.querySelector('.meal-day-header strong');
+            const dateSpan = card.querySelector('.meal-day-header span');
+            if (strong) strong.textContent = day.day_full;
+            if (dateSpan) dateSpan.textContent = day.date_label;
+            card.querySelectorAll('[data-day]').forEach(el => { el.dataset.day = newIso; });
+            const empty = card.querySelector('.meal-day-empty');
+            if (empty) empty.dataset.emptyForDay = newIso;
+        });
+        updateReadOnlyPlanner(plan);
+    }
+
+    function updateEditorForWeek(weekDays, plan, recurring) {
+        const mealTypes = ['breakfast', 'lunch', 'dinner'];
+        const headerCells = plannerGrid.querySelectorAll('thead th');
+        weekDays.forEach((day, i) => {
+            const th = headerCells[i + 1];
+            if (!th) return;
+            th.title = day.day_full;
+            th.innerHTML = `${day.day_short}<br><span>${day.date_label}</span>`;
+        });
+        const rows = plannerGrid.querySelectorAll('tbody tr');
+        rows.forEach((row, mealIndex) => {
+            const mealType = mealTypes[mealIndex];
+            const slots = row.querySelectorAll('.meal-slot');
+            slots.forEach((slot, dayIndex) => {
+                const day = weekDays[dayIndex];
+                if (!day) return;
+                slot.dataset.day = day.date_iso;
+                const input = slot.querySelector('.meal-input');
+                if (input) input.value = (plan[day.date_iso]?.[mealType] || '').trim();
+            });
+        });
+        syncRecurringButtons(recurring);
+    }
+
+    let weekNavBusy = false;
+
+    async function loadWeek(weekStartIso) {
+        if (weekNavBusy) return;
+        weekNavBusy = true;
+        document.querySelectorAll('.meal-nav-btn').forEach(b => { b.disabled = true; });
+        try {
+            const response = await fetch(`/api/meal_planner?week_start=${encodeURIComponent(weekStartIso)}`);
+            const data = await response.json();
+            if (!data.success) throw new Error(data.error || 'Failed to load week');
+            currentWeekStart = data.week_start;
+            updateNavLabels(currentWeekStart);
+            updateEditorForWeek(data.week_days, data.plan, data.recurring);
+            updateViewerForWeek(data.week_days, data.plan, data.recurring);
+        } catch (e) {
+            showPlannerToast(e.message || 'Failed to load week', 'error');
+        } finally {
+            weekNavBusy = false;
+            document.querySelectorAll('.meal-nav-btn').forEach(b => { b.disabled = false; });
+        }
+    }
+
+    document.querySelectorAll('.meal-prev-week-btn').forEach(btn => {
+        btn.addEventListener('click', () => loadWeek(addDaysToIso(currentWeekStart, -7)));
+    });
+    document.querySelectorAll('.meal-next-week-btn').forEach(btn => {
+        btn.addEventListener('click', () => loadWeek(addDaysToIso(currentWeekStart, 7)));
+    });
+
+    updateNavLabels(currentWeekStart);
 })();
 </script>
 

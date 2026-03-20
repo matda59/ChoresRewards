@@ -836,9 +836,12 @@ def api_person_points():
 @routes_bp.route('/api/meal_planner', methods=['GET', 'POST'])
 def api_meal_planner():
     try:
-        week_start = _get_week_start()
-
         if request.method == 'GET':
+            week_start_str = request.args.get('week_start', '').strip()
+            try:
+                week_start = _get_week_start(date.fromisoformat(week_start_str))
+            except (ValueError, TypeError, AttributeError):
+                week_start = _get_week_start()
             plan, suggestions, recurring = _get_meal_planner_data(week_start)
             return jsonify({
                 'success': True,
@@ -850,14 +853,32 @@ def api_meal_planner():
             })
 
         data = request.get_json() or {}
+        week_start_str = data.get('week_start', '') if isinstance(data.get('week_start'), str) else ''
+        try:
+            week_start = _get_week_start(date.fromisoformat(week_start_str.strip()))
+        except (ValueError, TypeError, AttributeError):
+            week_start = _get_week_start()
+
         input_plan = data.get('plan', {})
         input_recurring = data.get('recurring', {})
-        normalized_plan = _normalize_meal_plan(input_plan, week_start)
+
+        # Load full stored plan and merge only the target week's data into it
+        stored_plan_str = AppSetting.get('meal_planner_plan_json', '{}')
+        try:
+            full_stored_plan = _json.loads(stored_plan_str)
+        except Exception:
+            full_stored_plan = {}
+        if not isinstance(full_stored_plan, dict):
+            full_stored_plan = {}
+        week_data = _normalize_meal_plan(input_plan, week_start)
+        full_stored_plan.update(week_data)
+
         normalized_recurring = _normalize_meal_recurring(input_recurring)
-        AppSetting.set('meal_planner_plan_json', _json.dumps(normalized_plan))
+        AppSetting.set('meal_planner_plan_json', _json.dumps(full_stored_plan))
         AppSetting.set('meal_planner_recurring_json', _json.dumps(normalized_recurring))
         log_activity('settings_updated', 'Meal planner was updated')
-        return jsonify({'success': True, 'plan': normalized_plan, 'recurring': normalized_recurring})
+        plan_for_week = _merge_meal_plan_with_recurring(full_stored_plan, normalized_recurring, week_start)
+        return jsonify({'success': True, 'plan': plan_for_week, 'recurring': normalized_recurring})
     except Exception as exc:
         return jsonify({'success': False, 'error': str(exc)}), 400
 
