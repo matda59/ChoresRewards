@@ -2548,9 +2548,36 @@ function deleteReward(rewardId) {
     let shoppingChecked = {{ shopping_list_checked | tojson }};
     let shoppingGeneral = {{ shopping_list_general | tojson }};
     let shoppingHidden = {{ shopping_hidden | tojson }};
+    let shoppingActive = {{ shopping_active | tojson }};
     let storeConfig = {{ shopping_stores | tojson }};
 
     const STORE_COLORS = ['#f59e0b', '#22c55e', '#60a5fa', '#a78bfa', '#f97316', '#ec4899'];
+
+    const STORE_ICON_PICKER_OPTIONS = [
+        '/static/images/rewards/store_woolworths.svg',
+        '/static/images/rewards/store_aldi.svg',
+        '🛒','🏪','🏬','🛍️','🥩','🥬','🥖','🐟','🧴','💊',
+        '🌿','🍎','🧀','🥛','🍷','⛽','🏥','🏦','🔧','🧹',
+        '🍕','🌮','🍜','☕','🍰','🎂','🐾','📦','🌸','❄️'
+    ];
+
+    function isIconImage(icon) {
+        return icon && icon.startsWith('/');
+    }
+
+    function setStoreIconEl(el, icon) {
+        if (isIconImage(icon)) {
+            el.textContent = '';
+            const img = document.createElement('img');
+            img.src = icon;
+            img.className = 'shopping-store-icon-img';
+            img.alt = '';
+            img.draggable = false;
+            el.appendChild(img);
+        } else {
+            el.textContent = icon || '🛒';
+        }
+    }
 
     function getEmoji(name) {
         return (window.getMealEmoji && window.getMealEmoji(name)) || '🍽️';
@@ -2558,6 +2585,10 @@ function deleteReward(rewardId) {
 
     function getStoreName(storeId) {
         return storeConfig.find(s => s.id === storeId)?.name || storeId;
+    }
+
+    function getStoreIcon(storeId) {
+        return storeConfig.find(s => s.id === storeId)?.icon || '🛒';
     }
 
     function getStoreColor(storeId) {
@@ -2583,7 +2614,7 @@ function deleteReward(rewardId) {
             fetch('/api/shopping_list', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ checked: shoppingChecked, general: shoppingGeneral, hidden: shoppingHidden })
+                body: JSON.stringify({ checked: shoppingChecked, general: shoppingGeneral, hidden: shoppingHidden, active: shoppingActive })
             }).catch(() => {});
         }, 900);
     }
@@ -2701,7 +2732,9 @@ function deleteReward(rewardId) {
         let unchecked = 0;
 
         const mealEntries = Object.entries(mealIngredients).filter(
-            ([mealKey, items]) => items.some(i => i.store === storeId) && !hiddenForStore.includes(mealKey)
+            ([mealKey, items]) => items.some(i => i.store === storeId) &&
+                (shoppingActive.includes(mealKey) || !!planned[mealKey]) &&
+                !hiddenForStore.includes(mealKey)
         );
         mealEntries.sort(([a], [b]) => {
             const aP = !!planned[a], bP = !!planned[b];
@@ -2766,9 +2799,44 @@ function deleteReward(rewardId) {
         }
     }
 
+    function openIconPicker(storeId, anchorEl) {
+        document.querySelector('.shopping-icon-picker')?.remove();
+        const picker = document.createElement('div');
+        picker.className = 'shopping-icon-picker';
+        STORE_ICON_PICKER_OPTIONS.forEach(icon => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'shopping-icon-picker-opt';
+            setStoreIconEl(btn, icon);
+            btn.addEventListener('click', () => {
+                const s = storeConfig.find(s => s.id === storeId);
+                if (s) s.icon = icon;
+                picker.remove();
+                debouncedStoreSave();
+                renderShoppingList();
+            });
+            picker.appendChild(btn);
+        });
+        // Close on outside click
+        const close = e => {
+            if (!picker.contains(e.target) && e.target !== anchorEl) {
+                picker.remove();
+                document.removeEventListener('click', close, true);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', close, true), 0);
+        anchorEl.parentElement.style.position = 'relative';
+        anchorEl.parentElement.appendChild(picker);
+    }
+
     function buildStoreHeader(store) {
         const header = document.createElement('div');
         header.className = 'shopping-store-header';
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'shopping-store-icon shopping-store-icon-btn';
+        setStoreIconEl(iconSpan, store.icon || '🛒');
+        iconSpan.title = 'Change icon';
+        iconSpan.addEventListener('click', () => openIconPicker(store.id, iconSpan));
         const nameSpan = document.createElement('span');
         nameSpan.className = 'shopping-store-name';
         nameSpan.id = `store-name-${store.id}`;
@@ -2779,12 +2847,28 @@ function deleteReward(rewardId) {
         renameBtn.title = 'Rename store';
         renameBtn.innerHTML = '<i class="fas fa-pencil" aria-hidden="true"></i>';
         renameBtn.addEventListener('click', () => startRenameStore(store.id, header));
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'shopping-store-delete-btn';
+        deleteBtn.title = 'Delete store';
+        deleteBtn.innerHTML = '<i class="fas fa-trash" aria-hidden="true"></i>';
+        deleteBtn.addEventListener('click', () => {
+            if (!confirm(`Delete "${store.name}"? Items assigned to it will remain in the Meals library.`)) return;
+            storeConfig = storeConfig.filter(s => s.id !== store.id);
+            shoppingGeneral = shoppingGeneral.filter(i => i.store !== store.id);
+            delete shoppingHidden[store.id];
+            debouncedStoreSave();
+            debouncedSave();
+            renderShoppingList();
+        });
         const badge = document.createElement('span');
         badge.className = 'shopping-store-badge';
         badge.id = `${store.id}-badge`;
-        header.innerHTML = '<span class="shopping-store-icon">\uD83D\uDED2</span>';
+        header.innerHTML = '';
+        header.appendChild(iconSpan);
         header.appendChild(nameSpan);
         header.appendChild(renameBtn);
+        header.appendChild(deleteBtn);
         header.appendChild(badge);
         return header;
     }
@@ -2883,7 +2967,7 @@ function deleteReward(rewardId) {
             removeAllBtn.innerHTML = '&#x2715;';
             removeAllBtn.addEventListener('click', () => {
                 delete mealIngredients[mealKey];
-                // Clear from hidden lists so it can be re-added later
+                shoppingActive = shoppingActive.filter(k => k !== mealKey);
                 Object.keys(shoppingHidden).forEach(sid => {
                     shoppingHidden[sid] = shoppingHidden[sid].filter(k => k !== mealKey);
                 });
@@ -2892,26 +2976,148 @@ function deleteReward(rewardId) {
                 debouncedIngredientSave();
                 debouncedSave();
             });
+
+            const planned = getPlannedMeals();
+            const isActive = shoppingActive.includes(mealKey);
+            const isPlanned = !!planned[mealKey];
+            const addBtn = document.createElement('button');
+            addBtn.type = 'button';
+            if (isPlanned) {
+                addBtn.className = 'shopping-lib-add-btn shopping-lib-add-btn--planned';
+                addBtn.title = 'In this week\'s meal plan';
+                addBtn.innerHTML = '<i class="fas fa-calendar-check" aria-hidden="true"></i>';
+                addBtn.disabled = true;
+            } else if (isActive) {
+                addBtn.className = 'shopping-lib-add-btn shopping-lib-add-btn--active';
+                addBtn.title = 'Remove from shopping run';
+                addBtn.innerHTML = '<i class="fas fa-cart-arrow-down" aria-hidden="true"></i>';
+                addBtn.addEventListener('click', () => {
+                    shoppingActive = shoppingActive.filter(k => k !== mealKey);
+                    renderIngredientsLibrary();
+                    renderShoppingList();
+                    debouncedSave();
+                });
+            } else {
+                addBtn.className = 'shopping-lib-add-btn';
+                addBtn.title = 'Add to shopping run';
+                addBtn.innerHTML = '<i class="fas fa-cart-plus" aria-hidden="true"></i>';
+                addBtn.addEventListener('click', () => {
+                    if (!shoppingActive.includes(mealKey)) shoppingActive.push(mealKey);
+                    // Unhide from all stores so it becomes visible
+                    Object.keys(shoppingHidden).forEach(sid => {
+                        shoppingHidden[sid] = shoppingHidden[sid].filter(k => k !== mealKey);
+                    });
+                    renderIngredientsLibrary();
+                    renderShoppingList();
+                    debouncedSave();
+                });
+            }
             header.appendChild(title);
+            header.appendChild(addBtn);
             header.appendChild(removeAllBtn);
             group.appendChild(header);
 
             items.forEach((item, idx) => {
                 const row = document.createElement('div');
                 row.className = 'shopping-lib-item';
-                const color = getStoreColor(item.store);
-                const storeName = getStoreName(item.store);
-                row.innerHTML = `
-                    <span class="shopping-lib-item-name">${item.name}${item.qty ? `<span class="shopping-lib-item-qty"> &middot; ${item.qty}</span>` : ''}</span>
-                    <span class="shopping-lib-store-dot" style="background:${color}" title="${storeName}"></span>
-                    <button type="button" class="shopping-remove-btn" aria-label="Remove ingredient">&#x2715;</button>`;
-                row.querySelector('.shopping-remove-btn').addEventListener('click', () => {
-                    mealIngredients[mealKey].splice(idx, 1);
-                    if (!mealIngredients[mealKey].length) delete mealIngredients[mealKey];
-                    renderIngredientsLibrary();
-                    renderShoppingList();
-                    debouncedIngredientSave();
-                });
+                row.dataset.editing = 'false';
+
+                const buildView = () => {
+                    const color = getStoreColor(item.store);
+                    const storeName = getStoreName(item.store);
+                    row.innerHTML = '';
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'shopping-lib-item-name';
+                    nameSpan.innerHTML = item.name + (item.qty ? `<span class="shopping-lib-item-qty"> &middot; ${item.qty}</span>` : '');
+                    const dot = document.createElement('span');
+                    dot.className = 'shopping-lib-store-icon-badge';
+                    setStoreIconEl(dot, getStoreIcon(item.store));
+                    dot.title = getStoreName(item.store);
+                    const editBtn = document.createElement('button');
+                    editBtn.type = 'button';
+                    editBtn.className = 'shopping-lib-edit-btn';
+                    editBtn.title = 'Edit';
+                    editBtn.innerHTML = '<i class="fas fa-pencil" aria-hidden="true"></i>';
+                    editBtn.addEventListener('click', () => buildEdit());
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'shopping-remove-btn';
+                    removeBtn.setAttribute('aria-label', 'Remove ingredient');
+                    removeBtn.innerHTML = '&#x2715;';
+                    removeBtn.addEventListener('click', () => {
+                        mealIngredients[mealKey].splice(idx, 1);
+                        if (!mealIngredients[mealKey].length) delete mealIngredients[mealKey];
+                        renderIngredientsLibrary();
+                        renderShoppingList();
+                        debouncedIngredientSave();
+                    });
+                    row.appendChild(nameSpan);
+                    row.appendChild(dot);
+                    row.appendChild(editBtn);
+                    row.appendChild(removeBtn);
+                };
+
+                const buildEdit = () => {
+                    row.innerHTML = '';
+                    row.className = 'shopping-lib-item shopping-lib-item--editing';
+                    const nameIn = document.createElement('input');
+                    nameIn.type = 'text';
+                    nameIn.className = 'shopping-lib-edit-input';
+                    nameIn.value = item.name;
+                    nameIn.placeholder = 'Ingredient';
+                    nameIn.maxLength = 80;
+                    const qtyIn = document.createElement('input');
+                    qtyIn.type = 'text';
+                    qtyIn.className = 'shopping-lib-edit-input shopping-lib-edit-qty';
+                    qtyIn.value = item.qty || '';
+                    qtyIn.placeholder = 'Qty';
+                    qtyIn.maxLength = 40;
+                    const storeSel = document.createElement('select');
+                    storeSel.className = 'shopping-lib-edit-store';
+                    storeConfig.forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s.id;
+                        opt.textContent = s.name;
+                        if (s.id === item.store) opt.selected = true;
+                        storeSel.appendChild(opt);
+                    });
+                    const saveBtn = document.createElement('button');
+                    saveBtn.type = 'button';
+                    saveBtn.className = 'shopping-lib-edit-save';
+                    saveBtn.title = 'Save';
+                    saveBtn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
+                    saveBtn.addEventListener('click', () => {
+                        const newName = nameIn.value.trim();
+                        if (!newName) return;
+                        item.name = newName;
+                        item.qty = qtyIn.value.trim();
+                        item.store = storeSel.value;
+                        row.className = 'shopping-lib-item';
+                        buildView();
+                        renderShoppingList();
+                        debouncedIngredientSave();
+                    });
+                    const cancelBtn = document.createElement('button');
+                    cancelBtn.type = 'button';
+                    cancelBtn.className = 'shopping-remove-btn';
+                    cancelBtn.title = 'Cancel';
+                    cancelBtn.innerHTML = '&#x2715;';
+                    cancelBtn.addEventListener('click', () => {
+                        row.className = 'shopping-lib-item';
+                        buildView();
+                    });
+                    [nameIn, qtyIn, storeSel, saveBtn, cancelBtn].forEach(el => row.appendChild(el));
+                    nameIn.focus();
+                    nameIn.select();
+                    const onKey = e => {
+                        if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
+                        if (e.key === 'Escape') { e.preventDefault(); cancelBtn.click(); }
+                    };
+                    nameIn.addEventListener('keydown', onKey);
+                    qtyIn.addEventListener('keydown', onKey);
+                };
+
+                buildView();
                 group.appendChild(row);
             });
 

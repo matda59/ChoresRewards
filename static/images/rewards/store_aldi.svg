@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="#003C88" rx="20"/>
+  <!-- Background accent bar -->
+  <rect x="0" y="130" width="200" height="70" fill="#E85D00" rx="0"/>
+  <rect x="0" y="130" width="200" height="70" fill="#E85D00"/>
+  <!-- Bottom corners rounding -->
+  <rect x="0" y="150" width="200" height="50" rx="20" fill="#E85D00"/>
+  <rect x="0" y="130" width="200" height="25" fill="#E85D00"/>
+  <!-- Bold A letter -->
+  <text x="100" y="125" font-size="110" font-weight="900" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" fill="white"
+        letter-spacing="-2">A</text>
+  <!-- Store label -->
+  <text x="100" y="172" font-size="24" font-weight="700" text-anchor="middle"
+        font-family="Arial,sans-serif" fill="white" letter-spacing="2">ALDI</text>
+</svg>

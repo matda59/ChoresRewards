@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="#00834B" rx="20"/>
+  <!-- Woolworths-style leaf/apple motif -->
+  <circle cx="100" cy="88" r="52" fill="#00C65E"/>
+  <circle cx="100" cy="88" r="52" fill="url(#wleaf)" opacity="0.4"/>
+  <defs>
+    <radialGradient id="wleaf" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Bold W letter -->
+  <text x="100" y="118" font-size="72" font-weight="900" text-anchor="middle"
+        font-family="Arial Black,Arial,sans-serif" fill="white"
+        letter-spacing="-4">W</text>
+  <!-- Store label -->
+  <rect x="18" y="148" width="164" height="34" rx="8" fill="white" fill-opacity="0.18"/>
+  <text x="100" y="170" font-size="19" font-weight="700" text-anchor="middle"
+        font-family="Arial,sans-serif" fill="white" letter-spacing="0.5">WOOLWORTHS</text>
+</svg>

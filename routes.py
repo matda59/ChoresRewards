@@ -283,10 +283,14 @@ def _get_shopping_stores():
         raw = []
     stores = raw if isinstance(raw, list) else []
     existing_ids = {s['id'] for s in stores if isinstance(s, dict) and 'id' in s}
-    defaults = [{'id': 'aldi', 'name': 'Aldi'}, {'id': 'woolworths', 'name': 'Woolworths'}]
+    defaults = [{'id': 'aldi', 'name': 'Aldi', 'icon': '/static/images/rewards/store_aldi.svg'}, {'id': 'woolworths', 'name': 'Woolworths', 'icon': '/static/images/rewards/store_woolworths.svg'}]
     for d in reversed(defaults):
         if d['id'] not in existing_ids:
             stores.insert(0, d)
+    # Ensure all stores have an icon field
+    for s in stores:
+        if isinstance(s, dict) and 'icon' not in s:
+            s['icon'] = '🛒'
     return stores
 
 
@@ -304,12 +308,14 @@ def _get_shopping_data():
     checked = raw_list.get('checked', {}) if isinstance(raw_list, dict) else {}
     general = raw_list.get('general', []) if isinstance(raw_list, dict) else []
     hidden = raw_list.get('hidden', {}) if isinstance(raw_list, dict) else {}
+    active = raw_list.get('active', []) if isinstance(raw_list, dict) else []
     stores = _get_shopping_stores()
     return (
         ingredients,
         checked if isinstance(checked, dict) else {},
         general if isinstance(general, list) else [],
         hidden if isinstance(hidden, dict) else {},
+        active if isinstance(active, list) else [],
         stores,
     )
 
@@ -998,18 +1004,22 @@ def api_shopping_list():
             return jsonify({'success': True,
                             'checked': data.get('checked', {}),
                             'general': data.get('general', []),
-                            'hidden': data.get('hidden', {})})
+                            'hidden': data.get('hidden', {}),
+                            'active': data.get('active', [])})
 
         data = request.get_json() or {}
         checked = data.get('checked', {})
         general = data.get('general', [])
         hidden = data.get('hidden', {})
+        active = data.get('active', [])
         if not isinstance(checked, dict):
             checked = {}
         if not isinstance(general, list):
             general = []
         if not isinstance(hidden, dict):
             hidden = {}
+        if not isinstance(active, list):
+            active = []
 
         clean_checked = {str(k).strip()[:200]: bool(v) for k, v in checked.items() if str(k).strip()}
         seen = set()
@@ -1031,9 +1041,17 @@ def api_shopping_list():
             if sid and isinstance(meal_keys, list):
                 clean_hidden[sid] = [str(k).strip()[:80] for k in meal_keys if str(k).strip()]
 
-        payload = {'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden}
+        seen_active = set()
+        clean_active = []
+        for k in active:
+            key = str(k).strip()[:80]
+            if key and key not in seen_active:
+                clean_active.append(key)
+                seen_active.add(key)
+
+        payload = {'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden, 'active': clean_active}
         AppSetting.set('shopping_list_json', _json.dumps(payload))
-        return jsonify({'success': True, 'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden})
+        return jsonify({'success': True, 'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden, 'active': clean_active})
     except Exception as exc:
         return jsonify({'success': False, 'error': str(exc)}), 400
 
@@ -1056,9 +1074,10 @@ def api_shopping_stores():
                 continue
             store_id = re.sub(r'[^a-z0-9\-]', '', str(s.get('id', '')).strip().lower())[:50]
             name = str(s.get('name', '')).strip()[:80]
+            icon = str(s.get('icon', '🛒')).strip()[:16] or '🛒'
             if not store_id or not name or store_id in seen_ids:
                 continue
-            cleaned.append({'id': store_id, 'name': name})
+            cleaned.append({'id': store_id, 'name': name, 'icon': icon})
             seen_ids.add(store_id)
 
         if not cleaned:
@@ -1237,7 +1256,7 @@ def index():
     meal_planner_week_start = _get_week_start()
     meal_planner_week_days = _build_meal_week_days(meal_planner_week_start)
     meal_planner_plan, meal_planner_suggestions, meal_planner_recurring = _get_meal_planner_data(meal_planner_week_start)
-    meal_ingredients, shopping_list_checked, shopping_list_general, shopping_hidden, shopping_stores = _get_shopping_data()
+    meal_ingredients, shopping_list_checked, shopping_list_general, shopping_hidden, shopping_active, shopping_stores = _get_shopping_data()
 
     timezone = AppSetting.get('timezone', 'UTC')
     google_calendar_feature_enabled = is_google_calendar_feature_enabled()
@@ -1329,6 +1348,7 @@ def index():
         shopping_list_checked=shopping_list_checked,
         shopping_list_general=shopping_list_general,
         shopping_hidden=shopping_hidden,
+        shopping_active=shopping_active,
         shopping_stores=shopping_stores,
         timedelta=timedelta,
         current_date=date.today(),
