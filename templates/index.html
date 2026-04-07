@@ -455,46 +455,18 @@ window.addEventListener('DOMContentLoaded', function() {
 <!-- Person Picker Login Overlay -->
 <div id="pin-overlay" class="auth-overlay">
 
-    <!-- Person picker screen -->
-    <div id="person-picker-screen" class="auth-picker-screen">
+    <!-- Master PIN screen -->
+    <div class="auth-pin-screen" style="display:flex;">
         <div class="auth-app-header">
             <img src="{{ url_for('static', filename='images/mascot-transp.png') }}" class="auth-mascot" alt="">
             <span class="auth-app-name">ChoresRewards</span>
         </div>
-        <p class="auth-greeting">Who are you?</p>
-        <div class="auth-person-grid">
-            {% for person in family %}
-            <button onclick="selectPerson({{ person.id }}, {{ 'true' if person.pin else 'false' }}, '{{ person.name|e }}', '{{ url_for('static', filename='uploads/' + person.avatar) if person.avatar else '' }}')"
-                    class="person-picker-btn{% if not person.pin %} person-picker-no-pin{% endif %}"
-                    {% if not person.pin %}disabled{% endif %}>
-                <img src="{{ url_for('static', filename='uploads/' + person.avatar) if person.avatar else url_for('static', filename='default_avatar.png') }}"
-                     class="picker-avatar{% if not person.pin %} picker-avatar-noin{% endif %}"
-                     style="border-color:{{ person.color or '#4CAF50' }};">
-                <span class="picker-name">{{ person.name }}</span>
-                {% if person.is_admin %}
-                <span class="picker-badge picker-badge-adult"><i class="fas fa-shield-alt"></i> Adult</span>
-                {% endif %}
-                {% if not person.pin %}
-                <span class="picker-badge picker-badge-noin"><i class="fas fa-lock"></i> No PIN set</span>
-                {% endif %}
-            </button>
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- PIN entry screen -->
-    <div id="pin-entry-screen" class="auth-pin-screen">
-        <button onclick="backToPersonPicker()" class="auth-back-btn">
-            <i class="fas fa-arrow-left"></i> Back
-        </button>
         <div class="auth-pin-card">
-            <img id="login-person-avatar" src="" alt="" class="auth-pin-avatar">
-            <h3 id="login-person-name" class="auth-pin-name"></h3>
-            <p class="auth-pin-hint">Enter your 4-digit PIN</p>
+            <p class="auth-pin-hint">Enter PIN to continue</p>
             <input id="master-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
                    maxlength="4" placeholder="••••" autocomplete="off" class="auth-pin-input">
             <div id="master-pin-error" class="auth-pin-error"></div>
-            <button id="master-pin-submit" class="auth-pin-submit">Log In</button>
+            <button id="master-pin-submit" class="auth-pin-submit">Unlock</button>
         </div>
     </div>
 

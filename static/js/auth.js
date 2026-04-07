@@ -1,18 +1,14 @@
 ﻿/**
- * auth.js — Initial session login (person-picker flow)
+ * auth.js — Initial session login (master PIN flow)
  *
  * On every page load:
  *  1. Check /api/check_auth — if the Flask session already has authenticated=True, show content.
- *  2. Otherwise show the person-picker overlay so the user can log in as themselves.
+ *  2. Otherwise show the master PIN overlay.
  *
  * The padlock button (adult/child mode) is handled separately by auth_profile.js.
  */
 (function () {
     'use strict';
-
-    var _selectedPersonId = null;
-    var _selectedHasPin = false;
-    var _defaultAvatarUrl = '/static/default_avatar.png';
 
     // -- DOM helpers --
     function show(id) {
@@ -31,9 +27,11 @@
     // -- Show / hide the login overlay --
     function showLoginOverlay() {
         showFlex('pin-overlay');
-        showFlex('person-picker-screen');
-        hide('pin-entry-screen');
         hide('site-content');
+        setTimeout(function () {
+            var inp = document.getElementById('master-pin-input');
+            if (inp) inp.focus();
+        }, 80);
     }
 
     function hideLoginOverlay() {
@@ -41,53 +39,12 @@
         show('site-content');
     }
 
-    // -- Person picker --
-    window.selectPerson = function (personId, hasPin, personName, avatarUrl) {
-        _selectedPersonId = personId;
-        _selectedHasPin = hasPin;
-
-        if (!hasPin) {
-            // No PIN is set — don't allow login (security: app may be internet-facing)
-            if (window.showToast) {
-                showToast('No PIN set for ' + personName + ' — ask an adult to add one in Settings', 'warning');
-            }
-            return;
-        }
-
-        var nameEl = document.getElementById('login-person-name');
-        var avatarEl = document.getElementById('login-person-avatar');
-        var errorEl = document.getElementById('master-pin-error');
-        var inputEl = document.getElementById('master-pin-input');
-
-        if (nameEl) nameEl.textContent = personName;
-        if (avatarEl) avatarEl.src = avatarUrl || _defaultAvatarUrl;
-        if (errorEl) errorEl.textContent = '';
-        if (inputEl) { inputEl.value = ''; }
-
-        hide('person-picker-screen');
-        showFlex('pin-entry-screen');
-
-        setTimeout(function () {
-            var inp = document.getElementById('master-pin-input');
-            if (inp) inp.focus();
-        }, 80);
-    };
-
-    window.backToPersonPicker = function () {
-        hide('pin-entry-screen');
-        showFlex('person-picker-screen');
-        var inp = document.getElementById('master-pin-input');
-        if (inp) inp.value = '';
-        var err = document.getElementById('master-pin-error');
-        if (err) err.textContent = '';
-    };
-
-    // -- Submit person login --
-    function submitPersonLogin(pin) {
-        fetch('/api/person_login', {
+    // -- Submit master PIN login --
+    function submitMasterLogin(pin) {
+        fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ person_id: _selectedPersonId, pin: pin }),
+            body: JSON.stringify({ pin: pin }),
         })
             .then(function (r) {
                 return r.json().then(function (d) { return { ok: r.ok, data: d }; });
@@ -149,7 +106,7 @@
                     if (err) err.textContent = 'Please enter a 4-digit PIN.';
                     return;
                 }
-                submitPersonLogin(pin);
+                submitMasterLogin(pin);
             });
         }
 
@@ -159,29 +116,16 @@
                 var val = pinInput.value.replace(/\D/g, '').slice(0, 4);
                 pinInput.value = val;
                 if (val.length === 4) {
-                    submitPersonLogin(val);
+                    submitMasterLogin(val);
                 }
             });
             pinInput.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     var val = pinInput.value.replace(/\D/g, '').slice(0, 4);
-                    if (val.length === 4) submitPersonLogin(val);
+                    if (val.length === 4) submitMasterLogin(val);
                 }
             });
         }
-
-        document.querySelectorAll('.person-picker-btn:not([disabled])').forEach(function (btn) {
-            btn.addEventListener('mouseenter', function () {
-                btn.style.background = 'rgba(255,255,255,0.13)';
-                btn.style.borderColor = 'rgba(255,255,255,0.32)';
-                btn.style.transform = 'translateY(-2px)';
-            });
-            btn.addEventListener('mouseleave', function () {
-                btn.style.background = 'rgba(255,255,255,0.06)';
-                btn.style.borderColor = 'rgba(255,255,255,0.12)';
-                btn.style.transform = '';
-            });
-        });
     });
 }());
