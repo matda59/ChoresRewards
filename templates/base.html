@@ -9,7 +9,25 @@
     <main>
         {% block content %}{% endblock %}
     </main>
+
+    <!-- Adult PIN unlock overlay (used on every page) -->
+    <div id="adult-pin-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.82); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
+        <div id="adult-pin-box" style="background:#1e293b; border-radius:16px; padding:32px 28px; min-width:300px; text-align:center; box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+            <div style="font-size:2.5em; margin-bottom:10px;">🔒</div>
+            <h3 style="color:#fff; margin:0 0 6px; font-size:1.3em;">Adult Mode</h3>
+            <p style="color:#94a3b8; margin:0 0 20px; font-size:0.9em;">Enter your 4-digit PIN</p>
+            <form id="adult-pin-form" autocomplete="off">
+                <input id="adult-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
+                       maxlength="4" placeholder="••••"
+                       style="width:120px; font-size:2em; text-align:center; letter-spacing:8px; padding:10px; border:2px solid rgba(255,255,255,0.2); border-radius:10px; background:rgba(255,255,255,0.08); color:#fff; outline:none;">
+            </form>
+            <p id="adult-pin-error" style="color:#f87171; min-height:1.4em; margin-top:12px; font-size:0.9em;"></p>
+            <button onclick="document.getElementById('adult-pin-overlay').style.display='none'" style="margin-top:4px; background:transparent; border:none; color:#64748b; font-size:0.85em; cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/auth_profile.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

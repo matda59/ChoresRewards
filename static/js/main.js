@@ -24,6 +24,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let currentRewardId = null;
 
         window.openEditRewardModal = function(card) {
+            if (typeof isAdultMode === 'function' && !isAdultMode()) {
+                if (typeof showToast === 'function') showToast('Ask an adult to unlock first 🔒', 'warning');
+                return;
+            }
             currentRewardId = card.dataset.rewardId;
             document.getElementById('er-title').value = card.dataset.title || '';
             document.getElementById('er-points').value = card.dataset.points || '';

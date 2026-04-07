@@ -418,11 +418,20 @@
     <!-- ── Add New Family Members ── -->
     <div class="wizard-section">
       <h3 class="wizard-section-title"><i class="fas fa-user-plus"></i> Add Family Members</h3>
-    <p style="color:rgba(255,255,255,0.55); font-size:0.88rem; margin:0 0 1.25rem;">Add everyone who will use the app. <strong style="color:rgba(255,255,255,0.75);">Age is optional</strong> — only fill it in if you want that person to receive age-appropriate quiz questions when they complete chores.</p>
+    <p style="color:rgba(255,255,255,0.55); font-size:0.88rem; margin:0 0 1.25rem;">Add everyone who will use the app. <strong style="color:rgba(255,255,255,0.75);">Age is optional</strong> — only fill it in if you want that person to receive age-appropriate quiz questions when they complete chores. Mark at least one person as an <strong style="color:#a5b4fc;">Adult</strong> and give them a PIN — this is the login PIN for the whole app.</p>
+
+    {% if wizard_errors %}
+    <div style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.35); border-radius:10px; padding:1rem 1.2rem; margin-bottom:1.25rem; color:#fca5a5; font-size:0.9rem;">
+      <strong><i class="fas fa-exclamation-circle"></i> Please fix the following:</strong>
+      <ul style="margin:0.5rem 0 0 1.2rem; padding:0;">
+        {% for err in wizard_errors %}<li>{{ err }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
 
     <div id="people-list">
       <!-- Template person entry -->
-<div class="person-entry-row">
+<div class="person-entry-row" data-index="0">
   <div class="avatar-col">
     <input type="file" name="person_avatar[]" accept="image/*" style="display:none;" onchange="showAvatarPreview(this)">
     <div class="avatar-upload-circle">
@@ -442,12 +451,33 @@
       <div class="field-item narrow">
         <span class="wz-label">Age</span>
         <input type="number" name="person_age[]" min="0" placeholder="e.g. 9" class="wz-input">
-        <span class="wz-hint"><i class="fas fa-info-circle"></i> Optional — used for quiz questions</span>
+        <span class="wz-hint"><i class="fas fa-info-circle"></i> Optional — quiz questions</span>
       </div>
     </div>
-    <div class="field-item">
-      <span class="wz-label">Kanban Color</span>
-      <input type="color" name="person_color[]" value="#cccccc" class="wz-input">
+    <div class="field-row" style="align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+      <div class="field-item">
+        <span class="wz-label">Kanban Color</span>
+        <input type="color" name="person_color[]" value="#cccccc" class="wz-input">
+      </div>
+      <div class="field-item" style="flex:1; min-width:200px;">
+        <label class="wz-check-label" style="margin-bottom:0.5rem; gap:0.6em;">
+          <input type="checkbox" class="person-admin-checkbox" style="accent-color:#6366f1; width:15px; height:15px;"
+                 onchange="togglePersonPin(this)">
+          <i class="fas fa-shield-alt" style="color:#a5b4fc; font-size:0.9em;"></i>
+          <span style="color:rgba(255,255,255,0.85);">Adult account</span>
+        </label>
+        <div class="person-pin-field" style="display:none; margin-top:0.4rem;">
+          <span class="wz-label" style="color:#a5b4fc;">Adult PIN <span style="color:#ef4444;">*</span></span>
+          <input type="password" name="person_pin[]" maxlength="4" pattern="\d{4}" placeholder="4-digit PIN"
+                 class="wz-input pin-field" autocomplete="new-password"
+                 style="border-color:rgba(99,102,241,0.4);"
+                 oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
+                 onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(99,102,241,0.4)'">
+          <span class="wz-hint" style="color:rgba(165,180,252,0.6);"><i class="fas fa-info-circle" style="color:#6366f1;"></i> This is the login PIN for this person</span>
+        </div>
+        <!-- hidden index submitted when checkbox is checked -->
+        <input type="hidden" class="person-admin-index" name="" value="">
+      </div>
     </div>
   </div>
   <button type="button" class="remove-entry-btn" onclick="removePerson(this)" title="Remove">
@@ -715,19 +745,6 @@ document.addEventListener('click', function(e) {
     });
     </script>
 
-    {% if not master_pin_set %}
-    <!-- ── Master PIN ── -->
-    <div class="wizard-section">
-      <h3 class="wizard-section-title"><i class="fas fa-lock"></i> Master PIN</h3>
-      <p class="wz-section-desc">The Master PIN protects parent-only actions — approving reward redemptions, editing chores, and accessing Settings. Kids can complete chores without it. Choose a 4-digit number only you'll know.</p>
-      <div style="max-width:240px;">
-        <span class="wz-label">Set Master 4-Digit PIN</span>
-        <input type="password" name="master_pin" pattern="\d{4}" maxlength="4" required
-               placeholder="4-digit PIN" class="wz-input pin-field" autocomplete="new-password">
-      </div>
-    </div>
-    {% endif %}
-
     <div style="display:flex; justify-content:flex-end; padding-top:0.5rem;">
       <button type="submit" class="wz-submit-btn">
         <i class="fas fa-check-circle"></i> Finish Setup
@@ -816,12 +833,32 @@ function addPerson() {
         <div class="field-item narrow">
           <span class="wz-label">Age</span>
           <input type="number" name="person_age[]" min="0" placeholder="e.g. 9" class="wz-input">
-          <span class="wz-hint"><i class="fas fa-info-circle"></i> Optional — used for quiz questions</span>
+          <span class="wz-hint"><i class="fas fa-info-circle"></i> Optional — quiz questions</span>
         </div>
       </div>
-      <div class="field-item">
-        <span class="wz-label">Kanban Color</span>
-        <input type="color" name="person_color[]" value="#cccccc" class="wz-input">
+      <div class="field-row" style="align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+        <div class="field-item">
+          <span class="wz-label">Kanban Color</span>
+          <input type="color" name="person_color[]" value="#cccccc" class="wz-input">
+        </div>
+        <div class="field-item" style="flex:1; min-width:200px;">
+          <label class="wz-check-label" style="margin-bottom:0.5rem; gap:0.6em;">
+            <input type="checkbox" class="person-admin-checkbox" style="accent-color:#6366f1; width:15px; height:15px;"
+                   onchange="togglePersonPin(this)">
+            <i class="fas fa-shield-alt" style="color:#a5b4fc; font-size:0.9em;"></i>
+            <span style="color:rgba(255,255,255,0.85);">Adult account</span>
+          </label>
+          <div class="person-pin-field" style="display:none; margin-top:0.4rem;">
+            <span class="wz-label" style="color:#a5b4fc;">Adult PIN <span style="color:#ef4444;">*</span></span>
+            <input type="password" name="person_pin[]" maxlength="4" pattern="\\d{4}" placeholder="4-digit PIN"
+                   class="wz-input pin-field" autocomplete="new-password"
+                   style="border-color:rgba(99,102,241,0.4);"
+                   oninput="this.value=this.value.replace(/\\D/g,'').slice(0,4)"
+                   onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(99,102,241,0.4)'">
+            <span class="wz-hint" style="color:rgba(165,180,252,0.6);"><i class="fas fa-info-circle" style="color:#6366f1;"></i> This is the login PIN for this person</span>
+          </div>
+          <input type="hidden" class="person-admin-index" name="" value="">
+        </div>
       </div>
     </div>
     <button type="button" class="remove-entry-btn" onclick="removePerson(this)" title="Remove">
@@ -919,5 +956,55 @@ document.addEventListener('DOMContentLoaded', function() {
 const _shakeStyle = document.createElement('style');
 _shakeStyle.textContent = `@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}`;
 document.head.appendChild(_shakeStyle);
+
+// Toggle PIN field visibility when Adult checkbox changes
+function togglePersonPin(checkbox) {
+  const pinField = checkbox.closest('.field-item').querySelector('.person-pin-field');
+  if (!pinField) return;
+  pinField.style.display = checkbox.checked ? '' : 'none';
+  const pinInput = pinField.querySelector('input[type="password"]');
+  if (pinInput) pinInput.required = checkbox.checked;
+}
+
+// Client-side validation before submit
+document.getElementById('setup-form').addEventListener('submit', function(e) {
+  const rows = document.querySelectorAll('#people-list .person-entry-row');
+  let hasAdminWithPin = false;
+
+  // Reset hidden admin-index fields
+  rows.forEach(function(row) {
+    const hidden = row.querySelector('.person-admin-index');
+    if (hidden) { hidden.name = ''; hidden.value = ''; }
+  });
+
+  // Check each row and populate hidden fields for admin rows
+  rows.forEach(function(row, idx) {
+    const cb  = row.querySelector('.person-admin-checkbox');
+    const pin = row.querySelector('input[name="person_pin[]"]');
+    if (cb && cb.checked) {
+      const pinVal = pin ? pin.value.trim() : '';
+      if (/^\d{4}$/.test(pinVal)) {
+        hasAdminWithPin = true;
+        const hidden = row.querySelector('.person-admin-index');
+        if (hidden) { hidden.name = 'person_is_admin[]'; hidden.value = idx; }
+      }
+    }
+  });
+
+  if (!hasAdminWithPin) {
+    e.preventDefault();
+    // Surface an inline error above the person list
+    let errBox = document.getElementById('wizard-client-error');
+    if (!errBox) {
+      errBox = document.createElement('div');
+      errBox.id = 'wizard-client-error';
+      errBox.style.cssText = 'background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); border-radius:8px; color:#fca5a5; padding:0.75rem 1rem; margin-bottom:1rem; font-size:0.9rem;';
+      const list = document.getElementById('people-list');
+      list.parentNode.insertBefore(errBox, list);
+    }
+    errBox.innerHTML = '<i class="fas fa-exclamation-circle" style="margin-right:0.4em;"></i> Please mark at least one person as an <strong>Adult</strong> and enter their 4-digit PIN.';
+    errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+});
 </script>
 {% endblock %}

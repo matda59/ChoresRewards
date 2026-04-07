@@ -37,6 +37,13 @@ except ImportError:
 
 routes_bp = Blueprint('routes', __name__)
 
+
+def _adult_required():
+    """Return a 403 JSON response if the session is not in adult mode, else None."""
+    if not session.get('adult_mode', False):
+        return jsonify({'success': False, 'error': 'Adult authorisation required'}), 403
+    return None
+
 GOOGLE_CALENDAR_CACHE = {
     'cache_key': None,
     'expires_at': None,
@@ -624,7 +631,7 @@ def fetch_google_calendar_events(app_timezone):
 
 @routes_bp.route('/settings/notification', methods=['GET', 'POST'])
 def settings_notification():
-    if not session.get('authenticated', False):
+    if not session.get('adult_mode', False) and not session.get('authenticated', False):
         return redirect(url_for('routes.index'))
     family = Person.query.order_by(Person.id).all()
     gotify_url = AppSetting.get('gotify_url', '')
@@ -683,7 +690,7 @@ def settings_notification():
 @routes_bp.route('/settings/audio', methods=['GET'])
 def settings_audio():
     """Render the audio settings page with navigation pane."""
-    if not session.get('authenticated', False):
+    if not session.get('adult_mode', False) and not session.get('authenticated', False):
         return redirect(url_for('routes.index'))
     return render_template('settings_audio.html')
 
@@ -710,6 +717,9 @@ def completed_chores_fragment():
 
 @routes_bp.route('/add_reward', methods=['POST'])
 def add_reward():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         title = request.form.get('title')
         points_required = request.form.get('points_required')
@@ -770,6 +780,9 @@ def add_reward():
 
 @routes_bp.route('/edit_chore', methods=['POST'])
 def edit_chore():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         if not request.is_json:
             return jsonify({'success': False, 'error': 'JSON required'}), 400
@@ -851,6 +864,90 @@ def send_gotify_test():
 def api_check_auth():
     # Returns whether the user is authenticated in the Flask session
     return jsonify({'authenticated': session.get('authenticated', False)})
+
+# --- API: Person Login ---
+@routes_bp.route('/api/person_login', methods=['POST'])
+def api_person_login():
+    """Log in as a specific family member. Sets the session for the whole browser session."""
+    data = request.get_json()
+    if not data or 'person_id' not in data:
+        return jsonify({'success': False, 'error': 'Person ID required'}), 400
+    person_id = data['person_id']
+    pin = str(data.get('pin', '')).strip()
+
+    person = Person.query.get(int(person_id))
+    if not person:
+        return jsonify({'success': False, 'error': 'Person not found'}), 404
+
+    if person.pin:
+        if not pin or not person.check_pin(pin):
+            return jsonify({'success': False, 'error': 'Incorrect PIN'}), 401
+
+    session['authenticated'] = True
+    session['person_id'] = person.id
+    session['person_name'] = person.name
+    session['adult_mode'] = bool(person.is_admin)
+    if person.is_admin:
+        session['adult_name'] = person.name
+    else:
+        session.pop('adult_name', None)
+
+    return jsonify({
+        'success': True,
+        'person_name': person.name,
+        'is_admin': bool(person.is_admin),
+    })
+
+# --- API: Auth Status (adult mode + session person) ---
+@routes_bp.route('/api/auth_status', methods=['GET'])
+def api_auth_status():
+    return jsonify({
+        'authenticated': session.get('authenticated', False),
+        'adult_mode': session.get('adult_mode', False),
+        'adult_name': session.get('adult_name', None),
+        'person_name': session.get('person_name', None),
+        'person_id': session.get('person_id', None),
+    })
+
+# --- API: Adult Login (per-person PIN) ---
+@routes_bp.route('/api/adult_login', methods=['POST'])
+def api_adult_login():
+    data = request.get_json()
+    if not data or 'pin' not in data:
+        return jsonify({'success': False, 'error': 'PIN is required'}), 400
+    pin = str(data['pin'])
+
+    # Try each admin person's PIN first
+    admins = Person.query.filter_by(is_admin=True).all()
+    for person in admins:
+        if person.check_pin(pin):
+            session['authenticated'] = True
+            session['adult_mode'] = True
+            session['adult_name'] = person.name
+            return jsonify({'success': True, 'adult_name': person.name})
+
+    # Fallback: master PIN
+    import bcrypt as _bcrypt
+    master_pin_hash = AppSetting.get('master_pin')
+    if master_pin_hash:
+        try:
+            if _bcrypt.checkpw(pin.encode('utf-8'), master_pin_hash.encode('utf-8')):
+                session['authenticated'] = True
+                session['adult_mode'] = True
+                session['adult_name'] = 'Admin'
+                return jsonify({'success': True, 'adult_name': 'Admin'})
+        except Exception:
+            pass
+
+    return jsonify({'success': False, 'error': 'Incorrect PIN'}), 401
+
+# --- API: Adult Logout (lock back to child mode; keeps the person session) ---
+@routes_bp.route('/api/adult_logout', methods=['POST'])
+def api_adult_logout():
+    session.pop('adult_mode', None)
+    session.pop('adult_name', None)
+    # Keep 'authenticated', 'person_id', 'person_name' — the person stays logged in
+    return jsonify({'success': True})
 
 @routes_bp.route('/api/bonus_settings', methods=['GET'])
 def api_bonus_settings():
@@ -1377,32 +1474,65 @@ def index():
 @routes_bp.route('/setup', methods=['GET', 'POST'])
 def setup_wizard():
     import bcrypt
-    # Check if master PIN is set in app settings
-    # AppSetting already imported at top
-    master_pin = AppSetting.get('master_pin')
-    if master_pin:
-        # Master PIN already set, redirect to index
+    # Wizard is only shown on first run: if ANY admin person with a PIN exists, skip it
+    has_admin_with_pin = Person.query.filter_by(is_admin=True).filter(Person.pin.isnot(None)).first()
+    if has_admin_with_pin:
         return redirect(url_for('routes.index'))
 
     if request.method == 'POST':
-        people = request.form.getlist('people[]')
-        person_colors = request.form.getlist('person_color[]')
-        master_pin = request.form.get('master_pin')
-        reward_system = request.form.get('reward_system', 'points')
-        bonus_mode = request.form.get('bonus_mode', 'static')
-        bonus_static = request.form.get('bonus_static', '')
-        bonus_min = request.form.get('bonus_min', '')
-        bonus_max = request.form.get('bonus_max', '')
+        people_names   = request.form.getlist('people[]')
+        person_colors  = request.form.getlist('person_color[]')
+        person_ages    = request.form.getlist('person_age[]')
+        person_is_admin = request.form.getlist('person_is_admin[]')   # values: person index (0-based) of admin entries
+        person_pins    = request.form.getlist('person_pin[]')
+        reward_system  = request.form.get('reward_system', 'points')
+        bonus_mode     = request.form.get('bonus_mode', 'static')
+        bonus_static   = request.form.get('bonus_static', '')
+        bonus_min      = request.form.get('bonus_min', '')
+        bonus_max      = request.form.get('bonus_max', '')
         bonus_once_per_day = 'bonus_once_per_day' in request.form
-        timezone = request.form.get('timezone', 'UTC')
+        timezone       = request.form.get('timezone', 'UTC')
+        avatar_files   = request.files.getlist('person_avatar[]')
 
-        # Handle avatar files
-        avatar_files = request.files.getlist('person_avatar[]')
+        # Validate: at least one person, and at least one adult with a PIN
+        errors = []
+        if not any(n.strip() for n in people_names):
+            errors.append('Add at least one family member.')
 
-        # Hash the master pin before saving
-        hashed_pin = bcrypt.hashpw(master_pin.encode('utf-8'), bcrypt.gensalt())
-        hashed_pin_str = hashed_pin.decode('utf-8')
-        for idx, name in enumerate(people):
+        # Build admin index set from submitted checkboxes
+        admin_indices = set()
+        for val in person_is_admin:
+            try:
+                admin_indices.add(int(val))
+            except (ValueError, TypeError):
+                pass
+
+        # Check each admin has a non-empty valid PIN
+        at_least_one_admin_pin = False
+        for idx in admin_indices:
+            pin = person_pins[idx].strip() if idx < len(person_pins) else ''
+            if pin and pin.isdigit() and len(pin) == 4:
+                at_least_one_admin_pin = True
+            else:
+                name = people_names[idx].strip() if idx < len(people_names) else f'Person {idx+1}'
+                errors.append(f'{name} is marked as an adult but needs a valid 4-digit PIN.')
+
+        if not errors and not at_least_one_admin_pin:
+            errors.append('At least one adult account with a 4-digit PIN is required.')
+
+        if errors:
+            people = Person.query.all()
+            return render_template('setup_wizard.html',
+                                   people=people,
+                                   wizard_errors=errors,
+                                   form_data=request.form)
+
+        # Save people
+        new_persons = []
+        for idx, name in enumerate(people_names):
+            name = name.strip()
+            if not name:
+                continue
             color = person_colors[idx] if idx < len(person_colors) else '#cccccc'
             avatar_filename = 'default_avatar.png'
             if avatar_files and idx < len(avatar_files):
@@ -1414,11 +1544,29 @@ def setup_wizard():
                     os.makedirs(upload_folder, exist_ok=True)
                     file.save(os.path.join(upload_folder, unique_filename))
                     avatar_filename = unique_filename
-            person = Person(name=name, color=color, avatar=avatar_filename)
+
+            is_admin = idx in admin_indices
+            person = Person(name=name, color=color, avatar=avatar_filename, is_admin=is_admin)
+            if is_admin:
+                pin = person_pins[idx].strip() if idx < len(person_pins) else ''
+                person.set_pin(pin)
             db.session.add(person)
-        # Save hashed master PIN in app settings
-        AppSetting.set('master_pin', hashed_pin_str)
-        # Save new settings
+            new_persons.append((idx, person))
+
+        db.session.flush()  # get IDs before commit
+
+        # Save ages keyed by person ID
+        person_ages_dict = load_person_ages()
+        for idx, person in new_persons:
+            age_val = person_ages[idx].strip() if idx < len(person_ages) else ''
+            if age_val:
+                try:
+                    person_ages_dict[str(person.id)] = int(age_val)
+                except ValueError:
+                    pass
+        save_person_ages(person_ages_dict)
+
+        # Save app settings (no master PIN anymore)
         AppSetting.set('reward_system', reward_system)
         AppSetting.set('bonus_mode', bonus_mode)
         AppSetting.set('bonus_static', bonus_static)
@@ -1427,20 +1575,18 @@ def setup_wizard():
         AppSetting.set('bonus_once_per_day', str(bonus_once_per_day))
         AppSetting.set('timezone', timezone)
         db.session.commit()
-        
-        # Log setup wizard completion
-        person_names = ', '.join([name for name in people if name])
+
+        person_names_list = [n.strip() for n in people_names if n.strip()]
         log_activity(
             'setup_completed',
-            f"Setup wizard completed. Added family members: {person_names}. Reward system: {reward_system}.",
+            f"Setup wizard completed. Added family members: {', '.join(person_names_list)}. Reward system: {reward_system}.",
             user_name='System'
         )
-        
         return redirect(url_for('routes.index'))
-    # Pass existing people to the template
+
+    # GET
     people = Person.query.all()
-    master_pin_set = bool(master_pin)
-    return render_template('setup_wizard.html', people=people, master_pin_set=master_pin_set)
+    return render_template('setup_wizard.html', people=people, wizard_errors=[], form_data={})
 
 @routes_bp.route('/api/login', methods=['POST'])
 def api_login():
@@ -1456,7 +1602,9 @@ def api_login():
         return jsonify({'success': False, 'error': 'Master PIN not set'}), 500
     if bcrypt.checkpw(pin.encode('utf-8'), master_pin_hash.encode('utf-8')):
         session['authenticated'] = True
-        return jsonify({'success': True})
+        session['adult_mode'] = True
+        session['adult_name'] = 'Admin'
+        return jsonify({'success': True, 'adult_name': 'Admin'})
     else:
         return jsonify({'success': False, 'error': 'Incorrect PIN'}), 401
 
@@ -1664,6 +1812,9 @@ def complete_chore():
 
 @routes_bp.route('/add_person', methods=['POST'])
 def add_person():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         if request.is_json:
             data = request.get_json()
@@ -1709,6 +1860,9 @@ def add_person():
 
 @routes_bp.route('/delete_person', methods=['POST'])
 def delete_person():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         data = request.get_json()
         print(f"[delete_person] Received data: {data}")
@@ -1901,6 +2055,9 @@ def activity_log():
 
 @routes_bp.route('/delete_reward', methods=['POST'])
 def delete_reward():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         data = request.get_json()
         reward_id = data.get('reward_id')
@@ -1923,6 +2080,9 @@ def delete_reward():
 
 @routes_bp.route('/award_bonus_points', methods=['POST'])
 def award_bonus_points():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         data = request.get_json()
         person_id = data.get('person_id')
@@ -2053,6 +2213,9 @@ def log_quiz_result():
 
 @routes_bp.route('/add_chore', methods=['POST'])
 def add_chore():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         if request.is_json:
             data = request.get_json()
@@ -2163,6 +2326,9 @@ def add_chore():
     
 @routes_bp.route('/upload_avatar/<int:person_id>', methods=['POST'])
 def upload_avatar(person_id):
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     person = Person.query.get(person_id)
     if not person:
         return jsonify(success=False, message="Person not found")
@@ -2240,13 +2406,49 @@ def profile(person_id):
 
 @routes_bp.route('/settings', methods=['GET', 'POST'])
 def settings():
-    if not session.get('authenticated', False):
+    if not session.get('adult_mode', False) and not session.get('authenticated', False):
         return redirect(url_for('routes.index'))
     import bcrypt
     from models import Person  # AppSetting already imported at top
     error = None
     success = None
     if request.method == 'POST':
+        # Handle JSON API requests (toggle_admin, set_person_pin) from settings page
+        if request.is_json:
+            data = request.get_json()
+            action = data.get('action')
+            _guard = _adult_required()
+            if _guard:
+                return _guard
+            if action == 'toggle_admin':
+                person_id = data.get('person_id')
+                is_admin_val = data.get('is_admin', False)
+                if not person_id:
+                    return jsonify({'success': False, 'error': 'Person ID is required.'}), 400
+                person = Person.query.get(int(person_id))
+                if not person:
+                    return jsonify({'success': False, 'error': 'Person not found.'}), 404
+                person.is_admin = bool(is_admin_val)
+                db.session.commit()
+                role = 'adult' if is_admin_val else 'child'
+                log_activity('settings_updated', f"{person.name} set as {role}", user_name=person.name)
+                return jsonify({'success': True, 'message': f'{person.name} is now a {role} account.'})
+            elif action == 'set_person_pin':
+                person_id = data.get('person_id')
+                new_pin = str(data.get('new_pin', '')).strip()
+                if not person_id or not new_pin:
+                    return jsonify({'success': False, 'error': 'Person ID and new PIN are required.'}), 400
+                if not new_pin.isdigit() or len(new_pin) != 4:
+                    return jsonify({'success': False, 'error': 'PIN must be exactly 4 digits.'}), 400
+                person = Person.query.get(int(person_id))
+                if not person:
+                    return jsonify({'success': False, 'error': 'Person not found.'}), 404
+                person.set_pin(new_pin)
+                db.session.commit()
+                log_activity('settings_updated', f"PIN set for {person.name}", user_name=person.name)
+                return jsonify({'success': True, 'message': f'PIN updated for {person.name}.'})
+            else:
+                return jsonify({'success': False, 'error': 'Unknown action.'}), 400
         # Save reward system setting and redirect to index for immediate effect
         if 'reward_system' in request.form:
             new_system = request.form.get('reward_system')
@@ -2360,6 +2562,37 @@ def settings():
                 AppSetting.set('google_calendar_refresh_minutes', str(google_calendar_refresh_minutes))
                 log_activity('settings_updated', 'Google Calendar settings were updated')
                 success = 'Google Calendar settings saved.'
+        elif 'set_person_pin' in request.form:
+            person_id = request.form.get('person_id')
+            new_pin = request.form.get('new_pin', '').strip()
+            if not person_id or not new_pin:
+                error = 'Person ID and new PIN are required.'
+            elif not new_pin.isdigit() or len(new_pin) != 4:
+                error = 'PIN must be exactly 4 digits.'
+            else:
+                person = Person.query.get(int(person_id))
+                if not person:
+                    error = 'Person not found.'
+                else:
+                    person.set_pin(new_pin)
+                    db.session.commit()
+                    log_activity('settings_updated', f"PIN set for {person.name}", user_name=person.name)
+                    success = f'PIN updated for {person.name}.'
+        elif 'toggle_admin' in request.form:
+            person_id = request.form.get('person_id')
+            is_admin_val = request.form.get('is_admin', 'false').lower() == 'true'
+            if not person_id:
+                error = 'Person ID is required.'
+            else:
+                person = Person.query.get(int(person_id))
+                if not person:
+                    error = 'Person not found.'
+                else:
+                    person.is_admin = is_admin_val
+                    db.session.commit()
+                    role = 'adult' if is_admin_val else 'child'
+                    log_activity('settings_updated', f"{person.name} set as {role}", user_name=person.name)
+                    success = f'{person.name} is now a {role} account.'
 
     # Load bonus points settings
     bonus_mode = AppSetting.get('bonus_mode', 'static')
@@ -2925,6 +3158,9 @@ def update_name():
 
 @routes_bp.route('/reset_points', methods=['POST'])
 def reset_points():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         data = request.get_json()
         person_id = data.get('person_id')
@@ -2970,6 +3206,9 @@ def reset_points():
     
 @routes_bp.route('/complete_reward', methods=['POST'])
 def complete_reward():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         data = request.get_json()
         reward_id = data.get('reward_id')
@@ -3188,6 +3427,9 @@ def chore_history():
 
 @routes_bp.route('/edit_reward_image', methods=['POST'])
 def edit_reward_image():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         reward_id = request.form.get('reward_id')
         if not reward_id:
@@ -3217,6 +3459,9 @@ def edit_reward_image():
 
 @routes_bp.route('/edit_reward', methods=['POST'])
 def edit_reward():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         data = request.get_json() or {}
         reward_id = data.get('reward_id')

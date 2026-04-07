@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, date
 from extensions import db  # Import db from extensions.py
+import bcrypt
 
 class AppSetting(db.Model):
     @staticmethod
@@ -51,6 +52,20 @@ class Person(db.Model):
     # Relationships to chores and rewards
     chores = db.relationship('Chore', backref='person', lazy=True)
     rewards = db.relationship('Reward', backref='person', lazy=True)
+
+    def set_pin(self, raw_pin):
+        """Hash and store a 4-digit PIN for this person."""
+        hashed = bcrypt.hashpw(raw_pin.encode('utf-8'), bcrypt.gensalt())
+        self.pin = hashed.decode('utf-8')
+
+    def check_pin(self, raw_pin):
+        """Return True if raw_pin matches the stored bcrypt hash."""
+        if not self.pin:
+            return False
+        try:
+            return bcrypt.checkpw(raw_pin.encode('utf-8'), self.pin.encode('utf-8'))
+        except Exception:
+            return False
 
     def set_points(self, new_points):
         """

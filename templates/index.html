@@ -446,21 +446,60 @@ window.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+<script src="{{ url_for('static', filename='js/auth_profile.js') }}"></script>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 <body>
 <!-- Toast container for notifications -->
 <div id="toast-container" style="position:fixed;top:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:12px;"></div>
 <!-- Now moved below the main heading -->
-<!-- PIN Authorization Overlay Start -->
-<div id="pin-overlay" style="display:none!important; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center; flex-direction: column;">
-    <div style="background: #222; padding: 2rem; border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.8); width: 320px; max-width: 90%;">
-        <h2 style="color: white; margin-bottom: 1rem; text-align: center;">Enter Master PIN</h2>
-        <input id="master-pin-input" type="password" maxlength="4" pattern="\d{4}" placeholder="4-digit PIN" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; border: none; margin-bottom: 1rem; text-align: center;">
-        <div id="master-pin-error" style="color: #f44336; font-weight: 600; margin-bottom: 1rem; display: none; text-align: center;"></div>
-        <button id="master-pin-submit" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; background-color: #6366f1; color: white; border: none; cursor: pointer;">Submit</button>
+<!-- Person Picker Login Overlay -->
+<div id="pin-overlay" class="auth-overlay">
+
+    <!-- Person picker screen -->
+    <div id="person-picker-screen" class="auth-picker-screen">
+        <div class="auth-app-header">
+            <img src="{{ url_for('static', filename='images/mascot-transp.png') }}" class="auth-mascot" alt="">
+            <span class="auth-app-name">ChoresRewards</span>
+        </div>
+        <p class="auth-greeting">Who are you?</p>
+        <div class="auth-person-grid">
+            {% for person in family %}
+            <button onclick="selectPerson({{ person.id }}, {{ 'true' if person.pin else 'false' }}, '{{ person.name|e }}', '{{ url_for('static', filename='uploads/' + person.avatar) if person.avatar else '' }}')"
+                    class="person-picker-btn{% if not person.pin %} person-picker-no-pin{% endif %}"
+                    {% if not person.pin %}disabled{% endif %}>
+                <img src="{{ url_for('static', filename='uploads/' + person.avatar) if person.avatar else url_for('static', filename='default_avatar.png') }}"
+                     class="picker-avatar{% if not person.pin %} picker-avatar-noin{% endif %}"
+                     style="border-color:{{ person.color or '#4CAF50' }};">
+                <span class="picker-name">{{ person.name }}</span>
+                {% if person.is_admin %}
+                <span class="picker-badge picker-badge-adult"><i class="fas fa-shield-alt"></i> Adult</span>
+                {% endif %}
+                {% if not person.pin %}
+                <span class="picker-badge picker-badge-noin"><i class="fas fa-lock"></i> No PIN set</span>
+                {% endif %}
+            </button>
+            {% endfor %}
+        </div>
     </div>
+
+    <!-- PIN entry screen -->
+    <div id="pin-entry-screen" class="auth-pin-screen">
+        <button onclick="backToPersonPicker()" class="auth-back-btn">
+            <i class="fas fa-arrow-left"></i> Back
+        </button>
+        <div class="auth-pin-card">
+            <img id="login-person-avatar" src="" alt="" class="auth-pin-avatar">
+            <h3 id="login-person-name" class="auth-pin-name"></h3>
+            <p class="auth-pin-hint">Enter your 4-digit PIN</p>
+            <input id="master-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
+                   maxlength="4" placeholder="••••" autocomplete="off" class="auth-pin-input">
+            <div id="master-pin-error" class="auth-pin-error"></div>
+            <button id="master-pin-submit" class="auth-pin-submit">Log In</button>
+        </div>
+    </div>
+
 </div>
-<!-- PIN Authorization Overlay End -->
+<!-- End Person Picker Login Overlay -->
 <!-- Celebration Overlay -->
 <div id="celebration-overlay" class="celebration-overlay">
     <div class="celebration-content">
@@ -757,8 +796,27 @@ window.addEventListener('DOMContentLoaded', function() {
     <!-- Navigation -->
 <nav class="activity-page-nav">
     <a href="{{ url_for('routes.activity_log') }}"><i class="fas fa-history"></i> Activity Log</a>
-    <a href="{{ url_for('routes.settings') }}"><i class="fas fa-cog"></i> Settings</a>
+    <a href="{{ url_for('routes.settings') }}" class="admin-only flex-admin-only"><i class="fas fa-cog"></i> Settings</a>
+    <button id="adult-lock-btn" class="locked" title="Tap to unlock adult mode" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:7px 14px;border-radius:20px;cursor:pointer;font-size:0.9em;display:inline-flex;align-items:center;gap:6px;">
+        <i class="fas fa-lock"></i>
+    </button>
 </nav>
+
+    <!-- Adult PIN overlay for index page -->
+    <div id="adult-pin-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.82); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
+        <div id="adult-pin-box" style="background:#1e293b; border-radius:16px; padding:32px 28px; min-width:300px; text-align:center; box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+            <div style="font-size:2.5em; margin-bottom:10px;">🔒</div>
+            <h3 style="color:#fff; margin:0 0 6px; font-size:1.3em;">Adult Mode</h3>
+            <p style="color:#94a3b8; margin:0 0 20px; font-size:0.9em;">Enter your 4-digit PIN</p>
+            <form id="adult-pin-form" autocomplete="off">
+                <input id="adult-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
+                       maxlength="4" placeholder="••••"
+                       style="width:120px; font-size:2em; text-align:center; letter-spacing:8px; padding:10px; border:2px solid rgba(255,255,255,0.2); border-radius:10px; background:rgba(255,255,255,0.08); color:#fff; outline:none;">
+            </form>
+            <p id="adult-pin-error" style="color:#f87171; min-height:1.4em; margin-top:12px; font-size:0.9em;"></p>
+            <button onclick="document.getElementById('adult-pin-overlay').style.display='none'" style="margin-top:4px; background:transparent; border:none; color:#64748b; font-size:0.85em; cursor:pointer;">Cancel</button>
+        </div>
+    </div>
 
 
     <div class="theme-toggle-container" style="display:flex;align-items:center;gap:10px; margin-left:4px; margin-bottom:0.75rem;">
@@ -812,7 +870,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 {% if reward.image_url %}
                 <div class="reward-image-container" style="position:relative;">
                     <img src="{{ reward.image_url }}" alt="{{ reward.title }}" class="reward-image" style="cursor:pointer;" onclick="openEditRewardModal(this.closest('.reward-card'))">
-                    <button class="edit-image-btn" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;padding:8px;cursor:pointer;z-index:2;" onclick="openEditRewardModal(this.closest('.reward-card'))" title="Edit reward">
+                    <button class="edit-image-btn admin-only" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;padding:8px;cursor:pointer;z-index:2;" onclick="openEditRewardModal(this.closest('.reward-card'))" title="Edit reward">
                         <i class="fas fa-pencil-alt" style="color:#fff;font-size:1.2em;"></i>
                     </button>
                     <div class="reward-overlay">
@@ -852,7 +910,7 @@ window.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-award"></i>
                         <span class="reward-points-value">{{ reward.points_required }}</span>
                     </span>
-                    <button class="edit-image-btn" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;padding:8px;cursor:pointer;z-index:2;" onclick="openEditRewardModal(this.closest('.reward-card'))" title="Edit reward">
+                    <button class="edit-image-btn admin-only" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;padding:8px;cursor:pointer;z-index:2;" onclick="openEditRewardModal(this.closest('.reward-card'))" title="Edit reward">
                         <i class="fas fa-pencil-alt" style="color:#fff;font-size:1.2em;"></i>
                     </button>
                 </div>
@@ -898,7 +956,7 @@ window.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     {% endif %}
-                                        <div class="reward-actions-modern">
+                                        <div class="reward-actions-modern admin-only">
                                                 <button class="btn-redeem" onclick="completeReward({{ reward.id }})" aria-label="Redeem reward">
                                                         <i class="fas fa-check-circle"></i> Redeem
                                                 </button>
@@ -1220,6 +1278,10 @@ function closeUnifiedModal() {
 }
 
 function confirmDeleteChore(choreId, isDaily) {
+    if (typeof isAdultMode === 'function' && !isAdultMode()) {
+        if (typeof showToast === 'function') showToast('Ask an adult to unlock first 🔒', 'warning');
+        return;
+    }
     pendingDeleteChoreId = choreId;
     pendingDeleteChoreIsDaily = isDaily;
     if (isDaily) {
@@ -1284,6 +1346,10 @@ function deleteChore(choreId, permanent) {
 }
 // --- Redeem Reward Modal ---
 function completeReward(rewardId) {
+    if (typeof isAdultMode === 'function' && !isAdultMode()) {
+        if (typeof showToast === 'function') showToast('Ask an adult to unlock first 🔒', 'warning');
+        return;
+    }
     // Find the reward element and get reward details
     const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
     if (!rewardElem) {
@@ -1496,6 +1562,10 @@ document.head.appendChild(rewardStyle);
 
 // --- Delete Reward Modal ---
 function confirmDeleteReward(rewardId) {
+    if (typeof isAdultMode === 'function' && !isAdultMode()) {
+        if (typeof showToast === 'function') showToast('Ask an adult to unlock first 🔒', 'warning');
+        return;
+    }
     // Find the reward element and get reward details
     const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
     if (!rewardElem) {
@@ -3317,7 +3387,7 @@ function deleteReward(rewardId) {
                 <div class="column-header">
                     <h3 class="name" style="position:relative !important; padding-right:28px !important;">
                         <span class="person-name" data-person-id="{{ person.id }}">{{ person.name }}</span>
-                        <i class="fas fa-pencil-alt edit-name-icon"
+                        <i class="fas fa-pencil-alt edit-name-icon admin-only"
                            style="position:absolute !important; top:-6px !important; right:-2px !important; font-size:0.45em !important; color:#bbbbbb !important; background:rgba(0,0,0,0.45) !important; border-radius:50% !important; width:18px !important; height:18px !important; display:inline-flex !important; align-items:center !important; justify-content:center !important; cursor:pointer !important;"
                            title="Edit Name"
                            onclick="openEditNameModal('{{ person.id }}', '{{ person.name }}')"></i>
@@ -3424,7 +3494,7 @@ function deleteReward(rewardId) {
                 <div class="chores-list incomplete-chores-list">
                     {% for chore in filtered_incomplete_chores %}
                         <div class="chore{% if chore.due_datetime %} has-due-date{% endif %}" data-chore-id="{{ chore.id }}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px;">
-                            <button class="btn-delete-chore-sm" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
+                            <button class="btn-delete-chore-sm admin-only" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
                             <div class="chore-header">
                                 <span class="chore-icon">{{ chore_icon(chore.title) }}</span>
                                 <span class="chore-title">{{ chore.title }}</span>
@@ -3716,7 +3786,7 @@ function updateStreakDisplay(column, streakCount) {
         });
     });
     </script>
-<section class="chores collapsible-section collapsed">
+<section class="chores collapsible-section collapsed admin-only">
     <h2 class="section-title section-toggle">
         <i class="fas fa-tasks" style="color: rgb(225, 0, 255);"></i> Add Chores
         <i class="fas fa-chevron-down section-chevron"></i>
@@ -4034,7 +4104,7 @@ function updateStreakDisplay(column, streakCount) {
     });
     </script>
 </section>
-<section class="add-rewards-modern collapsible-section collapsed">
+<section class="add-rewards-modern collapsible-section collapsed admin-only">
     <h2 class="section-title section-toggle">
         <i class="fas fa-trophy" style="color: #a78bfa;"></i> Create New Reward
         <i class="fas fa-chevron-down section-chevron"></i>
@@ -4606,17 +4676,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize audio first
     initializeAudio();
 
-    // Check authentication and set visibility accordingly
-
-    const pinOverlay = document.getElementById('pin-overlay');
-    const siteContent = document.getElementById('site-content');
-    if (localStorage.getItem('isAuthenticated') === 'true') {
-        if (pinOverlay) pinOverlay.style.setProperty('display', 'none', 'important');
-        if (siteContent) siteContent.style.setProperty('display', 'block', 'important');
-    } else {
-        if (pinOverlay) pinOverlay.style.setProperty('display', 'flex', 'important');
-        if (siteContent) siteContent.style.setProperty('display', 'none', 'important');
-    }
+    // Note: authentication / overlay visibility is handled by auth.js
+    // (which calls /api/check_auth and shows the person-picker login if needed)
 
     // Initialize column colors
     const columns = document.querySelectorAll('.column');
@@ -5760,6 +5821,10 @@ function closeUnifiedModal() {
 }
 
 function confirmDeleteChore(choreId, isDaily) {
+    if (typeof isAdultMode === 'function' && !isAdultMode()) {
+        if (typeof showToast === 'function') showToast('Ask an adult to unlock first 🔒', 'warning');
+        return;
+    }
     pendingDeleteChoreId = choreId;
     pendingDeleteChoreIsDaily = isDaily;
     if (isDaily) {
@@ -5826,6 +5891,10 @@ function deleteChore(choreId, permanent) {
 <script>
 // Ensure reward functions are globally available
 function confirmDeleteReward(rewardId) {
+    if (typeof isAdultMode === 'function' && !isAdultMode()) {
+        if (typeof showToast === 'function') showToast('Ask an adult to unlock first 🔒', 'warning');
+        return;
+    }
     // Find the reward element and get reward details
     const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
     if (!rewardElem) {
@@ -5850,6 +5919,10 @@ function confirmDeleteReward(rewardId) {
     });
 }
 function completeReward(rewardId) {
+    if (typeof isAdultMode === 'function' && !isAdultMode()) {
+        if (typeof showToast === 'function') showToast('Ask an adult to unlock first 🔒', 'warning');
+        return;
+    }
     // Find the reward element and get reward details
     const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
     if (!rewardElem) {

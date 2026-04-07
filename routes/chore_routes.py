@@ -1,7 +1,13 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from models import db, Chore  # assuming Chore is your SQLAlchemy model
 
 chore_bp = Blueprint('chore_routes', __name__)
+
+
+def _adult_required():
+    if not session.get('adult_mode', False):
+        return jsonify({'success': False, 'error': 'Adult authorisation required'}), 403
+    return None
 
 # Example: Adding a 'deleted' column to your Chore model is assumed:
 # class Chore(db.Model):
@@ -16,6 +22,9 @@ chore_bp = Blueprint('chore_routes', __name__)
 
 @chore_bp.route('/delete_chore', methods=['POST'])
 def delete_chore():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     data = request.get_json()
     chore_id = data.get('chore_id')
     if not chore_id:
