@@ -1566,7 +1566,12 @@ def setup_wizard():
                     pass
         save_person_ages(person_ages_dict)
 
-        # Save app settings (no master PIN anymore)
+        # Save the first admin's PIN as the master PIN (used for initial app login)
+        for idx, person in new_persons:
+            if person.is_admin and person.pin:
+                AppSetting.set('master_pin', person.pin)
+                break
+
         AppSetting.set('reward_system', reward_system)
         AppSetting.set('bonus_mode', bonus_mode)
         AppSetting.set('bonus_static', bonus_static)
@@ -2507,6 +2512,22 @@ def settings():
         elif 'reset_day' in request.form:
             reset_day = int(request.form.get('reset_day'))
             log_activity('settings_updated', f"Reset day was changed to {reset_day}")
+        elif 'set_master_pin' in request.form:
+            # First-time set when no master PIN exists — no current PIN needed
+            new_pin = request.form.get('new_pin', '').strip()
+            confirm_pin = request.form.get('confirm_pin', '').strip()
+            if not new_pin or not confirm_pin:
+                error = 'Both fields are required.'
+            elif not new_pin.isdigit() or len(new_pin) != 4:
+                error = 'PIN must be exactly 4 digits.'
+            elif new_pin != confirm_pin:
+                error = 'PINs do not match.'
+            else:
+                hashed = bcrypt.hashpw(new_pin.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                AppSetting.set('master_pin', hashed)
+                db.session.commit()
+                log_activity('master_pin_changed', 'App PIN was set')
+                success = 'App PIN set successfully.'
         elif 'change_pin' in request.form:
             current_pin = request.form.get('current_pin')
             new_pin = request.form.get('new_pin')
@@ -2640,10 +2661,12 @@ def settings():
         save_person_ages(ages)
         person_ages = load_person_ages()  # Reload from file to ensure consistency
         success = "Ages saved successfully!"
+    master_pin = AppSetting.get('master_pin')
     return render_template(
         'settings.html',
         daily_chores=daily_chores,
         all_chores=all_chores,
+        master_pin_set=bool(master_pin),
         bonus_mode=bonus_mode,
         bonus_static=bonus_static,
         bonus_min=bonus_min,

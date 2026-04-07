@@ -420,6 +420,59 @@
                     </div>
                 </section>
                 <section class="settings-section">
+                    <h3 class="section-title"><i class="fas fa-lock"></i> App PIN</h3>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">The App PIN is required to open ChoresRewards. It is shared between parents — anyone who knows it can unlock the app and toggle adult mode.</p>
+                    {% if master_pin_set %}
+                    <form method="POST" action="/settings" style="max-width:360px;">
+                        <div style="margin-bottom:10px;">
+                            <label style="display:block;color:rgba(255,255,255,0.8);font-size:0.88em;margin-bottom:4px;">Current PIN</label>
+                            <input type="password" name="current_pin" maxlength="4" pattern="\d{4}" inputmode="numeric"
+                                   placeholder="••••" autocomplete="current-password"
+                                   style="width:100%;padding:8px 12px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;font-size:1.1em;text-align:center;"
+                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <label style="display:block;color:rgba(255,255,255,0.8);font-size:0.88em;margin-bottom:4px;">New PIN</label>
+                            <input type="password" name="new_pin" maxlength="4" pattern="\d{4}" inputmode="numeric"
+                                   placeholder="••••" autocomplete="new-password"
+                                   style="width:100%;padding:8px 12px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;font-size:1.1em;text-align:center;"
+                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                        </div>
+                        <div style="margin-bottom:14px;">
+                            <label style="display:block;color:rgba(255,255,255,0.8);font-size:0.88em;margin-bottom:4px;">Confirm New PIN</label>
+                            <input type="password" name="confirm_pin" maxlength="4" pattern="\d{4}" inputmode="numeric"
+                                   placeholder="••••" autocomplete="new-password"
+                                   style="width:100%;padding:8px 12px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;font-size:1.1em;text-align:center;"
+                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                        </div>
+                        <input type="hidden" name="change_pin" value="1">
+                        <button type="submit" class="save-btn"><i class="fas fa-key" style="margin-right:7px;"></i>Change PIN</button>
+                    </form>
+                    {% else %}
+                    <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#fca5a5;font-size:0.9em;">
+                        <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i> No App PIN is set — the app is unprotected. Set one below.
+                    </div>
+                    <form method="POST" action="/settings" style="max-width:360px;">
+                        <div style="margin-bottom:10px;">
+                            <label style="display:block;color:rgba(255,255,255,0.8);font-size:0.88em;margin-bottom:4px;">New PIN</label>
+                            <input type="password" name="new_pin" maxlength="4" pattern="\d{4}" inputmode="numeric"
+                                   placeholder="••••" autocomplete="new-password"
+                                   style="width:100%;padding:8px 12px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;font-size:1.1em;text-align:center;"
+                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                        </div>
+                        <div style="margin-bottom:14px;">
+                            <label style="display:block;color:rgba(255,255,255,0.8);font-size:0.88em;margin-bottom:4px;">Confirm PIN</label>
+                            <input type="password" name="confirm_pin" maxlength="4" pattern="\d{4}" inputmode="numeric"
+                                   placeholder="••••" autocomplete="new-password"
+                                   style="width:100%;padding:8px 12px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;font-size:1.1em;text-align:center;"
+                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                        </div>
+                        <input type="hidden" name="set_master_pin" value="1">
+                        <button type="submit" class="save-btn"><i class="fas fa-lock" style="margin-right:7px;"></i>Set App PIN</button>
+                    </form>
+                    {% endif %}
+                </section>
+                <section class="settings-section">
                     <h3 class="section-title"><i class="fas fa-tasks"></i> All Chores</h3>
                     <p style="color:rgba(255,255,255,0.6);margin-top:0;">View and manage every chore in the system. <strong style="color:rgba(255,255,255,0.8);">Daily</strong> chores reset automatically each day they're scheduled. <strong style="color:rgba(255,255,255,0.8);">One-off</strong> chores disappear once completed. Use <strong style="color:rgba(255,255,255,0.8);">Edit</strong> to change the title, points value, assigned person, or which days of the week it appears. New chores are added from the main Home screen.</p>
                     <div class="table-container">
