@@ -20,7 +20,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260316d">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260411c">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -813,6 +813,333 @@ window.addEventListener('DOMContentLoaded', function() {
     </div>
   </div>
 </div>
+
+    <!-- Notes Kanban Section -->
+    <section class="notes-kanban-section collapsible-section collapsed" id="notes-kanban-section">
+        <h2 class="section-title section-toggle">
+            <i class="fas fa-sticky-note" style="color:#fbbf24;"></i> <span>Notes</span>
+            <i class="fas fa-chevron-down section-chevron"></i>
+        </h2>
+
+        <div class="notes-kanban-board" id="notes-kanban-board">
+            <!-- Columns rendered by JS -->
+        </div>
+
+        <div class="notes-action-row">
+            <button type="button" class="edit-btn" id="notes-add-column-btn"><i class="fas fa-plus"></i> Add List</button>
+            <button type="button" class="edit-btn" id="notes-clear-checked-btn"><i class="fas fa-broom"></i> Clear Checked</button>
+        </div>
+    </section>
+
+    <script>
+    (() => {
+        let notesColumns = {{ notes_columns | tojson }};
+        let notesNotes   = {{ notes_notes   | tojson }};
+
+        const board       = document.getElementById('notes-kanban-board');
+        const addColBtn   = document.getElementById('notes-add-column-btn');
+        const clearBtn    = document.getElementById('notes-clear-checked-btn');
+
+        let dragSrcNoteId  = null;
+        let dragSrcColId   = null;
+        let saveDebounce   = null;
+
+        // ── Save ──────────────────────────────────────────────────────────
+        function scheduleSave() {
+            clearTimeout(saveDebounce);
+            saveDebounce = setTimeout(saveNotes, 600);
+        }
+
+        async function saveNotes() {
+            try {
+                await fetch('/api/notes', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({columns: notesColumns, notes: notesNotes})
+                });
+            } catch(e) { console.error('Notes save error', e); }
+        }
+
+        // ── Helpers ───────────────────────────────────────────────────────
+        function genId(prefix) {
+            return prefix + '-' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
+        }
+
+        function colNotes(colId) {
+            return notesNotes
+                .filter(n => n.column_id === colId)
+                .sort((a, b) => a.order - b.order);
+        }
+
+        // ── Render ────────────────────────────────────────────────────────
+        function renderBoard() {
+            board.innerHTML = '';
+            notesColumns.forEach(col => {
+                board.appendChild(buildColumn(col));
+            });
+        }
+
+        function buildColumn(col) {
+            const el = document.createElement('div');
+            el.className = 'notes-kanban-col';
+            el.dataset.colId = col.id;
+
+            el.addEventListener('dragover', e => {
+                e.preventDefault();
+                el.classList.add('notes-col-drag-over');
+            });
+            el.addEventListener('dragleave', () => el.classList.remove('notes-col-drag-over'));
+            el.addEventListener('drop', e => {
+                e.preventDefault();
+                el.classList.remove('notes-col-drag-over');
+                if (dragSrcNoteId && dragSrcColId !== col.id) {
+                    const note = notesNotes.find(n => n.id === dragSrcNoteId);
+                    if (note) {
+                        note.column_id = col.id;
+                        const colNotesList = colNotes(col.id);
+                        note.order = colNotesList.length ? Math.max(...colNotesList.map(n => n.order)) + 1 : 0;
+                        renderBoard();
+                        scheduleSave();
+                    }
+                }
+            });
+
+            // Header
+            const header = document.createElement('div');
+            header.className = 'notes-col-header';
+            header.style.setProperty('--col-color', col.color);
+            header.innerHTML = `
+                <span class="notes-col-dot" style="background:${col.color}"></span>
+                <span class="notes-col-title" title="Click to rename">${escHtml(col.title)}</span>
+                <button class="notes-col-rename-btn" title="Rename list"><i class="fas fa-pencil-alt"></i></button>
+                <button class="notes-col-delete-btn" title="Delete list"><i class="fas fa-times"></i></button>
+            `;
+            header.querySelector('.notes-col-title').addEventListener('dblclick', () => startRenameCol(col.id));
+            header.querySelector('.notes-col-rename-btn').addEventListener('click', () => startRenameCol(col.id));
+            header.querySelector('.notes-col-delete-btn').addEventListener('click', () => deleteColumn(col.id));
+
+            // Notes list
+            const list = document.createElement('div');
+            list.className = 'notes-list';
+            colNotes(col.id).forEach(note => list.appendChild(buildNote(note, col)));
+
+            // Add note input
+            const addRow = document.createElement('div');
+            addRow.className = 'notes-add-row';
+            addRow.innerHTML = `
+                <textarea class="notes-add-input" placeholder="New note..." rows="2"></textarea>
+                <button class="notes-add-btn edit-btn"><i class="fas fa-plus"></i> Add</button>
+            `;
+            const textarea = addRow.querySelector('textarea');
+            const addBtn   = addRow.querySelector('.notes-add-btn');
+
+            function addNote() {
+                const text = textarea.value.trim();
+                if (!text) return;
+                const colNotesList = colNotes(col.id);
+                notesNotes.push({
+                    id: genId('note'),
+                    column_id: col.id,
+                    text: text,
+                    checked: false,
+                    order: colNotesList.length ? Math.max(...colNotesList.map(n => n.order)) + 1 : 0
+                });
+                textarea.value = '';
+                renderBoard();
+                scheduleSave();
+                // Re-focus add input in same column
+                const newCol = board.querySelector(`[data-col-id="${col.id}"]`);
+                if (newCol) newCol.querySelector('textarea').focus();
+            }
+
+            addBtn.addEventListener('click', addNote);
+            textarea.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addNote(); }
+            });
+
+            el.appendChild(header);
+            el.appendChild(list);
+            el.appendChild(addRow);
+            return el;
+        }
+
+        function buildNote(note, col) {
+            const el = document.createElement('div');
+            el.className = 'notes-sticky' + (note.checked ? ' notes-sticky-checked' : '');
+            el.style.setProperty('--note-color', col.color);
+            el.draggable = true;
+            el.dataset.noteId = note.id;
+
+            el.addEventListener('dragstart', e => {
+                dragSrcNoteId = note.id;
+                dragSrcColId  = note.column_id;
+                el.classList.add('notes-sticky-dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            el.addEventListener('dragend', () => {
+                dragSrcNoteId = null;
+                dragSrcColId  = null;
+                el.classList.remove('notes-sticky-dragging');
+            });
+
+            // Drop on another note (reorder within same col)
+            el.addEventListener('dragover', e => {
+                e.preventDefault();
+                if (dragSrcNoteId && dragSrcNoteId !== note.id) {
+                    el.classList.add('notes-sticky-drop-target');
+                }
+            });
+            el.addEventListener('dragleave', () => el.classList.remove('notes-sticky-drop-target'));
+            el.addEventListener('drop', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                el.classList.remove('notes-sticky-drop-target');
+                if (!dragSrcNoteId || dragSrcNoteId === note.id) return;
+                const srcNote  = notesNotes.find(n => n.id === dragSrcNoteId);
+                const tgtNote  = note;
+                if (!srcNote) return;
+                // Move to same column, before target
+                srcNote.column_id = tgtNote.column_id;
+                const colList = colNotes(tgtNote.column_id).filter(n => n.id !== srcNote.id);
+                const tgtIdx = colList.findIndex(n => n.id === tgtNote.id);
+                colList.splice(tgtIdx, 0, srcNote);
+                colList.forEach((n, i) => { n.order = i; });
+                renderBoard();
+                scheduleSave();
+            });
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'notes-sticky-check';
+            checkbox.checked = note.checked;
+            checkbox.addEventListener('change', () => {
+                note.checked = checkbox.checked;
+                el.classList.toggle('notes-sticky-checked', note.checked);
+                scheduleSave();
+            });
+
+            const textEl = document.createElement('span');
+            textEl.className = 'notes-sticky-text';
+            textEl.textContent = note.text;
+            textEl.addEventListener('dblclick', () => startEditNote(note, col));
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'notes-sticky-del';
+            delBtn.title = 'Delete note';
+            delBtn.innerHTML = '<i class="fas fa-times"></i>';
+            delBtn.addEventListener('click', () => {
+                notesNotes = notesNotes.filter(n => n.id !== note.id);
+                renderBoard();
+                scheduleSave();
+            });
+
+            el.appendChild(checkbox);
+            el.appendChild(textEl);
+            el.appendChild(delBtn);
+            return el;
+        }
+
+        // ── Inline note editing ───────────────────────────────────────────
+        function startEditNote(note, col) {
+            const el = board.querySelector(`[data-note-id="${note.id}"]`);
+            if (!el) return;
+            const oldText = el.querySelector('.notes-sticky-text');
+            const ta = document.createElement('textarea');
+            ta.className = 'notes-sticky-edit-ta';
+            ta.value = note.text;
+            ta.rows = 3;
+            oldText.replaceWith(ta);
+            ta.focus();
+            ta.select();
+
+            function commit() {
+                const v = ta.value.trim();
+                if (v) note.text = v;
+                renderBoard();
+                scheduleSave();
+            }
+            ta.addEventListener('blur', commit);
+            ta.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ta.blur(); }
+                if (e.key === 'Escape') { ta.removeEventListener('blur', commit); renderBoard(); }
+            });
+        }
+
+        // ── Rename column ─────────────────────────────────────────────────
+        function startRenameCol(colId) {
+            const col = notesColumns.find(c => c.id === colId);
+            if (!col) return;
+            const colEl = board.querySelector(`[data-col-id="${colId}"]`);
+            if (!colEl) return;
+            const titleEl = colEl.querySelector('.notes-col-title');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'notes-col-rename-input';
+            input.value = col.title;
+            input.maxLength = 80;
+            titleEl.replaceWith(input);
+            input.focus();
+            input.select();
+
+            function commit() {
+                const v = input.value.trim();
+                if (v) col.title = v;
+                renderBoard();
+                scheduleSave();
+            }
+            input.addEventListener('blur', commit);
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+                if (e.key === 'Escape') { input.removeEventListener('blur', commit); renderBoard(); }
+            });
+        }
+
+        // ── Delete column ─────────────────────────────────────────────────
+        function deleteColumn(colId) {
+            const col = notesColumns.find(c => c.id === colId);
+            const noteCount = notesNotes.filter(n => n.column_id === colId).length;
+            const msg = noteCount
+                ? `Delete list "${col.title}" and its ${noteCount} note${noteCount !== 1 ? 's' : ''}?`
+                : `Delete list "${col.title}"?`;
+            if (!confirm(msg)) return;
+            notesColumns = notesColumns.filter(c => c.id !== colId);
+            notesNotes   = notesNotes.filter(n => n.column_id !== colId);
+            renderBoard();
+            scheduleSave();
+        }
+
+        // ── Add column ────────────────────────────────────────────────────
+        const POSTIT_COLORS = ['#fef08a','#86efac','#93c5fd','#f9a8d4','#fdba74','#c4b5fd','#6ee7b7','#fca5a5'];
+
+        addColBtn.addEventListener('click', () => {
+            const title = prompt('List name:');
+            if (!title || !title.trim()) return;
+            const color = POSTIT_COLORS[notesColumns.length % POSTIT_COLORS.length];
+            const id = 'col-' + title.trim().toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0,30) + '-' + Math.random().toString(36).slice(2,6);
+            notesColumns.push({id, title: title.trim(), color});
+            renderBoard();
+            scheduleSave();
+        });
+
+        // ── Clear checked ─────────────────────────────────────────────────
+        clearBtn.addEventListener('click', () => {
+            const count = notesNotes.filter(n => n.checked).length;
+            if (!count) return;
+            if (!confirm(`Remove ${count} checked note${count !== 1 ? 's' : ''}?`)) return;
+            notesNotes = notesNotes.filter(n => !n.checked);
+            renderBoard();
+            scheduleSave();
+        });
+
+        // ── Utils ─────────────────────────────────────────────────────────
+        function escHtml(s) {
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        // ── Bootstrap ─────────────────────────────────────────────────────
+        renderBoard();
+    })();
+    </script>
 
     <!-- Enhanced Rewards Section -->
     <section class="rewards-section collapsible-section">

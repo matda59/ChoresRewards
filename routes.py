@@ -1153,6 +1153,72 @@ def api_shopping_list():
         return jsonify({'success': False, 'error': str(exc)}), 400
 
 
+@routes_bp.route('/api/notes', methods=['GET', 'POST'])
+def api_notes():
+    try:
+        if request.method == 'GET':
+            try:
+                data = _json.loads(AppSetting.get('notes_kanban_json', '{}'))
+            except Exception:
+                data = {}
+            if not isinstance(data, dict):
+                data = {}
+            columns = data.get('columns', [])
+            notes = data.get('notes', [])
+            if not columns:
+                columns = [
+                    {'id': 'col-todo', 'title': 'To Do', 'color': '#fef08a'},
+                    {'id': 'col-house', 'title': 'House', 'color': '#86efac'},
+                    {'id': 'col-reminders', 'title': 'Reminders', 'color': '#93c5fd'},
+                ]
+            return jsonify({'success': True, 'columns': columns, 'notes': notes})
+
+        data = request.get_json() or {}
+        columns = data.get('columns', [])
+        notes = data.get('notes', [])
+
+        if not isinstance(columns, list):
+            columns = []
+        if not isinstance(notes, list):
+            notes = []
+
+        clean_cols = []
+        seen_col_ids = set()
+        for col in columns:
+            if not isinstance(col, dict):
+                continue
+            col_id = re.sub(r'[^a-z0-9\-]', '', str(col.get('id', '')).strip().lower())[:60]
+            title = str(col.get('title', '')).strip()[:80]
+            color = str(col.get('color', '#fef08a')).strip()[:20]
+            if not col_id or not title or col_id in seen_col_ids:
+                continue
+            if not re.match(r'^#[0-9a-fA-F]{3,8}$', color):
+                color = '#fef08a'
+            clean_cols.append({'id': col_id, 'title': title, 'color': color})
+            seen_col_ids.add(col_id)
+
+        clean_notes = []
+        seen_note_ids = set()
+        for note in notes:
+            if not isinstance(note, dict):
+                continue
+            note_id = re.sub(r'[^a-z0-9\-]', '', str(note.get('id', '')).strip().lower())[:60]
+            column_id = re.sub(r'[^a-z0-9\-]', '', str(note.get('column_id', '')).strip().lower())[:60]
+            text = str(note.get('text', '')).strip()[:500]
+            checked = bool(note.get('checked', False))
+            order = int(note.get('order', 0)) if isinstance(note.get('order'), (int, float)) else 0
+            if not note_id or not text or note_id in seen_note_ids:
+                continue
+            clean_notes.append({'id': note_id, 'column_id': column_id, 'text': text, 'checked': checked, 'order': order})
+            seen_note_ids.add(note_id)
+
+        payload = {'columns': clean_cols, 'notes': clean_notes}
+        AppSetting.set('notes_kanban_json', _json.dumps(payload))
+        return jsonify({'success': True, 'columns': clean_cols, 'notes': clean_notes})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
 @routes_bp.route('/api/shopping_stores', methods=['GET', 'POST'])
 def api_shopping_stores():
     try:
@@ -1355,6 +1421,19 @@ def index():
     meal_planner_plan, meal_planner_suggestions, meal_planner_recurring = _get_meal_planner_data(meal_planner_week_start)
     meal_ingredients, shopping_list_checked, shopping_list_general, shopping_hidden, shopping_active, shopping_stores = _get_shopping_data()
 
+    try:
+        _notes_raw = _json.loads(AppSetting.get('notes_kanban_json', '{}'))
+    except Exception:
+        _notes_raw = {}
+    if not isinstance(_notes_raw, dict):
+        _notes_raw = {}
+    notes_columns = _notes_raw.get('columns', [
+        {'id': 'col-todo', 'title': 'To Do', 'color': '#fef08a'},
+        {'id': 'col-house', 'title': 'House', 'color': '#86efac'},
+        {'id': 'col-reminders', 'title': 'Reminders', 'color': '#93c5fd'},
+    ])
+    notes_notes = _notes_raw.get('notes', [])
+
     timezone = AppSetting.get('timezone', 'UTC')
     google_calendar_feature_enabled = is_google_calendar_feature_enabled()
     google_calendar_enabled = AppSetting.get('google_calendar_enabled', 'false') == 'true'
@@ -1447,6 +1526,8 @@ def index():
         shopping_hidden=shopping_hidden,
         shopping_active=shopping_active,
         shopping_stores=shopping_stores,
+        notes_columns=notes_columns,
+        notes_notes=notes_notes,
         timedelta=timedelta,
         current_date=date.today(),
         timezone=timezone,

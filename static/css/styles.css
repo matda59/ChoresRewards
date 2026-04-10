@@ -5102,3 +5102,234 @@ html.adult-mode .admin-only[data-display="inline-flex"] {
 .pin-shake {
     animation: pin-shake 0.38s ease;
 }
+
+
+/* -- Notes Kanban ------------------------------------------------ */
+.notes-kanban-section {
+    margin-top: 10px;
+}
+
+.notes-kanban-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    margin-bottom: 12px;
+    align-items: start;
+}
+
+.notes-action-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+/* Column */
+.notes-kanban-col {
+    background: rgba(0,0,0,0.22);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.2s;
+    min-height: 120px;
+}
+
+.notes-kanban-col.notes-col-drag-over {
+    box-shadow: 0 0 0 2px rgba(251,191,36,0.6);
+}
+
+.notes-col-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    background: rgba(255,255,255,0.06);
+    border-bottom: 1px solid var(--col-color, #fef08a);
+    font-weight: 600;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(248,250,252,0.75);
+    user-select: none;
+}
+
+.notes-col-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.notes-col-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.notes-col-rename-input {
+    flex: 1;
+    min-width: 0;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 5px;
+    color: #fff;
+    font-size: 0.88rem;
+    padding: 2px 6px;
+    outline: none;
+}
+
+.notes-col-rename-btn,
+.notes-col-delete-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.68rem;
+    padding: 3px 5px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    transition: color 0.2s, background 0.2s;
+    line-height: 1;
+}
+
+.notes-col-rename-btn { color: rgba(255,255,255,0.35); }
+.notes-col-rename-btn:hover { color: #93c5fd; background: rgba(147,197,253,0.12); }
+.notes-col-delete-btn { color: rgba(255,255,255,0.28); }
+.notes-col-delete-btn:hover { color: #f87171; background: rgba(248,113,113,0.12); }
+
+/* Note list */
+.notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 10px 6px;
+    min-height: 40px;
+}
+
+/* Post-it note */
+.notes-sticky {
+    background: var(--note-color, #fef08a);
+    color: #1a1a1a;
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    box-shadow: 2px 3px 8px rgba(0,0,0,0.30), inset 0 -1px 0 rgba(0,0,0,0.08);
+    cursor: grab;
+    transition: opacity 0.2s, box-shadow 0.2s, transform 0.15s;
+    word-break: break-word;
+    position: relative;
+}
+
+.notes-sticky:hover {
+    box-shadow: 3px 5px 14px rgba(0,0,0,0.40);
+    transform: rotate(-0.5deg) scale(1.01);
+}
+
+.notes-sticky.notes-sticky-dragging {
+    opacity: 0.45;
+    transform: rotate(2deg) scale(1.03);
+    cursor: grabbing;
+}
+
+.notes-sticky.notes-sticky-drop-target {
+    box-shadow: 0 0 0 2px #f59e0b, 2px 3px 8px rgba(0,0,0,0.30);
+}
+
+.notes-sticky.notes-sticky-checked {
+    opacity: 0.55;
+}
+
+.notes-sticky.notes-sticky-checked .notes-sticky-text {
+    text-decoration: line-through;
+    color: rgba(26,26,26,0.6);
+}
+
+.notes-sticky-check {
+    margin-top: 2px;
+    flex-shrink: 0;
+    accent-color: rgba(0,0,0,0.5);
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+}
+
+.notes-sticky-text {
+    flex: 1;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    cursor: text;
+}
+
+.notes-sticky-edit-ta {
+    flex: 1;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(0,0,0,0.2);
+    border-radius: 5px;
+    font-size: 0.88rem;
+    padding: 3px 6px;
+    resize: vertical;
+    outline: none;
+    color: #111;
+    width: 100%;
+}
+
+.notes-sticky-del {
+    border: none;
+    background: transparent;
+    color: rgba(0,0,0,0.30);
+    cursor: pointer;
+    font-size: 0.65rem;
+    padding: 2px 4px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    align-self: flex-start;
+    transition: color 0.2s, background 0.2s;
+    line-height: 1;
+    margin-top: 1px;
+}
+.notes-sticky-del:hover { color: #dc2626; background: rgba(220,38,38,0.12); }
+
+/* Add note row */
+.notes-add-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 8px 10px 10px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+}
+
+.notes-add-input {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px;
+    color: #f1f5f9;
+    font-size: 0.82rem;
+    padding: 7px 10px;
+    resize: none;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+.notes-add-input:focus { border-color: rgba(251,191,36,0.55); }
+.notes-add-input::placeholder { color: rgba(255,255,255,0.35); }
+
+.notes-add-btn {
+    align-self: flex-end;
+    font-size: 0.7rem;
+    padding: 3px 9px;
+}
+
+@media (max-width: 480px) {
+    .notes-kanban-board {
+        grid-template-columns: 1fr;
+    }
+}
