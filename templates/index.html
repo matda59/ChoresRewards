@@ -5433,10 +5433,10 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
                         document.getElementById('celebration-overlay').style.display = 'flex';
                         playCelebrationSound();
                         updateColumnPoints(personName);
-                    } else if (data.message && data.message.includes('already awarded today')) {
+                    } else if ((data.message || data.error || '').includes('already awarded today')) {
                         // Do not show overlay or slot machine
                     } else {
-                        alert("Failed to award static bonus points: " + data.message);
+                        alert("Failed to award static bonus points: " + (data.message || data.error || 'Unknown error'));
                     }
                 })
                 .catch(err => {
@@ -5510,10 +5510,10 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
                                 updateColumnPoints(personName);
                             }
                         }, intervalTime);
-                    } else if (data.message && data.message.includes('already awarded today')) {
+                    } else if ((data.message || data.error || '').includes('already awarded today')) {
                         // Do not show overlay or slot machine
                     } else {
-                        alert("Failed to award bonus points: " + data.message);
+                        alert("Failed to award bonus points: " + (data.message || data.error || 'Unknown error'));
                     }
                 })
                 .catch(err => {

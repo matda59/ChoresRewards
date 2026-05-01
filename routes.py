@@ -2166,9 +2166,6 @@ def delete_reward():
 
 @routes_bp.route('/award_bonus_points', methods=['POST'])
 def award_bonus_points():
-    _guard = _adult_required()
-    if _guard:
-        return _guard
     try:
         data = request.get_json()
         person_id = data.get('person_id')
