@@ -11,8 +11,8 @@
 
     // ── State ─────────────────────────────────────────────────────────────────
     let _adultMode = false;
-    let _adultName = null;
-
+    let _adultName = null;    let _lockoutTimer = null;
+    let _pinLocked = false;
     // ── DOM helpers ───────────────────────────────────────────────────────────
     function getEl(id) { return document.getElementById(id); }
 
@@ -61,6 +61,34 @@
     function hidePinOverlay() {
         const overlay = getEl('adult-pin-overlay');
         if (overlay) overlay.style.display = 'none';
+        // Cancel any running lockout countdown when the overlay is dismissed
+        if (_lockoutTimer) { clearInterval(_lockoutTimer); _lockoutTimer = null; }
+        _pinLocked = false;
+        const input = getEl('adult-pin-input');
+        if (input) input.disabled = false;
+    }
+
+    function startLockoutCountdown(seconds) {
+        _pinLocked = true;
+        const input = getEl('adult-pin-input');
+        const errorEl = getEl('adult-pin-error');
+        if (input) { input.disabled = true; input.value = ''; }
+        if (_lockoutTimer) clearInterval(_lockoutTimer);
+        let remaining = seconds;
+        function tick() {
+            if (remaining > 0) {
+                if (errorEl) errorEl.textContent = '\uD83D\uDD12 Locked out. Try again in ' + remaining + 's.';
+                remaining--;
+            } else {
+                clearInterval(_lockoutTimer);
+                _lockoutTimer = null;
+                _pinLocked = false;
+                if (input) { input.disabled = false; input.focus(); }
+                if (errorEl) errorEl.textContent = '';
+            }
+        }
+        tick();
+        _lockoutTimer = setInterval(tick, 1000);
     }
 
     function shakePinBox() {
@@ -98,10 +126,14 @@
                         showToast('Unlocked — adult mode active', 'success');
                     }
                 } else {
-                    getEl('adult-pin-error').textContent = res.data.error || 'Incorrect PIN';
-                    shakePinBox();
-                    getEl('adult-pin-input').value = '';
-                    getEl('adult-pin-input').focus();
+                    if (res.data.retry_after) {
+                        startLockoutCountdown(res.data.retry_after);
+                    } else {
+                        getEl('adult-pin-error').textContent = res.data.error || 'Incorrect PIN';
+                        shakePinBox();
+                        getEl('adult-pin-input').value = '';
+                        getEl('adult-pin-input').focus();
+                    }
                 }
             })
             .catch(function () {
@@ -147,6 +179,7 @@
         const pinInput = getEl('adult-pin-input');
         if (pinInput) {
             pinInput.addEventListener('input', function () {
+                if (_pinLocked) return;
                 const val = pinInput.value.replace(/\D/g, '').slice(0, 4);
                 pinInput.value = val;
                 if (val.length === 4) {
@@ -160,6 +193,7 @@
         if (pinForm) {
             pinForm.addEventListener('submit', function (e) {
                 e.preventDefault();
+                if (_pinLocked) return;
                 const val = (getEl('adult-pin-input').value || '').replace(/\D/g, '').slice(0, 4);
                 if (val.length === 4) {
                     attemptAdultLogin(val);

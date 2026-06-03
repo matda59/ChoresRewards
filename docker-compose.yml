@@ -5,7 +5,7 @@ services:
     ports:
       - "3112:3000"
     volumes:
-      - instance_data:/app/instance
+      - ./instance:/app/instance
       - uploads_data:/app/static/uploads
     environment:
       - TZ=Australia/Adelaide  # Adjust this to your actual timezone
@@ -13,5 +13,4 @@ services:
     restart: always
 
 volumes:
-  instance_data:
   uploads_data:

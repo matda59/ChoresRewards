@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone, date
 import os
 import uuid
 import random
+import time as _time
 from urllib.parse import quote
 import re
 import json as _json
@@ -50,6 +51,50 @@ GOOGLE_CALENDAR_CACHE = {
     'events': [],
     'error': None,
 }
+
+# ── PIN Brute-Force Protection ─────────────────────────────────────────────────
+_PIN_ATTEMPTS = {}        # {key: {'count': int, 'locked_until': float|None}}
+_MAX_PIN_ATTEMPTS = 5     # failures before lockout
+_PIN_LOCKOUT_SECONDS = 60 # lockout duration
+
+def _rl_key():
+    """Rate-limit key: client IP (respects X-Forwarded-For for reverse proxies)."""
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    ip = forwarded.split(',')[0].strip() if forwarded else (request.remote_addr or '0.0.0.0')
+    return f'pin:{ip}'
+
+def _rl_check(key):
+    """Return (allowed, retry_after_seconds). allowed=False when IP is locked out."""
+    now = _time.monotonic()
+    entry = _PIN_ATTEMPTS.get(key)
+    if entry and entry.get('locked_until') and now < entry['locked_until']:
+        return False, max(1, int(entry['locked_until'] - now) + 1)
+    return True, 0
+
+def _rl_fail(key):
+    """Record a failed attempt. Returns remaining attempts (0 = just locked out)."""
+    now = _time.monotonic()
+    entry = _PIN_ATTEMPTS.setdefault(key, {'count': 0, 'locked_until': None})
+    if entry.get('locked_until') and now >= entry['locked_until']:
+        entry['count'] = 0
+        entry['locked_until'] = None
+    entry['count'] += 1
+    if entry['count'] >= _MAX_PIN_ATTEMPTS:
+        entry['locked_until'] = now + _PIN_LOCKOUT_SECONDS
+        entry['count'] = 0
+        # Prevent unbounded growth from many IPs
+        if len(_PIN_ATTEMPTS) > 1000:
+            cutoff = now - _PIN_LOCKOUT_SECONDS * 2
+            stale = [k for k, v in list(_PIN_ATTEMPTS.items())
+                     if not v.get('locked_until') or v['locked_until'] < cutoff]
+            for k in stale:
+                _PIN_ATTEMPTS.pop(k, None)
+        return 0
+    return _MAX_PIN_ATTEMPTS - entry['count']
+
+def _rl_success(key):
+    """Clear attempt record after a successful login."""
+    _PIN_ATTEMPTS.pop(key, None)
 
 
 def is_google_calendar_feature_enabled():
@@ -869,6 +914,11 @@ def api_check_auth():
 @routes_bp.route('/api/person_login', methods=['POST'])
 def api_person_login():
     """Log in as a specific family member. Sets the session for the whole browser session."""
+    rl_key = _rl_key()
+    rl_ok, retry_after = _rl_check(rl_key)
+    if not rl_ok:
+        return jsonify({'success': False, 'error': f'Too many attempts. Try again in {retry_after}s.', 'retry_after': retry_after}), 429
+
     data = request.get_json()
     if not data or 'person_id' not in data:
         return jsonify({'success': False, 'error': 'Person ID required'}), 400
@@ -881,8 +931,13 @@ def api_person_login():
 
     if person.pin:
         if not pin or not person.check_pin(pin):
-            return jsonify({'success': False, 'error': 'Incorrect PIN'}), 401
+            remaining = _rl_fail(rl_key)
+            if remaining == 0:
+                return jsonify({'success': False, 'error': f'Too many wrong attempts. Locked for {_PIN_LOCKOUT_SECONDS}s.', 'retry_after': _PIN_LOCKOUT_SECONDS}), 429
+            word = 'attempt' if remaining == 1 else 'attempts'
+            return jsonify({'success': False, 'error': f'Incorrect PIN — {remaining} {word} left'}), 401
 
+    _rl_success(rl_key)
     session['authenticated'] = True
     session['person_id'] = person.id
     session['person_name'] = person.name
@@ -912,6 +967,11 @@ def api_auth_status():
 # --- API: Adult Login (per-person PIN) ---
 @routes_bp.route('/api/adult_login', methods=['POST'])
 def api_adult_login():
+    rl_key = _rl_key()
+    rl_ok, retry_after = _rl_check(rl_key)
+    if not rl_ok:
+        return jsonify({'success': False, 'error': f'Too many attempts. Try again in {retry_after}s.', 'retry_after': retry_after}), 429
+
     data = request.get_json()
     if not data or 'pin' not in data:
         return jsonify({'success': False, 'error': 'PIN is required'}), 400
@@ -921,6 +981,7 @@ def api_adult_login():
     admins = Person.query.filter_by(is_admin=True).all()
     for person in admins:
         if person.check_pin(pin):
+            _rl_success(rl_key)
             session['authenticated'] = True
             session['adult_mode'] = True
             session['adult_name'] = person.name
@@ -932,6 +993,7 @@ def api_adult_login():
     if master_pin_hash:
         try:
             if _bcrypt.checkpw(pin.encode('utf-8'), master_pin_hash.encode('utf-8')):
+                _rl_success(rl_key)
                 session['authenticated'] = True
                 session['adult_mode'] = True
                 session['adult_name'] = 'Admin'
@@ -939,7 +1001,11 @@ def api_adult_login():
         except Exception:
             pass
 
-    return jsonify({'success': False, 'error': 'Incorrect PIN'}), 401
+    remaining = _rl_fail(rl_key)
+    if remaining == 0:
+        return jsonify({'success': False, 'error': f'Too many wrong attempts. Locked for {_PIN_LOCKOUT_SECONDS}s.', 'retry_after': _PIN_LOCKOUT_SECONDS}), 429
+    word = 'attempt' if remaining == 1 else 'attempts'
+    return jsonify({'success': False, 'error': f'Incorrect PIN — {remaining} {word} left'}), 401
 
 # --- API: Adult Logout (lock back to child mode; keeps the person session) ---
 @routes_bp.route('/api/adult_logout', methods=['POST'])
@@ -980,7 +1046,7 @@ def api_meal_planner():
         if request.method == 'GET':
             week_start_str = request.args.get('week_start', '').strip()
             try:
-                week_start = _get_week_start(date.fromisoformat(week_start_str))
+                week_start = date.fromisoformat(week_start_str)
             except (ValueError, TypeError, AttributeError):
                 week_start = _get_week_start()
             plan, suggestions, recurring = _get_meal_planner_data(week_start)
@@ -1215,6 +1281,43 @@ def api_notes():
         payload = {'columns': clean_cols, 'notes': clean_notes}
         AppSetting.set('notes_kanban_json', _json.dumps(payload))
         return jsonify({'success': True, 'columns': clean_cols, 'notes': clean_notes})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/text_pads', methods=['GET', 'POST'])
+def api_text_pads():
+    try:
+        if request.method == 'GET':
+            try:
+                pads = _json.loads(AppSetting.get('text_pads_json', '[]'))
+            except Exception:
+                pads = []
+            if not isinstance(pads, list):
+                pads = []
+            return jsonify({'success': True, 'pads': pads})
+
+        data = request.get_json() or {}
+        pads = data.get('pads', [])
+        if not isinstance(pads, list):
+            pads = []
+
+        clean_pads = []
+        seen_ids = set()
+        for pad in pads:
+            if not isinstance(pad, dict):
+                continue
+            pad_id = str(pad.get('id', '')).strip()[:80]
+            if not pad_id or pad_id in seen_ids:
+                continue
+            title = str(pad.get('title', '')).strip()[:80]
+            content = str(pad.get('content', '')).strip()[:100000]
+            created_at = str(pad.get('created_at', '')).strip()[:30]
+            clean_pads.append({'id': pad_id, 'title': title, 'content': content, 'created_at': created_at})
+            seen_ids.add(pad_id)
+
+        AppSetting.set('text_pads_json', _json.dumps(clean_pads))
+        return jsonify({'success': True, 'pads': clean_pads})
     except Exception as exc:
         return jsonify({'success': False, 'error': str(exc)}), 400
 
@@ -1774,6 +1877,8 @@ def check_and_award_badges(person, completed_dt):
 
 @routes_bp.route('/complete_chore', methods=['POST'])
 def complete_chore():
+    if not session.get('authenticated', False):
+        return jsonify({'success': False, 'error': 'Login required'}), 401
     try:
         chore_id = request.json.get('chore_id')
         chore = Chore.query.get(chore_id)
@@ -1783,21 +1888,17 @@ def complete_chore():
                 'error': 'Chore not found'
             }), 404
 
+        if chore.completed:
+            return jsonify({'success': False, 'already_completed': True, 'error': 'This chore is already completed'}), 409
+
         chore.completed = True
         # Store date_completed in the app's configured timezone
         from zoneinfo import ZoneInfo
         tz_name = AppSetting.get('timezone', 'UTC')
         app_tz = ZoneInfo(tz_name)
-        # Use the modern approach to get current time
         now_utc = datetime.now(timezone.utc)
         now_local = now_utc.astimezone(app_tz)
         chore.date_completed = now_local.replace(tzinfo=None)  # Store as naive local time
-        
-        # Debug logging
-        print(f"DEBUG: Timezone setting: {tz_name}")
-        print(f"DEBUG: UTC time: {now_utc}")
-        print(f"DEBUG: Local time: {now_local}")
-        print(f"DEBUG: Stored time: {chore.date_completed}")
 
         person = Person.query.filter_by(name=chore.assigned_to).first()
 
@@ -1820,7 +1921,6 @@ def complete_chore():
                     local_dt = chore.due_datetime
                 due_utc = local_dt.astimezone(dt_timezone.utc)
                 overdue = now > due_utc.replace(tzinfo=None)
-                print(f"[DEBUG] now={now} due_utc={due_utc} app_tz={tz_name} local_dt={local_dt} overdue={overdue}", flush=True)
             elif chore.due_date:
                 overdue = now.date() > chore.due_date
             else:
@@ -3031,6 +3131,9 @@ def delete_chore():
     For daily chores: permanent=True marks as deleted, permanent=False skips for today only.
     For non-daily chores: always permanently deleted from database.
     """
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         # Get request data
         data = request.get_json()
@@ -3040,8 +3143,6 @@ def delete_chore():
         chore_id = data.get('chore_id')
         permanent = data.get('permanent', False)
 
-        print(f"[delete_chore] Received data: chore_id={chore_id}, permanent={permanent}")
-        
         # Validate chore_id
         if not chore_id:
             return jsonify({'success': False, 'error': 'Chore ID is required'}), 400
@@ -3056,16 +3157,11 @@ def delete_chore():
         chore_assigned_to = chore.assigned_to
         is_daily = chore.is_daily
         
-        print(f"[delete_chore] Processing chore: '{chore_title}' (ID: {chore_id}, Daily: {is_daily})")
-        
         # Handle deletion based on chore type
         if is_daily:
             if permanent:
-                # Permanently delete daily chore by marking as deleted
-                print("[delete_chore] Permanently deleting daily chore")
                 chore.deleted = True
                 db.session.commit()
-                
                 log_activity(
                     'daily_chore_deleted',
                     f"Daily chore '{chore_title}' was permanently deleted for {chore_assigned_to}",
@@ -3073,11 +3169,8 @@ def delete_chore():
                 )
                 message = f"Daily chore '{chore_title}' has been permanently deleted"
             else:
-                # Skip daily chore for today only
-                print("[delete_chore] Skipping daily chore for today")
                 chore.due_date = date.today() + timedelta(days=1)
                 db.session.commit()
-                
                 log_activity(
                     'daily_chore_skipped',
                     f"Daily chore '{chore_title}' was skipped/deleted for today for {chore_assigned_to}",
@@ -3085,11 +3178,8 @@ def delete_chore():
                 )
                 message = f"Daily chore '{chore_title}' has been skipped for today"
         else:
-            # Permanently delete non-daily chore from database
-            print("[delete_chore] Permanently deleting non-daily chore")
             db.session.delete(chore)
             db.session.commit()
-            
             log_activity(
                 'chore_deleted',
                 f"Chore '{chore_title}' was permanently deleted for {chore_assigned_to}",
@@ -3097,7 +3187,6 @@ def delete_chore():
             )
             message = f"Chore '{chore_title}' has been permanently deleted"
 
-        print(f"[delete_chore] Success: {message}")
         return jsonify({
             'success': True, 
             'message': message,
@@ -3107,7 +3196,6 @@ def delete_chore():
     except Exception as e:
         db.session.rollback()
         error_msg = f"Error deleting chore: {str(e)}"
-        print(f"[delete_chore] Exception: {error_msg}")
         log_activity('system_error', error_msg)
         return jsonify({'success': False, 'error': error_msg}), 500
 
@@ -3255,7 +3343,303 @@ def update_name():
     except Exception as e:
         db.session.rollback()
         log_activity('system_error', f"Error updating name: {str(e)}")
+
+
+# ── Organise API ──────────────────────────────────────────────────────────────
+
+@routes_bp.route('/api/organise', methods=['GET'])
+def api_organise_list():
+    from models import OrganiseItem
+    items = OrganiseItem.query.order_by(OrganiseItem.category, OrganiseItem.sort_order, OrganiseItem.id).all()
+    return jsonify({'success': True, 'items': [i.to_dict() for i in items]})
+
+
+@routes_bp.route('/api/organise', methods=['POST'])
+def api_organise_create():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    from models import OrganiseItem
+    try:
+        data = request.get_json() or {}
+        title = str(data.get('title', '')).strip()[:200]
+        if not title:
+            return jsonify({'success': False, 'error': 'Title is required'}), 400
+        category = str(data.get('category', 'General')).strip()[:80] or 'General'
+        provider = str(data.get('provider', '')).strip()[:200] or None
+        notes = str(data.get('notes', '')).strip()[:2000] or None
+        icon = str(data.get('icon', '')).strip()[:10] or None
+        paid = bool(data.get('paid', False))
+        cost_raw = data.get('cost')
+        cost = float(cost_raw) if cost_raw not in (None, '') else None
+        reminder_days = int(data.get('reminder_days', 30))
+        reminder_days = max(1, min(365, reminder_days))
+        due_date_str = str(data.get('due_date', '') or '')
+        last_date_str = str(data.get('last_date', '') or '')
+        due_date = None
+        last_date = None
+        if due_date_str:
+            from datetime import date as _date
+            due_date = _date.fromisoformat(due_date_str)
+        if last_date_str:
+            from datetime import date as _date
+            last_date = _date.fromisoformat(last_date_str)
+        vehicle_make = str(data.get('vehicle_make', '') or '').strip()[:100] or None
+        vehicle_model = str(data.get('vehicle_model', '') or '').strip()[:100] or None
+        vehicle_year_raw = data.get('vehicle_year')
+        vehicle_year = int(vehicle_year_raw) if vehicle_year_raw not in (None, '') else None
+        vehicle_rego = str(data.get('vehicle_rego', '') or '').strip()[:20] or None
+        item = OrganiseItem(
+            category=category, title=title, provider=provider, notes=notes,
+            due_date=due_date, last_date=last_date, paid=paid, cost=cost,
+            reminder_days=reminder_days, icon=icon,
+            vehicle_make=vehicle_make, vehicle_model=vehicle_model,
+            vehicle_year=vehicle_year, vehicle_rego=vehicle_rego,
+        )
+        db.session.add(item)
+        db.session.commit()
+        log_activity('organise_added', f"Organise item '{title}' added in category '{category}'")
+        return jsonify({'success': True, 'item': item.to_dict()})
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/organise/<int:item_id>', methods=['PUT'])
+def api_organise_update(item_id):
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    from models import OrganiseItem
+    try:
+        item = OrganiseItem.query.get(item_id)
+        if not item:
+            return jsonify({'success': False, 'error': 'Item not found'}), 404
+        data = request.get_json() or {}
+        if 'title' in data:
+            item.title = str(data['title']).strip()[:200]
+            if not item.title:
+                return jsonify({'success': False, 'error': 'Title cannot be empty'}), 400
+        if 'category' in data:
+            item.category = str(data['category']).strip()[:80] or 'General'
+        if 'provider' in data:
+            item.provider = str(data['provider']).strip()[:200] or None
+        if 'notes' in data:
+            item.notes = str(data['notes']).strip()[:2000] or None
+        if 'icon' in data:
+            item.icon = str(data['icon']).strip()[:10] or None
+        if 'paid' in data:
+            item.paid = bool(data['paid'])
+        if 'cost' in data:
+            item.cost = float(data['cost']) if data['cost'] not in (None, '') else None
+        if 'reminder_days' in data:
+            item.reminder_days = max(1, min(365, int(data['reminder_days'])))
+        if 'due_date' in data:
+            due_date_str = str(data['due_date'] or '').strip()
+            from datetime import date as _date
+            item.due_date = _date.fromisoformat(due_date_str) if due_date_str else None
+        if 'last_date' in data:
+            last_date_str = str(data['last_date'] or '').strip()
+            from datetime import date as _date
+            item.last_date = _date.fromisoformat(last_date_str) if last_date_str else None
+        if 'vehicle_make' in data:
+            item.vehicle_make = str(data['vehicle_make'] or '').strip()[:100] or None
+        if 'vehicle_model' in data:
+            item.vehicle_model = str(data['vehicle_model'] or '').strip()[:100] or None
+        if 'vehicle_year' in data:
+            item.vehicle_year = int(data['vehicle_year']) if data['vehicle_year'] not in (None, '') else None
+        if 'vehicle_rego' in data:
+            item.vehicle_rego = str(data['vehicle_rego'] or '').strip()[:20] or None
+        db.session.commit()
+        log_activity('organise_updated', f"Organise item '{item.title}' updated")
+        return jsonify({'success': True, 'item': item.to_dict()})
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/organise/<int:item_id>/photo', methods=['POST'])
+def api_organise_upload_photo(item_id):
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    from models import OrganiseItem
+    import os, uuid as _uuid
+    item = OrganiseItem.query.get(item_id)
+    if not item:
+        return jsonify({'success': False, 'error': 'Item not found'}), 404
+    if 'photo' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    file = request.files['photo']
+    if not file or file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    allowed = {'jpg', 'jpeg', 'png', 'webp'}
+    ext = os.path.splitext(secure_filename(file.filename))[1].lower().lstrip('.')
+    if ext not in allowed:
+        return jsonify({'success': False, 'error': 'Invalid file type (jpg/png/webp only)'}), 400
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > 5 * 1024 * 1024:
+        return jsonify({'success': False, 'error': 'File too large (max 5 MB)'}), 400
+    upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'organise')
+    os.makedirs(upload_dir, exist_ok=True)
+    if item.photo_filename:
+        old_path = os.path.join(upload_dir, item.photo_filename)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+    filename = f"{item_id}_{_uuid.uuid4().hex[:8]}.{ext}"
+    file.save(os.path.join(upload_dir, filename))
+    item.photo_filename = filename
+    db.session.commit()
+    return jsonify({'success': True, 'photo_url': f'/static/uploads/organise/{filename}'})
+
+
+@routes_bp.route('/api/organise/<int:item_id>', methods=['DELETE'])
+def api_organise_delete(item_id):
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    from models import OrganiseItem
+    try:
+        item = OrganiseItem.query.get(item_id)
+        if not item:
+            return jsonify({'success': False, 'error': 'Item not found'}), 404
+        title = item.title
+        db.session.delete(item)
+        db.session.commit()
+        log_activity('organise_deleted', f"Organise item '{title}' deleted")
+        return jsonify({'success': True})
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(exc)}), 400
         return jsonify({'success': False, 'error': str(e)}), 400
+
+
+# ── Vehicle Service History API ───────────────────────────────────────────────
+
+@routes_bp.route('/api/organise/<int:item_id>/services', methods=['GET'])
+def api_vehicle_services_list(item_id):
+    from models import OrganiseItem, VehicleService
+    item = OrganiseItem.query.get(item_id)
+    if not item:
+        return jsonify({'success': False, 'error': 'Item not found'}), 404
+    services = VehicleService.query.filter_by(organise_item_id=item_id)\
+        .order_by(VehicleService.service_date.desc(), VehicleService.id.desc()).all()
+    return jsonify({'success': True, 'services': [s.to_dict() for s in services]})
+
+
+@routes_bp.route('/api/organise/<int:item_id>/services', methods=['POST'])
+def api_vehicle_services_create(item_id):
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    from models import OrganiseItem, VehicleService
+    item = OrganiseItem.query.get(item_id)
+    if not item:
+        return jsonify({'success': False, 'error': 'Item not found'}), 404
+    try:
+        data = request.get_json() or {}
+        service_type = str(data.get('service_type', '')).strip()[:200]
+        if not service_type:
+            return jsonify({'success': False, 'error': 'Service type is required'}), 400
+        service_date_str = str(data.get('service_date', '') or '').strip()
+        service_date = None
+        if service_date_str:
+            from datetime import date as _date
+            service_date = _date.fromisoformat(service_date_str)
+        mileage_raw = data.get('mileage')
+        mileage = int(mileage_raw) if mileage_raw not in (None, '') else None
+        cost_raw = data.get('cost')
+        cost = float(cost_raw) if cost_raw not in (None, '') else None
+        provider = str(data.get('provider', '') or '').strip()[:200] or None
+        notes = str(data.get('notes', '') or '').strip()[:2000] or None
+        next_service_date_str = str(data.get('next_service_date', '') or '').strip()
+        next_service_date = None
+        if next_service_date_str:
+            from datetime import date as _date
+            next_service_date = _date.fromisoformat(next_service_date_str)
+        next_service_mileage_raw = data.get('next_service_mileage')
+        next_service_mileage = int(next_service_mileage_raw) if next_service_mileage_raw not in (None, '') else None
+        svc = VehicleService(
+            organise_item_id=item_id,
+            service_type=service_type,
+            service_date=service_date,
+            mileage=mileage,
+            cost=cost,
+            provider=provider,
+            notes=notes,
+            next_service_date=next_service_date,
+            next_service_mileage=next_service_mileage,
+        )
+        db.session.add(svc)
+        db.session.commit()
+        log_activity('vehicle_service_added', f"Service '{service_type}' added to '{item.title}'")
+        return jsonify({'success': True, 'service': svc.to_dict()})
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/organise/<int:item_id>/services/<int:service_id>', methods=['PUT'])
+def api_vehicle_services_update(item_id, service_id):
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    from models import VehicleService
+    svc = VehicleService.query.filter_by(id=service_id, organise_item_id=item_id).first()
+    if not svc:
+        return jsonify({'success': False, 'error': 'Service record not found'}), 404
+    try:
+        data = request.get_json() or {}
+        if 'service_type' in data:
+            svc.service_type = str(data['service_type']).strip()[:200]
+            if not svc.service_type:
+                return jsonify({'success': False, 'error': 'Service type cannot be empty'}), 400
+        if 'service_date' in data:
+            sd = str(data['service_date'] or '').strip()
+            from datetime import date as _date
+            svc.service_date = _date.fromisoformat(sd) if sd else None
+        if 'mileage' in data:
+            svc.mileage = int(data['mileage']) if data['mileage'] not in (None, '') else None
+        if 'cost' in data:
+            svc.cost = float(data['cost']) if data['cost'] not in (None, '') else None
+        if 'provider' in data:
+            svc.provider = str(data['provider'] or '').strip()[:200] or None
+        if 'notes' in data:
+            svc.notes = str(data['notes'] or '').strip()[:2000] or None
+        if 'next_service_date' in data:
+            nsd = str(data['next_service_date'] or '').strip()
+            from datetime import date as _date
+            svc.next_service_date = _date.fromisoformat(nsd) if nsd else None
+        if 'next_service_mileage' in data:
+            svc.next_service_mileage = int(data['next_service_mileage']) if data['next_service_mileage'] not in (None, '') else None
+        db.session.commit()
+        log_activity('vehicle_service_updated', f"Service '{svc.service_type}' updated")
+        return jsonify({'success': True, 'service': svc.to_dict()})
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/organise/<int:item_id>/services/<int:service_id>', methods=['DELETE'])
+def api_vehicle_services_delete(item_id, service_id):
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    from models import VehicleService
+    svc = VehicleService.query.filter_by(id=service_id, organise_item_id=item_id).first()
+    if not svc:
+        return jsonify({'success': False, 'error': 'Service record not found'}), 404
+    try:
+        label = svc.service_type
+        db.session.delete(svc)
+        db.session.commit()
+        log_activity('vehicle_service_deleted', f"Service '{label}' deleted")
+        return jsonify({'success': True})
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(exc)}), 400
 
 @routes_bp.route('/reset_points', methods=['POST'])
 def reset_points():
@@ -3314,14 +3698,9 @@ def complete_reward():
         data = request.get_json()
         reward_id = data.get('reward_id')
 
-        print(f"[complete_reward] Received data: {data}")
-
         reward = Reward.query.get(reward_id)
         if not reward:
-            print(f"[complete_reward] Reward id {reward_id} not found.")
             return jsonify({'success': False, 'error': 'Reward not found'}), 404
-
-        print(f"[complete_reward] Found reward: ID={reward.id}, Title='{reward.title}', assigned_to='{reward.assigned_to}', assigned_to_id={reward.assigned_to_id}")
 
         # Try multiple approaches to find the person
         person = None
@@ -3329,28 +3708,19 @@ def complete_reward():
         # Approach 1: Use assigned_to_id from the reward if it exists
         if reward.assigned_to_id:
             person = Person.query.get(reward.assigned_to_id)
-            if person:
-                print(f"[complete_reward] Found person by assigned_to_id: {person.name}")
 
         # Approach 2: Use assigned_to name from the reward
         if not person and reward.assigned_to:
             person = Person.query.filter_by(name=reward.assigned_to).first()
-            if person:
-                print(f"[complete_reward] Found person by name: {person.name}")
 
         # Approach 3: Use assigned_to_id from the request data
         if not person and data.get('assigned_to_id'):
             person = Person.query.get(data.get('assigned_to_id'))
-            if person:
-                print(f"[complete_reward] Found person by request assigned_to_id: {person.name}")
 
         # If still no person found, return an error
         if not person:
             error_msg = f"Person not found for reward '{reward.title}'. assigned_to='{reward.assigned_to}', assigned_to_id={reward.assigned_to_id}"
-            print(f"[complete_reward] ERROR: {error_msg}")
             return jsonify({'success': False, 'error': error_msg}), 404
-
-        print(f"[complete_reward] Person {person.name} has {person.points} points, reward requires {reward.points_required} points")
 
         available_points = _round_points(person.points)
         required_points = _round_points(reward.points_required)
@@ -3405,7 +3775,6 @@ def complete_reward():
         
     except Exception as e:
         db.session.rollback()
-        print(f"[complete_reward] Exception: {e}")
         log_activity('system_error', f"Error completing reward: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 400
 

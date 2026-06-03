@@ -210,6 +210,92 @@ class PersonBadge(db.Model):
     earned_at = db.Column(db.DateTime, default=datetime.utcnow)
     __table_args__ = (db.UniqueConstraint('person_id', 'badge_key', name='uq_person_badge'),)
 
+class OrganiseItem(db.Model):
+    __tablename__ = 'organise_item'
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.String(80), nullable=False, default='General')
+    title = db.Column(db.String(200), nullable=False)
+    provider = db.Column(db.String(200), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    due_date = db.Column(db.Date, nullable=True)
+    last_date = db.Column(db.Date, nullable=True)
+    paid = db.Column(db.Boolean, default=False)
+    cost = db.Column(db.Float, nullable=True)
+    reminder_days = db.Column(db.Integer, default=30)
+    icon = db.Column(db.String(20), nullable=True)
+    sort_order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    photo_filename = db.Column(db.String(255), nullable=True)
+    vehicle_make = db.Column(db.String(100), nullable=True)
+    vehicle_model = db.Column(db.String(100), nullable=True)
+    vehicle_year = db.Column(db.Integer, nullable=True)
+    vehicle_rego = db.Column(db.String(20), nullable=True)
+    vehicle_services = db.relationship('VehicleService', backref='vehicle', lazy=True,
+                                       cascade='all, delete-orphan',
+                                       order_by='VehicleService.service_date.desc()')
+
+    def to_dict(self):
+        today = date.today()
+        status = 'ok'
+        days_until_due = None
+        if self.due_date:
+            days_until_due = (self.due_date - today).days
+            if days_until_due < 0:
+                status = 'overdue'
+            elif days_until_due <= (self.reminder_days or 30):
+                status = 'due_soon'
+        return {
+            'id': self.id,
+            'category': self.category,
+            'title': self.title,
+            'provider': self.provider,
+            'notes': self.notes,
+            'due_date': self.due_date.isoformat() if self.due_date else None,
+            'last_date': self.last_date.isoformat() if self.last_date else None,
+            'paid': self.paid,
+            'cost': self.cost,
+            'reminder_days': self.reminder_days,
+            'icon': self.icon,
+            'sort_order': self.sort_order,
+            'status': status,
+            'days_until_due': days_until_due,
+            'photo_url': f'/static/uploads/organise/{self.photo_filename}' if self.photo_filename else None,
+            'vehicle_make': self.vehicle_make,
+            'vehicle_model': self.vehicle_model,
+            'vehicle_year': self.vehicle_year,
+            'vehicle_rego': self.vehicle_rego,
+        }
+
+
+class VehicleService(db.Model):
+    __tablename__ = 'vehicle_service'
+    id = db.Column(db.Integer, primary_key=True)
+    organise_item_id = db.Column(db.Integer, db.ForeignKey('organise_item.id', ondelete='CASCADE'), nullable=False)
+    service_type = db.Column(db.String(200), nullable=False)
+    service_date = db.Column(db.Date, nullable=True)
+    next_service_date = db.Column(db.Date, nullable=True)
+    next_service_mileage = db.Column(db.Integer, nullable=True)
+    mileage = db.Column(db.Integer, nullable=True)
+    cost = db.Column(db.Float, nullable=True)
+    provider = db.Column(db.String(200), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'organise_item_id': self.organise_item_id,
+            'service_type': self.service_type,
+            'service_date': self.service_date.isoformat() if self.service_date else None,
+            'next_service_date': self.next_service_date.isoformat() if self.next_service_date else None,
+            'next_service_mileage': self.next_service_mileage,
+            'mileage': self.mileage,
+            'cost': self.cost,
+            'provider': self.provider,
+            'notes': self.notes,
+        }
+
+
 def log_activity(action_type, description, user_name=None):
     """
     Log an activity to the database.

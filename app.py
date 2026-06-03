@@ -72,6 +72,39 @@ with app.app_context():
                     person.age = int(age_val)
             db.session.commit()
 
+    # Safe migration: add vehicle and photo columns to organise_item
+    if 'organise_item' in inspector.get_table_names():
+        org_cols = [col['name'] for col in inspector.get_columns('organise_item')]
+        _org_new = [
+            ('photo_filename', 'VARCHAR(255)'),
+            ('vehicle_make', 'VARCHAR(100)'),
+            ('vehicle_model', 'VARCHAR(100)'),
+            ('vehicle_year', 'INTEGER'),
+            ('vehicle_rego', 'VARCHAR(20)'),
+        ]
+        _org_changed = False
+        for _cn, _ct in _org_new:
+            if _cn not in org_cols:
+                db.session.execute(text(f'ALTER TABLE organise_item ADD COLUMN {_cn} {_ct}'))
+                _org_changed = True
+        if _org_changed:
+            db.session.commit()
+
+    # Safe migration: add next_service_date and next_service_mileage to vehicle_service
+    if 'vehicle_service' in inspector.get_table_names():
+        svc_cols = [col['name'] for col in inspector.get_columns('vehicle_service')]
+        _svc_new = [
+            ('next_service_date', 'DATE'),
+            ('next_service_mileage', 'INTEGER'),
+        ]
+        _svc_changed = False
+        for _cn, _ct in _svc_new:
+            if _cn not in svc_cols:
+                db.session.execute(text(f'ALTER TABLE vehicle_service ADD COLUMN {_cn} {_ct}'))
+                _svc_changed = True
+        if _svc_changed:
+            db.session.commit()
+
     # Clear stale upload references: null any avatar/image_url that points to a
     # file that no longer exists on disk (happens after container rebuilds when
     # the uploads volume is not yet mapped).

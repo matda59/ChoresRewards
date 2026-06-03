@@ -149,6 +149,10 @@ function drop(event) {
                         completedList.style.display = '';
                     }
                 });
+        } else if (data.already_completed) {
+            if (window.showToast) showToast('Already done! ✅', 'info');
+        } else {
+            if (window.showToast) showToast(data.error || 'Could not complete chore', 'error');
         }
     });
 }
