@@ -2688,6 +2688,15 @@ function deleteReward(rewardId) {
         <button type="button" class="edit-btn" id="add-store-btn"><i class="fas fa-plus"></i> Add Store</button>
     </div>
 
+    <div class="shopping-manage-block" style="margin: 10px 0 4px 0;">
+        <label class="shopping-manage-label"><i class="fas fa-list-check"></i>&ensp;Add General Shopping Item</label>
+        <div class="shopping-add-row">
+            <input type="text" id="shopping-quick-input" class="modern-input" placeholder="e.g. Bread, Milk..." maxlength="80">
+            <select id="shopping-quick-store" class="meal-quick-add shopping-store-select shopping-dynamic-store-select"></select>
+            <button type="button" class="edit-btn" id="shopping-quick-add-btn">Add</button>
+        </div>
+    </div>
+
     <div class="shopping-manage-wrap collapsible-section collapsed">
         <h3 class="shopping-manage-toggle section-toggle">
             <i class="fas fa-sliders"></i> Manage Items &amp; Meal Ingredients
@@ -3380,6 +3389,23 @@ function deleteReward(rewardId) {
     };
     document.getElementById('shopping-add-general-btn')?.addEventListener('click', doAddGeneral);
     generalInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAddGeneral(); } });
+
+    // Quick-add general item (visible without expanding manage section)
+    const quickInput = document.getElementById('shopping-quick-input');
+    const quickStoreSelect = document.getElementById('shopping-quick-store');
+    const doQuickAddGeneral = () => {
+        const name = quickInput?.value.trim();
+        if (!name) return;
+        const store = quickStoreSelect?.value || storeConfig[0]?.id || 'aldi';
+        if (!shoppingGeneral.some(i => i.name.toLowerCase() === name.toLowerCase())) {
+            shoppingGeneral.push({ name, store });
+            renderShoppingList();
+            debouncedSave();
+        }
+        if (quickInput) quickInput.value = '';
+    };
+    document.getElementById('shopping-quick-add-btn')?.addEventListener('click', doQuickAddGeneral);
+    quickInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doQuickAddGeneral(); } });
 
     // Add meal ingredient
     const mealNameInput = document.getElementById('shopping-meal-name-input');

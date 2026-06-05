@@ -58,9 +58,9 @@ quiz_questions = [
     },
     {
         'type': 'fact',
-        'question': 'Which is the largest planet in our solar system?',
-        'choices': ['Earth', 'Mars', 'Jupiter', 'Venus'],
-        'answer': 'Jupiter',
+        'question': 'How many days are in a leap year?',
+        'choices': ['365', '366', '364', '367'],
+        'answer': '366',
         'difficulty': 'complex'
     },
     {
@@ -295,9 +295,9 @@ quiz_questions = [
     },
     {
         'type': 'fact',
-        'question': 'Which planet is known as the Red Planet?',
-        'choices': ['Venus', 'Mars', 'Jupiter', 'Saturn'],
-        'answer': 'Mars',
+        'question': 'Which planet is known for its large rings?',
+        'choices': ['Mercury', 'Saturn', 'Earth', 'Mars'],
+        'answer': 'Saturn',
         'difficulty': 'complex'
     },
     {
@@ -305,6 +305,55 @@ quiz_questions = [
         'question': 'True or False: The sun is a star.',
         'choices': ['True', 'False'],
         'answer': 'True',
+        'difficulty': 'complex'
+    },
+    {
+        'type': 'fact',
+        'question': 'Which ocean is the largest on Earth?',
+        'choices': ['Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean', 'Pacific Ocean'],
+        'answer': 'Pacific Ocean',
+        'difficulty': 'complex'
+    },
+    {
+        'type': 'fact',
+        'question': 'Which part of a plant takes in water from the soil?',
+        'choices': ['Leaf', 'Root', 'Flower', 'Stem'],
+        'answer': 'Root',
+        'difficulty': 'complex'
+    },
+    {
+        'type': 'fact',
+        'question': 'True or False: Spiders are insects.',
+        'choices': ['True', 'False'],
+        'answer': 'False',
+        'difficulty': 'complex'
+    },
+    {
+        'type': 'fact',
+        'question': 'Which gas do plants mostly take in from the air?',
+        'choices': ['Oxygen', 'Nitrogen', 'Carbon dioxide', 'Helium'],
+        'answer': 'Carbon dioxide',
+        'difficulty': 'complex'
+    },
+    {
+        'type': 'fact',
+        'question': 'Which bird cannot fly?',
+        'choices': ['Eagle', 'Sparrow', 'Ostrich', 'Hawk'],
+        'answer': 'Ostrich',
+        'difficulty': 'complex'
+    },
+    {
+        'type': 'fact',
+        'question': 'True or False: Bats are blind.',
+        'choices': ['True', 'False'],
+        'answer': 'False',
+        'difficulty': 'complex'
+    },
+    {
+        'type': 'fact',
+        'question': 'Which planet is known as the Red Planet?',
+        'choices': ['Venus', 'Mars', 'Jupiter', 'Saturn'],
+        'answer': 'Mars',
         'difficulty': 'complex'
     },
     {
@@ -323,37 +372,30 @@ quiz_questions = [
     },
     {
         'type': 'fact',
-        'question': 'True or False: Spiders are insects.',
-        'choices': ['True', 'False'],
-        'answer': 'False',
-        'difficulty': 'complex'
-    },
-    {
-        'type': 'fact',
-        'question': 'Which bird has the most colorful feathers?',
-        'choices': ['Peacock', 'Duck', 'Owl', 'Chicken'],
-        'answer': 'Peacock',
-        'difficulty': 'complex'
-    },
-    {
-        'type': 'fact',
-        'question': 'Which fruit is yellow and curved?',
-        'choices': ['Banana', 'Apple', 'Grape', 'Orange'],
-        'answer': 'Banana',
-        'difficulty': 'complex'
-    },
-    {
-        'type': 'fact',
-        'question': 'True or False: Alligators and crocodiles are the same.',
-        'choices': ['True', 'False'],
-        'answer': 'False',
-        'difficulty': 'complex'
-    },
-    {
-        'type': 'fact',
         'question': 'Which insect makes honey?',
         'choices': ['Bee', 'Ant', 'Butterfly', 'Spider'],
         'answer': 'Bee',
+        'difficulty': 'complex'
+    },
+    {
+        'type': 'fact',
+        'question': 'What do bees collect from flowers to make honey?',
+        'choices': ['Nectar', 'Sand', 'Leaves', 'Pebbles'],
+        'answer': 'Nectar',
+        'difficulty': 'complex'
+    },
+    {
+        'type': 'fact',
+        'question': 'What helps fish breathe underwater?',
+        'choices': ['Lungs', 'Fins', 'Gills', 'Whiskers'],
+        'answer': 'Gills',
+        'difficulty': 'complex'
+    },
+    {
+        'type': 'fact',
+        'question': 'True or False: Water boils at 100 C at sea level.',
+        'choices': ['True', 'False'],
+        'answer': 'True',
         'difficulty': 'complex'
     },
     {

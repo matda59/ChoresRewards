@@ -2,26 +2,91 @@
 // Requires quiz_questions to be available globally (imported from backend or as a static file)
 
 let quizHasBeenShownToday = false;
+const quizQuestionQueues = {};
+const lastQuestionIdByPool = {};
+
+function shuffleArray(items) {
+  const shuffled = [...items];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function sameOrder(left, right) {
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    if (left[i] !== right[i]) return false;
+  }
+  return true;
+}
+
+function shuffledDifferentFromOriginal(items) {
+  if (!Array.isArray(items)) return [];
+  if (items.length < 2) return [...items];
+
+  const shuffled = shuffleArray(items);
+  if (sameOrder(shuffled, items)) {
+    [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+  }
+  return shuffled;
+}
+
+function getNextQuestionFromPool(poolKey, questions) {
+  if (!questions.length) return null;
+
+  const questionIds = questions.map(q => q.__quizId);
+  let queue = quizQuestionQueues[poolKey] || [];
+
+  // Rebuild queue when exhausted or stale, and avoid repeating the previous question first.
+  if (!queue.length || queue.some(id => !questionIds.includes(id))) {
+    queue = shuffleArray(questionIds);
+    const lastQuestionId = lastQuestionIdByPool[poolKey];
+    if (queue.length > 1 && queue[0] === lastQuestionId) {
+      [queue[0], queue[1]] = [queue[1], queue[0]];
+    }
+  }
+
+  const nextQuestionId = queue.shift();
+  quizQuestionQueues[poolKey] = queue;
+  lastQuestionIdByPool[poolKey] = nextQuestionId;
+  return questions.find(q => q.__quizId === nextQuestionId) || questions[0];
+}
 
 function showQuizModal(personId, onResult) {
     if (quizHasBeenShownToday) return;
     quizHasBeenShownToday = true;
     
+  const allQuestions = Array.isArray(window.quiz_questions) ? window.quiz_questions : [];
+  const questionsWithIds = allQuestions.map((question, index) => ({
+    ...question,
+    __quizId: index
+  }));
+
     // Filter questions based on person's age
-    let questionsToUse = window.quiz_questions;
+  let questionsToUse = questionsWithIds;
+  let poolKey = 'all';
     if (window.person_ages && personId && window.person_ages[personId]) {
         const age = window.person_ages[personId];
         if (age <= 4) {
             // 4 years old or below: only easy questions (animal sounds)
-            questionsToUse = window.quiz_questions.filter(q => q.difficulty === 'easy');
+      questionsToUse = questionsWithIds.filter(q => q.difficulty === 'easy');
+      poolKey = 'easy';
         } else {
             // Above 4 years old: complex questions (animal images, landmarks, facts)
-            questionsToUse = window.quiz_questions.filter(q => q.difficulty === 'complex');
+      questionsToUse = questionsWithIds.filter(q => q.difficulty === 'complex');
+      poolKey = 'complex';
         }
     }
+
+  if (!questionsToUse.length) {
+    onResult(false, true);
+    return;
+  }
     
-    // Pick a random question from the filtered set
-    const question = questionsToUse[Math.floor(Math.random() * questionsToUse.length)];
+  // Pick the next question from a shuffled non-repeating queue.
+  const question = getNextQuestionFromPool(poolKey, questionsToUse);
     const modal = document.createElement('div');
     modal.id = 'quiz-modal';
     modal.style = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.8);z-index:10001;display:flex;align-items:center;justify-content:center;';
@@ -59,11 +124,12 @@ function showQuizModal(personId, onResult) {
     }
   // Choices
   const choicesDiv = document.getElementById('quiz-choices');
+  const choices = shuffledDifferentFromOriginal(question.choices);
   if (question.type === 'animal_sound') {
     choicesDiv.style.flexDirection = 'row';
     choicesDiv.style.justifyContent = 'center';
     choicesDiv.style.gap = '1em';
-    question.choices.forEach(choice => {
+    choices.forEach(choice => {
       const btn = document.createElement('button');
       btn.style = 'background:none;border:none;padding:0;cursor:pointer;';
       btn.onclick = () => {
@@ -80,7 +146,7 @@ function showQuizModal(personId, onResult) {
       choicesDiv.appendChild(btn);
     });
   } else {
-    question.choices.forEach(choice => {
+    choices.forEach(choice => {
       const btn = document.createElement('button');
       btn.textContent = choice;
       btn.style = 'background:#4CAF50;color:#fff;border:none;padding:0.7em 1.5em;border-radius:8px;cursor:pointer;font-weight:600;';
