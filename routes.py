@@ -334,11 +334,9 @@ def _get_shopping_stores():
     except Exception:
         raw = []
     stores = raw if isinstance(raw, list) else []
-    existing_ids = {s['id'] for s in stores if isinstance(s, dict) and 'id' in s}
     defaults = [{'id': 'aldi', 'name': 'Aldi', 'icon': '/static/images/rewards/store_aldi.svg'}, {'id': 'woolworths', 'name': 'Woolworths', 'icon': '/static/images/rewards/store_woolworths.svg'}]
-    for d in reversed(defaults):
-        if d['id'] not in existing_ids:
-            stores.insert(0, d)
+    if not stores:
+        stores = [dict(store) for store in defaults]
     # Ensure all stores have an icon field
     for s in stores:
         if isinstance(s, dict) and 'icon' not in s:
