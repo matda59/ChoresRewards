@@ -54,8 +54,8 @@ GOOGLE_CALENDAR_CACHE = {
 
 # ── PIN Brute-Force Protection ─────────────────────────────────────────────────
 _PIN_ATTEMPTS = {}        # {key: {'count': int, 'locked_until': float|None}}
-_MAX_PIN_ATTEMPTS = 5     # failures before lockout
-_PIN_LOCKOUT_SECONDS = 60 # lockout duration
+_MAX_PIN_ATTEMPTS = 3     # failures before lockout
+_PIN_LOCKOUT_SECONDS = 120 # lockout duration
 
 def _rl_key():
     """Rate-limit key: client IP (respects X-Forwarded-For for reverse proxies)."""
@@ -353,13 +353,19 @@ def _get_shopping_data():
         raw_list = _json.loads(AppSetting.get('shopping_list_json', '{}'))
     except Exception:
         raw_list = {}
+    try:
+        raw_images = _json.loads(AppSetting.get('meal_images_json', '{}'))
+    except Exception:
+        raw_images = {}
 
     ingredients = raw_ing if isinstance(raw_ing, dict) else {}
     checked = raw_list.get('checked', {}) if isinstance(raw_list, dict) else {}
     general = raw_list.get('general', []) if isinstance(raw_list, dict) else []
     hidden = raw_list.get('hidden', {}) if isinstance(raw_list, dict) else {}
     active = raw_list.get('active', []) if isinstance(raw_list, dict) else []
+    meal_order = raw_list.get('meal_order', []) if isinstance(raw_list, dict) else []
     stores = _get_shopping_stores()
+    meal_images = raw_images if isinstance(raw_images, dict) else {}
     return (
         ingredients,
         checked if isinstance(checked, dict) else {},
@@ -367,6 +373,8 @@ def _get_shopping_data():
         hidden if isinstance(hidden, dict) else {},
         active if isinstance(active, list) else [],
         stores,
+        meal_images,
+        meal_order if isinstance(meal_order, list) else [],
     )
 
 
@@ -1152,6 +1160,57 @@ def api_meal_ingredients():
         return jsonify({'success': False, 'error': str(exc)}), 400
 
 
+@routes_bp.route('/api/meal_image', methods=['POST'])
+def api_meal_image():
+    try:
+        meal_key = request.form.get('meal_key', '').strip().lower()[:80]
+        if not meal_key:
+            return jsonify({'success': False, 'error': 'meal_key required'}), 400
+        file = request.files.get('image')
+        if not file or not file.filename:
+            return jsonify({'success': False, 'error': 'No image provided'}), 400
+        filename = secure_filename(file.filename)
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+            return jsonify({'success': False, 'error': 'Invalid file type'}), 400
+        unique_filename = f"meal_{uuid.uuid4().hex[:12]}{ext}"
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'meals')
+        os.makedirs(upload_folder, exist_ok=True)
+        file.save(os.path.join(upload_folder, unique_filename))
+        image_url = url_for('static', filename=f'uploads/meals/{unique_filename}')
+        try:
+            images = _json.loads(AppSetting.get('meal_images_json', '{}'))
+        except Exception:
+            images = {}
+        if not isinstance(images, dict):
+            images = {}
+        images[meal_key] = image_url
+        AppSetting.set('meal_images_json', _json.dumps(images))
+        return jsonify({'success': True, 'image_url': image_url})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/meal_image/delete', methods=['POST'])
+def api_meal_image_delete():
+    try:
+        data = request.get_json() or {}
+        meal_key = str(data.get('meal_key', '')).strip().lower()[:80]
+        if not meal_key:
+            return jsonify({'success': False, 'error': 'meal_key required'}), 400
+        try:
+            images = _json.loads(AppSetting.get('meal_images_json', '{}'))
+        except Exception:
+            images = {}
+        if not isinstance(images, dict):
+            images = {}
+        images.pop(meal_key, None)
+        AppSetting.set('meal_images_json', _json.dumps(images))
+        return jsonify({'success': True})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
 @routes_bp.route('/api/shopping_list', methods=['GET', 'POST'])
 def api_shopping_list():
     try:
@@ -1166,13 +1225,15 @@ def api_shopping_list():
                             'checked': data.get('checked', {}),
                             'general': data.get('general', []),
                             'hidden': data.get('hidden', {}),
-                            'active': data.get('active', [])})
+                            'active': data.get('active', []),
+                            'meal_order': data.get('meal_order', [])})
 
         data = request.get_json() or {}
         checked = data.get('checked', {})
         general = data.get('general', [])
         hidden = data.get('hidden', {})
         active = data.get('active', [])
+        meal_order = data.get('meal_order', [])
         if not isinstance(checked, dict):
             checked = {}
         if not isinstance(general, list):
@@ -1181,6 +1242,8 @@ def api_shopping_list():
             hidden = {}
         if not isinstance(active, list):
             active = []
+        if not isinstance(meal_order, list):
+            meal_order = []
 
         clean_checked = {str(k).strip()[:200]: bool(v) for k, v in checked.items() if str(k).strip()}
         seen = set()
@@ -1210,9 +1273,17 @@ def api_shopping_list():
                 clean_active.append(key)
                 seen_active.add(key)
 
-        payload = {'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden, 'active': clean_active}
+        seen_order = set()
+        clean_meal_order = []
+        for k in meal_order:
+            key = str(k).strip()[:80]
+            if key and key not in seen_order:
+                clean_meal_order.append(key)
+                seen_order.add(key)
+
+        payload = {'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden, 'active': clean_active, 'meal_order': clean_meal_order}
         AppSetting.set('shopping_list_json', _json.dumps(payload))
-        return jsonify({'success': True, 'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden, 'active': clean_active})
+        return jsonify({'success': True, 'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden, 'active': clean_active, 'meal_order': clean_meal_order})
     except Exception as exc:
         return jsonify({'success': False, 'error': str(exc)}), 400
 
@@ -1271,9 +1342,19 @@ def api_notes():
             text = str(note.get('text', '')).strip()[:500]
             checked = bool(note.get('checked', False))
             order = int(note.get('order', 0)) if isinstance(note.get('order'), (int, float)) else 0
+            deleted = bool(note.get('deleted', False))
+            deleted_at = str(note.get('deleted_at', '')).strip()[:40]
             if not note_id or not text or note_id in seen_note_ids:
                 continue
-            clean_notes.append({'id': note_id, 'column_id': column_id, 'text': text, 'checked': checked, 'order': order})
+            clean_notes.append({
+                'id': note_id,
+                'column_id': column_id,
+                'text': text,
+                'checked': checked,
+                'order': order,
+                'deleted': deleted,
+                'deleted_at': deleted_at,
+            })
             seen_note_ids.add(note_id)
 
         payload = {'columns': clean_cols, 'notes': clean_notes}
@@ -1520,7 +1601,7 @@ def index():
     meal_planner_week_start = _get_week_start()
     meal_planner_week_days = _build_meal_week_days(meal_planner_week_start)
     meal_planner_plan, meal_planner_suggestions, meal_planner_recurring = _get_meal_planner_data(meal_planner_week_start)
-    meal_ingredients, shopping_list_checked, shopping_list_general, shopping_hidden, shopping_active, shopping_stores = _get_shopping_data()
+    meal_ingredients, shopping_list_checked, shopping_list_general, shopping_hidden, shopping_active, shopping_stores, meal_images, shopping_meal_order = _get_shopping_data()
 
     try:
         _notes_raw = _json.loads(AppSetting.get('notes_kanban_json', '{}'))
@@ -1627,6 +1708,8 @@ def index():
         shopping_hidden=shopping_hidden,
         shopping_active=shopping_active,
         shopping_stores=shopping_stores,
+        meal_images=meal_images,
+        shopping_meal_order=shopping_meal_order,
         notes_columns=notes_columns,
         notes_notes=notes_notes,
         timedelta=timedelta,
@@ -1780,6 +1863,11 @@ def api_login():
     # New login endpoint to verify pin and create session
     # AppSetting already imported at top
     import bcrypt
+    rl_key = _rl_key()
+    rl_ok, retry_after = _rl_check(rl_key)
+    if not rl_ok:
+        return jsonify({'success': False, 'error': f'Too many attempts. Try again in {retry_after}s.', 'retry_after': retry_after}), 429
+
     data = request.get_json()
     if not data or 'pin' not in data:
         return jsonify({'success': False, 'error': 'PIN is required'}), 400
@@ -1788,12 +1876,17 @@ def api_login():
     if not master_pin_hash:
         return jsonify({'success': False, 'error': 'Master PIN not set'}), 500
     if bcrypt.checkpw(pin.encode('utf-8'), master_pin_hash.encode('utf-8')):
+        _rl_success(rl_key)
         session['authenticated'] = True
         session['adult_mode'] = True
         session['adult_name'] = 'Admin'
         return jsonify({'success': True, 'adult_name': 'Admin'})
     else:
-        return jsonify({'success': False, 'error': 'Incorrect PIN'}), 401
+        remaining = _rl_fail(rl_key)
+        if remaining == 0:
+            return jsonify({'success': False, 'error': f'Too many wrong attempts. Locked for {_PIN_LOCKOUT_SECONDS}s.', 'retry_after': _PIN_LOCKOUT_SECONDS}), 429
+        word = 'attempt' if remaining == 1 else 'attempts'
+        return jsonify({'success': False, 'error': f'Incorrect PIN - {remaining} {word} left'}), 401
 
 def check_and_award_badges(person, completed_dt):
     """Award any newly earned badges and update the daily streak.

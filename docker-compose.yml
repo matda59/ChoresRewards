@@ -1,7 +1,7 @@
 services:
   choresawards:
-    image: ghcr.io/matda59/choresrewards:latest
-    pull_policy: always
+    image: choresrewards:local
+    pull_policy: never
     ports:
       - "3112:3000"
     volumes:

@@ -1,4 +1,4 @@
-
+﻿
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -449,6 +449,58 @@ window.addEventListener('DOMContentLoaded', function() {
 <script src="{{ url_for('static', filename='js/auth_profile.js') }}"></script>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 <body>
+
+<!-- Side Navigation toggle (always visible, centered on edge) -->
+<button id="side-nav-toggle" title="Close sidebar" aria-label="Toggle sidebar">
+    <i class="fas fa-chevron-left"></i>
+</button>
+
+<!-- Side Navigation -->
+<nav id="side-nav" aria-label="Section navigation">
+    <div class="side-nav-divider" style="margin-top:8px;"></div>
+
+    <button class="side-nav-btn" data-target="notes-kanban-section" title="Notes">
+        <i class="fas fa-sticky-note"></i>
+    </button>
+    <button class="side-nav-btn" data-target="rewards-section" title="Available Rewards">
+        <i class="fas fa-trophy"></i>
+    </button>
+    <button class="side-nav-btn" data-target="events-section" title="Family Events">
+        <i class="fas fa-calendar-alt"></i>
+    </button>
+    <button class="side-nav-btn" data-target="meal-planner-section" title="Weekly Meal Plan">
+        <i class="fas fa-utensils"></i>
+    </button>
+    <button class="side-nav-btn" data-target="shopping-list-section" title="Shopping List">
+        <i class="fas fa-cart-shopping"></i>
+    </button>
+    <button class="side-nav-btn" data-target="meal-library-section" title="Meal Library">
+        <i class="fas fa-book-open"></i>
+    </button>
+    <div class="side-nav-divider"></div>
+    <button class="side-nav-btn admin-only" data-target="add-chores-section" title="Add Chores">
+        <i class="fas fa-tasks"></i>
+    </button>
+    <button class="side-nav-btn admin-only" data-target="create-reward-section" title="Create Reward">
+        <i class="fas fa-gift"></i>
+    </button>
+    <button class="side-nav-btn" data-target="redeemed-section" title="Redeemed Rewards">
+        <i class="fas fa-medal"></i>
+    </button>
+    <button class="side-nav-btn admin-only" data-target="organise-section" title="Organise">
+        <i class="fas fa-folder-open"></i>
+    </button>
+    <div class="side-nav-divider"></div>
+    <a class="side-nav-btn side-nav-link" href="{{ url_for('routes.activity_log') }}" title="Activity Log">
+        <i class="fas fa-history"></i>
+    </a>
+    <a class="side-nav-btn side-nav-link admin-only" href="{{ url_for('routes.settings') }}" title="Settings">
+        <i class="fas fa-cog"></i>
+    </a>
+    <button class="side-nav-btn" id="side-nav-lock-btn" title="Admin lock / unlock">
+        <i class="fas fa-lock"></i>
+    </button>
+</nav>
 <!-- Toast container for notifications -->
 <div id="toast-container" style="position:fixed;top:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:12px;"></div>
 <!-- Now moved below the main heading -->
@@ -792,11 +844,7 @@ window.addEventListener('DOMContentLoaded', function() {
     </div>
 
 
-    <div class="theme-toggle-container" style="display:flex;align-items:center;gap:10px; margin-left:4px; margin-bottom:0.75rem;">
-        <button class="theme-toggle" id="theme-toggle">
-            <i class="fas fa-sun light-icon"></i>
-            <i class="fas fa-moon dark-icon"></i>
-        </button>
+    <div style="display:flex;align-items:center;gap:10px; margin-left:4px; margin-bottom:0.75rem;">
         <button class="mute-toggle" id="mute-toggle" title="Mute All Sounds" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:10px;border-radius:50%;cursor:pointer;font-size:1.2em;">
             <i class="fas fa-volume-up" id="mute-icon"></i>
         </button>
@@ -831,6 +879,18 @@ window.addEventListener('DOMContentLoaded', function() {
             <button type="button" class="edit-btn" id="notes-clear-checked-btn"><i class="fas fa-broom"></i> Clear Checked</button>
         </div>
 
+        <div class="notes-deleted-wrap collapsible-section collapsed" id="notes-deleted-section">
+            <h3 class="notes-deleted-toggle section-toggle">
+                <i class="fas fa-trash"></i> Deleted Notes
+                <span id="notes-deleted-count" class="notes-deleted-count">0</span>
+                <i class="fas fa-chevron-down section-chevron"></i>
+            </h3>
+            <div id="notes-deleted-list" class="notes-deleted-list"></div>
+            <div class="notes-deleted-actions">
+                <button type="button" class="edit-btn" id="notes-empty-trash-btn"><i class="fas fa-trash-alt"></i> Empty Deleted</button>
+            </div>
+        </div>
+
         <div class="text-pads-wrap collapsible-section collapsed" id="text-pads-section">
             <h3 class="text-pads-section-toggle section-toggle">
                 <i class="fas fa-file-alt"></i> Text Pads
@@ -856,9 +916,13 @@ window.addEventListener('DOMContentLoaded', function() {
         const board       = document.getElementById('notes-kanban-board');
         const addColBtn   = document.getElementById('notes-add-column-btn');
         const clearBtn    = document.getElementById('notes-clear-checked-btn');
+        const deletedList = document.getElementById('notes-deleted-list');
+        const deletedCount = document.getElementById('notes-deleted-count');
+        const emptyTrashBtn = document.getElementById('notes-empty-trash-btn');
 
         let dragSrcNoteId  = null;
         let dragSrcColId   = null;
+        let dragSrcListId  = null;
         let saveDebounce   = null;
 
         // ── Save ──────────────────────────────────────────────────────────
@@ -884,15 +948,55 @@ window.addEventListener('DOMContentLoaded', function() {
 
         function colNotes(colId) {
             return notesNotes
-                .filter(n => n.column_id === colId)
+                .filter(n => n.column_id === colId && !n.deleted)
                 .sort((a, b) => a.order - b.order);
+        }
+
+        function deletedNotes() {
+            return notesNotes
+                .filter(n => n.deleted)
+                .sort((a, b) => (b.deleted_at || '').localeCompare(a.deleted_at || ''));
+        }
+
+        function normalizeColumnOrder() {
+            notesColumns = notesColumns.map((col, idx) => ({ ...col, order: idx }));
         }
 
         // ── Render ────────────────────────────────────────────────────────
         function renderBoard() {
             board.innerHTML = '';
+            notesColumns.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
             notesColumns.forEach(col => {
                 board.appendChild(buildColumn(col));
+            });
+            renderDeletedNotes();
+        }
+
+        function renderDeletedNotes() {
+            if (!deletedList || !deletedCount) return;
+            const deleted = deletedNotes();
+            deletedCount.textContent = deleted.length;
+            deletedList.innerHTML = '';
+
+            if (!deleted.length) {
+                deletedList.innerHTML = '<p class="notes-deleted-empty">No deleted notes.</p>';
+                return;
+            }
+
+            deleted.forEach(note => {
+                const row = document.createElement('div');
+                row.className = 'notes-deleted-item';
+                row.innerHTML = `
+                    <span class="notes-deleted-text">${escHtml(note.text)}</span>
+                    <div class="notes-deleted-item-actions">
+                        <button type="button" class="notes-deleted-restore" title="Restore note"><i class="fas fa-undo"></i></button>
+                        <button type="button" class="notes-deleted-permanent" title="Delete permanently"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                `;
+
+                row.querySelector('.notes-deleted-restore').addEventListener('click', () => restoreNote(note.id));
+                row.querySelector('.notes-deleted-permanent').addEventListener('click', () => permanentlyDeleteNote(note.id));
+                deletedList.appendChild(row);
             });
         }
 
@@ -900,6 +1004,25 @@ window.addEventListener('DOMContentLoaded', function() {
             const el = document.createElement('div');
             el.className = 'notes-kanban-col';
             el.dataset.colId = col.id;
+            el.draggable = true;
+
+            el.addEventListener('dragstart', e => {
+                if (e.target.closest('.notes-sticky')) {
+                    return;
+                }
+                if (!e.target.closest('.notes-col-drag-handle')) {
+                    e.preventDefault();
+                    return;
+                }
+                dragSrcListId = col.id;
+                el.classList.add('notes-col-dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            el.addEventListener('dragend', () => {
+                dragSrcListId = null;
+                el.classList.remove('notes-col-dragging');
+            });
 
             el.addEventListener('dragover', e => {
                 e.preventDefault();
@@ -909,10 +1032,16 @@ window.addEventListener('DOMContentLoaded', function() {
             el.addEventListener('drop', e => {
                 e.preventDefault();
                 el.classList.remove('notes-col-drag-over');
+                if (dragSrcListId && dragSrcListId !== col.id) {
+                    moveColumn(dragSrcListId, col.id);
+                    return;
+                }
                 if (dragSrcNoteId && dragSrcColId !== col.id) {
                     const note = notesNotes.find(n => n.id === dragSrcNoteId);
                     if (note) {
                         note.column_id = col.id;
+                        note.deleted = false;
+                        note.deleted_at = '';
                         const colNotesList = colNotes(col.id);
                         note.order = colNotesList.length ? Math.max(...colNotesList.map(n => n.order)) + 1 : 0;
                         renderBoard();
@@ -926,6 +1055,7 @@ window.addEventListener('DOMContentLoaded', function() {
             header.className = 'notes-col-header';
             header.style.setProperty('--col-color', col.color);
             header.innerHTML = `
+                <span class="notes-col-drag-handle" title="Hold and drag to reorder lists" draggable="true"><i class="fas fa-grip-vertical"></i></span>
                 <span class="notes-col-dot" style="background:${col.color}"></span>
                 <span class="notes-col-title" title="Click to rename">${escHtml(col.title)}</span>
                 <button class="notes-col-rename-btn" title="Rename list"><i class="fas fa-pencil-alt"></i></button>
@@ -1045,7 +1175,9 @@ window.addEventListener('DOMContentLoaded', function() {
             delBtn.title = 'Delete note';
             delBtn.innerHTML = '<i class="fas fa-times"></i>';
             delBtn.addEventListener('click', () => {
-                notesNotes = notesNotes.filter(n => n.id !== note.id);
+                note.deleted = true;
+                note.deleted_at = new Date().toISOString();
+                note.checked = false;
                 renderBoard();
                 scheduleSave();
             });
@@ -1114,13 +1246,52 @@ window.addEventListener('DOMContentLoaded', function() {
         // ── Delete column ─────────────────────────────────────────────────
         function deleteColumn(colId) {
             const col = notesColumns.find(c => c.id === colId);
-            const noteCount = notesNotes.filter(n => n.column_id === colId).length;
+            const noteCount = notesNotes.filter(n => n.column_id === colId && !n.deleted).length;
             const msg = noteCount
                 ? `Delete list "${col.title}" and its ${noteCount} note${noteCount !== 1 ? 's' : ''}?`
                 : `Delete list "${col.title}"?`;
             if (!confirm(msg)) return;
             notesColumns = notesColumns.filter(c => c.id !== colId);
-            notesNotes   = notesNotes.filter(n => n.column_id !== colId);
+            notesNotes   = notesNotes.filter(n => n.column_id !== colId || n.deleted);
+            normalizeColumnOrder();
+            renderBoard();
+            scheduleSave();
+        }
+
+        function moveColumn(sourceColId, targetColId) {
+            const sourceIndex = notesColumns.findIndex(c => c.id === sourceColId);
+            const targetIndex = notesColumns.findIndex(c => c.id === targetColId);
+            if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return;
+            const [moved] = notesColumns.splice(sourceIndex, 1);
+            notesColumns.splice(targetIndex, 0, moved);
+            normalizeColumnOrder();
+            renderBoard();
+            scheduleSave();
+        }
+
+        function restoreNote(noteId) {
+            const note = notesNotes.find(n => n.id === noteId);
+            if (!note) return;
+            const fallbackCol = notesColumns[0];
+            if (!fallbackCol) return;
+
+            note.deleted = false;
+            note.deleted_at = '';
+            if (!notesColumns.some(c => c.id === note.column_id)) {
+                note.column_id = fallbackCol.id;
+            }
+
+            const colList = colNotes(note.column_id);
+            note.order = colList.length ? Math.max(...colList.map(n => n.order)) + 1 : 0;
+            renderBoard();
+            scheduleSave();
+        }
+
+        function permanentlyDeleteNote(noteId) {
+            const note = notesNotes.find(n => n.id === noteId);
+            if (!note) return;
+            if (!confirm('Delete this note permanently?')) return;
+            notesNotes = notesNotes.filter(n => n.id !== noteId);
             renderBoard();
             scheduleSave();
         }
@@ -1133,17 +1304,33 @@ window.addEventListener('DOMContentLoaded', function() {
             if (!title || !title.trim()) return;
             const color = POSTIT_COLORS[notesColumns.length % POSTIT_COLORS.length];
             const id = 'col-' + title.trim().toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0,30) + '-' + Math.random().toString(36).slice(2,6);
-            notesColumns.push({id, title: title.trim(), color});
+            notesColumns.push({id, title: title.trim(), color, order: notesColumns.length});
             renderBoard();
             scheduleSave();
         });
 
         // ── Clear checked ─────────────────────────────────────────────────
         clearBtn.addEventListener('click', () => {
-            const count = notesNotes.filter(n => n.checked).length;
+            const count = notesNotes.filter(n => n.checked && !n.deleted).length;
             if (!count) return;
-            if (!confirm(`Remove ${count} checked note${count !== 1 ? 's' : ''}?`)) return;
-            notesNotes = notesNotes.filter(n => !n.checked);
+            if (!confirm(`Move ${count} checked note${count !== 1 ? 's' : ''} to Deleted Notes?`)) return;
+            const stamp = new Date().toISOString();
+            notesNotes.forEach(note => {
+                if (note.checked && !note.deleted) {
+                    note.deleted = true;
+                    note.deleted_at = stamp;
+                    note.checked = false;
+                }
+            });
+            renderBoard();
+            scheduleSave();
+        });
+
+        emptyTrashBtn?.addEventListener('click', () => {
+            const count = deletedNotes().length;
+            if (!count) return;
+            if (!confirm(`Permanently delete ${count} note${count !== 1 ? 's' : ''}?`)) return;
+            notesNotes = notesNotes.filter(n => !n.deleted);
             renderBoard();
             scheduleSave();
         });
@@ -1154,6 +1341,7 @@ window.addEventListener('DOMContentLoaded', function() {
         }
 
         // ── Bootstrap ─────────────────────────────────────────────────────
+        normalizeColumnOrder();
         renderBoard();
     })();
     </script>
@@ -1289,7 +1477,7 @@ window.addEventListener('DOMContentLoaded', function() {
     </script>
 
     <!-- Enhanced Rewards Section -->
-    <section class="rewards-section collapsible-section">
+    <section class="rewards-section collapsible-section" id="rewards-section">
         <h2 class="section-title section-toggle">
 <i class="fas fa-trophy" style="color: #a78bfa;"></i> <span style="color: #a78bfa;">Available Rewards</span>
             <i class="fas fa-chevron-down section-chevron"></i>
@@ -1549,8 +1737,327 @@ window.addEventListener('DOMContentLoaded', function() {
         </div>
     </section>
 
+<section class="add-rewards-modern collapsible-section collapsed admin-only" id="create-reward-section">
+    <h2 class="section-title section-toggle">
+        <i class="fas fa-trophy" style="color: #a78bfa;"></i> Create New Reward
+        <i class="fas fa-chevron-down section-chevron"></i>
+    </h2>
+
+    <!-- Suggestions bar (same pattern as chore form) -->
+    <div class="chore-suggestions-bar">
+        <div class="chore-suggestions-header">
+            <span class="chore-suggestions-label">Quick Suggestions</span>
+            <div class="chore-suggestions-actions">
+                <button type="button" class="btn-suggestion-add" title="Add a quick suggestion" onclick="toggleSuggestionInput()">
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
+                <div id="suggestion-input-wrap" style="display:none;align-items:center;gap:6px;">
+                    <input type="text" id="new-reward-suggestion" placeholder="Add a quick suggestion..." class="modern-input suggestion-inline-input"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();addNewRewardSuggestion();}">
+                    <button type="button" onclick="addNewRewardSuggestion()" class="btn-secondary" style="white-space:nowrap;padding:0.55rem 0.9rem;">
+                        <i class="fas fa-plus"></i> Add
+                    </button>
+                </div>
+                <button type="button" id="reward-edit-mode-btn" onclick="toggleRewardEditMode()" class="btn-secondary" style="padding:0.55rem 0.9rem;">Edit</button>
+            </div>
+        </div>
+        <div class="reward-suggestions"></div>
+    </div>
+
+    <form action="{{ url_for('routes.add_reward') }}" method="POST" id="add-reward-form" class="chore-form-card" enctype="multipart/form-data">
+
+        <!-- Title -->
+        <div class="chore-field-group">
+            <label class="chore-field-label" for="reward-title">
+                <i class="fas fa-trophy" style="color:#a78bfa;"></i> Reward Title
+            </label>
+            <input type="text" id="reward-title" name="title"
+                   placeholder="e.g., Trip to the Zoo, Movie Night..."
+                   class="modern-input chore-title-input" required autocomplete="off">
+        </div>
+
+        <!-- Points + Assign to row -->
+        <div class="chore-meta-row">
+            <div class="chore-field-group">
+                <label class="chore-field-label" for="reward-points">
+                    {% if reward_system == 'cash' %}
+                    <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i> Cash Required
+                    {% else %}
+                    <i class="fas fa-star" style="color:#fbbf24;"></i> Points Required
+                    {% endif %}
+                </label>
+                <input type="number" id="reward-points" name="points_required"
+                       placeholder="{% if reward_system == 'cash' %}10.00{% else %}100{% endif %}"
+                       min="{% if reward_system == 'cash' %}0.01{% else %}1{% endif %}"
+                       step="{% if reward_system == 'cash' %}0.01{% else %}1{% endif %}"
+                       class="modern-input" required>
+            </div>
+            <div class="chore-field-group">
+                <label class="chore-field-label">
+                    <i class="fas fa-user-circle"></i> Assign To
+                </label>
+                <div class="chore-assign-pills" id="reward-assignee-pills">
+                    {% for person in family %}
+                    <button type="button" class="chore-assign-pill reward-assign-pill"
+                            data-person="{{ person.name }}">
+                        <span class="pill-avatar">{{ person.name[:1].upper() }}</span>
+                        <span class="pill-name">{{ person.name }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="assigned_to" id="reward-assignee-hidden" required>
+            </div>
+        </div>
+
+        <!-- Description -->
+        <div class="chore-field-group">
+            <label class="chore-field-label" for="reward-description">
+                <i class="fas fa-align-left"></i> Description
+                <span class="chore-days-hint">(optional)</span>
+            </label>
+            <textarea id="reward-description" name="description"
+                      placeholder="Describe this amazing reward..."
+                      rows="2" class="modern-textarea"></textarea>
+        </div>
+
+        <!-- Image -->
+        <div class="chore-field-group reward-image-group">
+            <label class="chore-field-label">
+                <i class="fas fa-image"></i> Reward Image
+                <span class="chore-days-hint">(optional)</span>
+            </label>
+            <input type="hidden" id="reward-stock-image" name="stock_image_url">
+            <div class="reward-image-options">
+                <button type="button" id="stock-picker-toggle" onclick="toggleStockPicker()" class="stock-picker-btn">
+                    <i class="fas fa-images"></i>
+                    <span id="stock-picker-label">Choose a Stock Image</span>
+                    <i class="fas fa-chevron-down" id="stock-picker-chevron"></i>
+                </button>
+                <span class="reward-image-or">or</span>
+                <input type="text" id="reward-image" name="image_url" placeholder="Paste image URL" class="modern-input reward-url-input">
+                <span class="reward-image-or">or</span>
+                <input type="file" id="reward-image-upload" name="reward_image_file" accept="image/*" style="display:none;">
+                <button type="button" onclick="document.getElementById('reward-image-upload').click();" class="btn-upload-inline">
+                    <i class="fa-solid fa-upload"></i> Upload
+                </button>
+            </div>
+            <div class="stock-image-picker" id="stock-image-picker" style="display:none;margin-top:10px;">
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_takeout.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_takeout.svg') }}" alt="Take Out Dinner">
+                    <span>Take Out Dinner</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_order_in.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_order_in.svg') }}" alt="Order In Dinner">
+                    <span>Order In Dinner</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_shopping.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_shopping.svg') }}" alt="Shopping Trip">
+                    <span>Shopping Trip</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_movie.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_movie.svg') }}" alt="Movie Night">
+                    <span>Movie Night</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_baking.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_baking.svg') }}" alt="Baking Day">
+                    <span>Baking Day</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_minigolf.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_minigolf.svg') }}" alt="Mini Golf">
+                    <span>Mini Golf</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_screentime.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_screentime.svg') }}" alt="Screen Time">
+                    <span>Screen Time</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_tv.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_tv.svg') }}" alt="TV Time">
+                    <span>TV Time</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_icecream.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_icecream.svg') }}" alt="Ice Cream">
+                    <span>Ice Cream</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_gaming.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_gaming.svg') }}" alt="Gaming Session">
+                    <span>Gaming Session</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_swimming.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_swimming.svg') }}" alt="Swimming">
+                    <span>Swimming</span>
+                </div>
+                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_cafe.svg') }}" onclick="selectStockImage(this)">
+                    <img src="{{ url_for('static', filename='images/rewards/reward_cafe.svg') }}" alt="Café Treat">
+                    <span>Café Treat</span>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-add-chore">
+            <i class="fas fa-plus"></i> Create Reward
+        </button>
+    </form>
+
+    <script>
+    const initialRewardSuggestions = [
+        'Millhouse Canteen', 'MiniGolf', '1 hour of ipad',
+        '1 hour of TV', 'A Movie', 'Baking Something Yum'
+    ];
+
+    let rewardSuggestions = [];
+    let rewardEditMode = false;
+
+    function initializeRewardSuggestions() {
+        if (localStorage.getItem('rewardSuggestions')) {
+            rewardSuggestions = JSON.parse(localStorage.getItem('rewardSuggestions'));
+        } else {
+            rewardSuggestions = [...initialRewardSuggestions];
+            saveRewardSuggestions();
+        }
+    }
+
+    function renderRewardSuggestions() {
+        const container = document.querySelector('.reward-suggestions');
+        container.innerHTML = '';
+        rewardSuggestions.forEach((reward, index) => {
+            if (rewardEditMode) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'chore-suggestion-edit-item';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = reward;
+                input.className = 'modern-input';
+                input.style.cssText = 'padding:4px 8px;font-size:0.85rem;width:120px;height:32px;';
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerHTML = '&times;';
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'btn-suggestion-delete';
+                deleteBtn.onclick = () => {
+                    rewardSuggestions.splice(index, 1);
+                    saveRewardSuggestions();
+                    renderRewardSuggestions();
+                };
+                wrapper.appendChild(input);
+                wrapper.appendChild(deleteBtn);
+                container.appendChild(wrapper);
+            } else {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'chore-suggestion-chip';
+                button.textContent = reward;
+                button.onclick = function() {
+                    document.getElementById('reward-title').value = reward;
+                };
+                container.appendChild(button);
+            }
+        });
+    }
+
+    function toggleRewardEditMode() {
+        rewardEditMode = !rewardEditMode;
+        const btn = document.getElementById('reward-edit-mode-btn');
+        if (rewardEditMode) {
+            btn.innerHTML = '<i class="fas fa-save"></i> Save';
+            btn.onclick = function() {
+                const inputs = document.querySelectorAll('.reward-suggestions input[type="text"]');
+                rewardSuggestions = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+                saveRewardSuggestions();
+                rewardEditMode = false;
+                btn.innerHTML = 'Edit';
+                btn.onclick = toggleRewardEditMode;
+                renderRewardSuggestions();
+            };
+        } else {
+            btn.innerHTML = 'Edit';
+            btn.onclick = toggleRewardEditMode;
+        }
+        renderRewardSuggestions();
+    }
+
+    function addNewRewardSuggestion() {
+        const input = document.getElementById('new-reward-suggestion');
+        const newReward = input.value.trim();
+        if (newReward && !rewardSuggestions.includes(newReward)) {
+            rewardSuggestions.push(newReward);
+            saveRewardSuggestions();
+            renderRewardSuggestions();
+            input.value = '';
+        }
+        document.getElementById('suggestion-input-wrap').style.display = 'none';
+    }
+
+    function toggleSuggestionInput() {
+        const wrap = document.getElementById('suggestion-input-wrap');
+        const visible = wrap.style.display === 'flex';
+        wrap.style.display = visible ? 'none' : 'flex';
+        if (!visible) document.getElementById('new-reward-suggestion').focus();
+    }
+
+    function saveRewardSuggestions() {
+        localStorage.setItem('rewardSuggestions', JSON.stringify(rewardSuggestions));
+    }
+
+    function toggleStockPicker() {
+        const picker = document.getElementById('stock-image-picker');
+        const chevron = document.getElementById('stock-picker-chevron');
+        const open = picker.style.display !== 'none';
+        picker.style.display = open ? 'none' : 'flex';
+        chevron.style.transform = open ? '' : 'rotate(180deg)';
+    }
+
+    function selectStockImage(tile) {
+        document.querySelectorAll('.stock-image-tile').forEach(t => t.classList.remove('selected'));
+        tile.classList.add('selected');
+        document.getElementById('reward-stock-image').value = tile.dataset.url;
+        document.getElementById('reward-image').value = '';
+        const label = tile.querySelector('span').textContent;
+        document.getElementById('stock-picker-label').textContent = '\u2713 ' + label;
+        document.getElementById('stock-picker-toggle').classList.add('stock-picker-chosen');
+        document.getElementById('stock-image-picker').style.display = 'none';
+        document.getElementById('stock-picker-chevron').style.transform = '';
+    }
+
+    function clearStockSelection() {
+        document.querySelectorAll('.stock-image-tile').forEach(t => t.classList.remove('selected'));
+        document.getElementById('reward-stock-image').value = '';
+        document.getElementById('stock-picker-label').textContent = 'Choose a Stock Image';
+        document.getElementById('stock-picker-toggle').classList.remove('stock-picker-chosen');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeRewardSuggestions();
+        renderRewardSuggestions();
+
+        // Assignee pill selection
+        const pills = document.querySelectorAll('.reward-assign-pill');
+        const hiddenInput = document.getElementById('reward-assignee-hidden');
+        if (pills.length > 0) {
+            pills[0].classList.add('selected');
+            hiddenInput.value = pills[0].getAttribute('data-person');
+        }
+        pills.forEach(pill => {
+            pill.addEventListener('click', function() {
+                pills.forEach(p => p.classList.remove('selected'));
+                this.classList.add('selected');
+                hiddenInput.value = this.getAttribute('data-person');
+            });
+        });
+
+        const urlInput = document.getElementById('reward-image');
+        if (urlInput) urlInput.addEventListener('input', clearStockSelection);
+        const fileInput = document.getElementById('reward-image-upload');
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                clearStockSelection();
+                document.getElementById('reward-image').value = '';
+            });
+        }
+    });
+    </script>
+</section>
+
     {% if google_calendar_feature_enabled and google_calendar_enabled %}
-    <section class="rewards-section collapsible-section" style="margin-top:1rem;">
+    <section class="rewards-section collapsible-section" style="margin-top:1rem;" id="events-section">
         <h2 class="section-title section-toggle">
             <i class="fas fa-calendar-alt" style="color:#60a5fa;"></i> <span style="color:#60a5fa;">Upcoming Family Events</span>
             <i class="fas fa-chevron-down section-chevron"></i>
@@ -2094,7 +2601,7 @@ function deleteReward(rewardId) {
     {% endif %}
 {% endfor %}
 
-<section class="meal-planner-section collapsible-section{% if not meal_planner_ns.has_content %} collapsed{% endif %}">
+<section class="meal-planner-section collapsible-section{% if not meal_planner_ns.has_content %} collapsed{% endif %}" id="meal-planner-section">
     <h2 class="section-title section-toggle meal-planner-title">
         <i class="fas fa-utensils"></i> <span>Weekly Meal Planner</span>
         <i class="fas fa-chevron-down section-chevron"></i>
@@ -2105,7 +2612,6 @@ function deleteReward(rewardId) {
         <span class="meal-week-nav-label"></span>
         <span class="meal-this-week-badge" id="meal-this-week-badge" style="display:none;">This week</span>
         <button type="button" class="meal-nav-btn meal-next-week-btn">Next <i class="fas fa-chevron-right"></i></button>
-        <button type="button" class="save-btn meal-nav-save-btn" id="save-meal-plan-btn"><i class="fas fa-save"></i> Save</button>
         <span class="meal-nav-spinner" id="meal-nav-spinner" style="display:none;"><i class="fas fa-spinner fa-spin"></i></span>
     </div>
 
@@ -2289,7 +2795,18 @@ function deleteReward(rewardId) {
             display.textContent = value || '—';
             display.classList.toggle('meal-display-empty', !value);
         }
-        if (icon) icon.textContent = value ? getMealEmoji(value) : '🍽️';
+        if (icon) {
+            const imgUrl = window.mealImages?.[value?.toLowerCase()];
+            if (imgUrl) {
+                icon.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = imgUrl;
+                img.style.cssText = 'width:26px;height:26px;object-fit:cover;border-radius:4px;vertical-align:middle;';
+                icon.appendChild(img);
+            } else {
+                icon.textContent = value ? getMealEmoji(value) : '🍽️';
+            }
+        }
         badge?.classList.toggle('hidden', !recurring || !value);
     }
 
@@ -2327,18 +2844,38 @@ function deleteReward(rewardId) {
 
     function populatePickerSelect(select, current) {
         if (!select) return;
-        select.innerHTML = '<option value="">— pick a suggestion —</option>';
-        suggestions.forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s;
-            opt.textContent = s;
-            if (s === current) opt.selected = true;
-            select.appendChild(opt);
-        });
-        if (!suggestions.length) {
+        select.innerHTML = '<option value="">— pick from library or suggestions —</option>';
+        // Library meals group
+        const libMeals = Object.keys(window.mealIngredients || {}).sort();
+        if (libMeals.length) {
+            const grp = document.createElement('optgroup');
+            grp.label = '📚 Meal Library';
+            libMeals.forEach(k => {
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = (getMealEmoji(k) || '🍽️') + ' ' + k.charAt(0).toUpperCase() + k.slice(1);
+                if (k === current?.toLowerCase()) opt.selected = true;
+                grp.appendChild(opt);
+            });
+            select.appendChild(grp);
+        }
+        // Suggestions group
+        if (suggestions.length) {
+            const grp = document.createElement('optgroup');
+            grp.label = '💡 Suggestions';
+            suggestions.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                if (s === current) opt.selected = true;
+                grp.appendChild(opt);
+            });
+            select.appendChild(grp);
+        }
+        if (!libMeals.length && !suggestions.length) {
             const opt = document.createElement('option');
             opt.disabled = true;
-            opt.textContent = 'No suggestions yet — add some below';
+            opt.textContent = 'No meals or suggestions yet — add some below';
             select.appendChild(opt);
         }
     }
@@ -2353,7 +2890,7 @@ function deleteReward(rewardId) {
         if (slotRecurring && pickerRecurring) slotRecurring.checked = pickerRecurring.checked;
         syncSlotDisplay(slot);
         closePicker();
-        showPlannerToast(value ? 'Meal set — save to keep' : 'Meal cleared — save to keep', 'success');
+        savePlan(true).catch(err => showPlannerToast(err.message || 'Save failed', 'error'));
     }
 
     function clearPickerSlot(slot) {
@@ -2361,7 +2898,7 @@ function deleteReward(rewardId) {
         slot.querySelector('.meal-recurring-input').checked = false;
         syncSlotDisplay(slot);
         closePicker();
-        showPlannerToast('Meal cleared — save to keep', 'success');
+        savePlan(true).catch(err => showPlannerToast(err.message || 'Save failed', 'error'));
     }
 
     // Wire up picker buttons on all slots
@@ -2425,7 +2962,7 @@ function deleteReward(rewardId) {
         slot.addEventListener('drop', e => {
             e.preventDefault(); slot.classList.remove('meal-slot-drop-target');
             if (!draggedSlot || draggedSlot === slot) return;
-            if (swapMealSlots(draggedSlot, slot)) { markDirty(); showPlannerToast('Meal swapped — save to keep', 'success'); }
+            if (swapMealSlots(draggedSlot, slot)) { savePlan(true).catch(err => showPlannerToast(err.message || 'Save failed', 'error')); }
             clearPickedSlot();
         });
 
@@ -2441,7 +2978,7 @@ function deleteReward(rewardId) {
             } else if (pickedSlot === slot) {
                 clearPickedSlot();
             } else {
-                if (swapMealSlots(pickedSlot, slot)) { markDirty(); showPlannerToast('Meal swapped — save to keep', 'success'); }
+                if (swapMealSlots(pickedSlot, slot)) { savePlan(true).catch(err => showPlannerToast(err.message || 'Save failed', 'error')); }
                 clearPickedSlot();
             }
         });
@@ -2669,6 +3206,31 @@ function deleteReward(rewardId) {
     syncRecurringButtons(recurringRules);
     syncAllSlotDisplays();
     updateNavLabels(currentWeekStart);
+
+    // Expose so meal library cards can add meals to the planner
+    window.addMealToPlanner = function(mealName) {
+        // Try to find an empty slot from today onwards (dinner preferred, then lunch, then breakfast)
+        const mealOrder = ['dinner', 'lunch', 'breakfast'];
+        const today = "{{ current_date.isoformat() }}";
+        const slots = [...plannerGrid.querySelectorAll('.meal-slot')];
+        // Sort by date then by meal preference
+        const sorted = slots.slice().sort((a, b) => {
+            const dA = a.dataset.day, dB = b.dataset.day;
+            if (dA !== dB) return dA < dB ? -1 : 1;
+            return mealOrder.indexOf(a.dataset.meal) - mealOrder.indexOf(b.dataset.meal);
+        });
+        // Find first empty slot on or after today
+        const target = sorted.find(s => s.dataset.day >= today && !normalizeText(s.querySelector('.meal-input')?.value));
+        if (!target) {
+            showPlannerToast('No empty slots this week — navigate to next week first', 'error');
+            return;
+        }
+        const input = target.querySelector('.meal-input');
+        if (input) input.value = mealName;
+        syncSlotDisplay(target);
+        savePlan(true).catch(err => showPlannerToast(err.message || 'Save failed', 'error'));
+        showPlannerToast(`${mealName} added to ${target.dataset.day}`, 'success');
+    };
 })();
 </script>
 
@@ -2697,38 +3259,34 @@ function deleteReward(rewardId) {
         </div>
     </div>
 
-    <div class="shopping-manage-wrap collapsible-section collapsed">
-        <h3 class="shopping-manage-toggle section-toggle">
-            <i class="fas fa-sliders"></i> Manage Items &amp; Meal Ingredients
-            <i class="fas fa-chevron-down section-chevron"></i>
-        </h3>
+</section>
 
-        <div class="shopping-manage-block">
-            <label class="shopping-manage-label"><i class="fas fa-list-check"></i>&ensp;Add General Shopping Item</label>
-            <div class="shopping-add-row">
-                <input type="text" id="shopping-general-input" class="modern-input" placeholder="e.g. Bread, Milk..." maxlength="80">
-                <select id="shopping-general-store" class="meal-quick-add shopping-store-select shopping-dynamic-store-select"></select>
-                <button type="button" class="edit-btn" id="shopping-add-general-btn">Add</button>
-            </div>
+<section class="meal-planner-section collapsible-section collapsed" id="meal-library-section">
+    <h2 class="section-title section-toggle meal-planner-title">
+        <i class="fas fa-book-open"></i> <span>Meal Library</span>
+        <i class="fas fa-chevron-down section-chevron"></i>
+    </h2>
+    <p class="meal-planner-subtitle">Build your collection of meals and their ingredients. Meals added to your shopping list will appear in the store columns.</p>
+
+    <div class="shopping-manage-block" style="margin-bottom:12px;">
+        <label class="shopping-manage-label"><i class="fas fa-utensils"></i>&ensp;Add Ingredients to a Meal</label>
+        <div class="shopping-add-row">
+            <select id="shopping-meal-select" class="meal-quick-add shopping-store-select" style="flex:1 1 140px;">
+                <option value="">— Select meal —</option>
+                <option value="__new__">＋ New meal…</option>
+            </select>
+            <input type="text" id="shopping-meal-new-name" class="modern-input" placeholder="New meal name…" maxlength="80" style="display:none;flex:1 1 140px;">
         </div>
-
-        <div class="shopping-manage-block">
-            <label class="shopping-manage-label"><i class="fas fa-utensils"></i>&ensp;Add Ingredients for a Meal</label>
-            <div class="shopping-add-row">
-                <input type="text" id="shopping-meal-name-input" class="modern-input" placeholder="Meal name (e.g. Pizza)..." maxlength="80" list="shopping-meal-datalist" autocomplete="off">
-                <datalist id="shopping-meal-datalist"></datalist>
-            </div>
-            <div class="shopping-add-row" style="margin-top:6px;">
-                <input type="text" id="shopping-ingredient-input" class="modern-input" placeholder="Ingredient..." maxlength="80">
-                <input type="text" id="shopping-ingredient-qty" class="modern-input shopping-qty-input" placeholder="Qty (optional)" maxlength="40">
-                <select id="shopping-ingredient-store" class="meal-quick-add shopping-store-select shopping-dynamic-store-select"></select>
-                <button type="button" class="edit-btn" id="shopping-add-ingredient-btn">Add</button>
-            </div>
+        <div class="shopping-add-row" style="margin-top:6px;">
+            <input type="text" id="shopping-ingredient-input" class="modern-input" placeholder="Ingredient…" maxlength="80">
+            <input type="text" id="shopping-ingredient-qty" class="modern-input shopping-qty-input" placeholder="Qty" maxlength="40">
+            <label class="shopping-field-label" for="shopping-ingredient-store"><i class="fas fa-store"></i> Store</label>
+            <select id="shopping-ingredient-store" class="meal-quick-add shopping-store-select shopping-dynamic-store-select"></select>
+            <button type="button" class="edit-btn" id="shopping-add-ingredient-btn">Add</button>
         </div>
-
-        <label class="shopping-manage-label" style="margin-top:12px;"><i class="fas fa-book-open"></i>&ensp;Meals</label>
-        <div class="shopping-ingredients-library" id="shopping-ingredients-library"></div>
     </div>
+
+    <div class="shopping-ingredients-library" id="shopping-ingredients-library"></div>
 </section>
 
 <script>
@@ -2739,6 +3297,11 @@ function deleteReward(rewardId) {
     let shoppingHidden = {{ shopping_hidden | tojson }};
     let shoppingActive = {{ shopping_active | tojson }};
     let storeConfig = {{ shopping_stores | tojson }};
+    let mealImages = {{ meal_images | tojson }};
+    let shoppingMealOrder = {{ shopping_meal_order | tojson }};
+    // Expose for use by meal planner script
+    window.mealImages = mealImages;
+    window.mealIngredients = mealIngredients;
 
     const STORE_COLORS = ['#f59e0b', '#22c55e', '#60a5fa', '#a78bfa', '#f97316', '#ec4899'];
 
@@ -2803,7 +3366,7 @@ function deleteReward(rewardId) {
             fetch('/api/shopping_list', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ checked: shoppingChecked, general: shoppingGeneral, hidden: shoppingHidden, active: shoppingActive })
+                body: JSON.stringify({ checked: shoppingChecked, general: shoppingGeneral, hidden: shoppingHidden, active: shoppingActive, meal_order: shoppingMealOrder })
             }).catch(() => {});
         }, 900);
     }
@@ -2873,16 +3436,45 @@ function deleteReward(rewardId) {
             el.addEventListener('dragend', () => {
                 el.classList.remove('shopping-item-dragging');
                 document.querySelectorAll('.shopping-store-drop-target').forEach(c => c.classList.remove('shopping-store-drop-target'));
+                document.querySelectorAll('.shopping-item-drop-before, .shopping-item-drop-after').forEach(el => {
+                    el.classList.remove('shopping-item-drop-before', 'shopping-item-drop-after');
+                });
             });
         }
         return el;
     }
 
+    function getDropInsertIndex(container, clientY, dragName) {
+        const items = [...container.querySelectorAll('.shopping-general-section .shopping-item')];
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].dataset.key === `general::${dragName}`) continue;
+            const rect = items[i].getBoundingClientRect();
+            if (clientY <= rect.top + rect.height / 2) return { el: items[i], before: true };
+        }
+        const last = items.filter(el => el.dataset.key !== `general::${dragName}`).pop();
+        return last ? { el: last, before: false } : null;
+    }
+
+    function clearDropIndicators() {
+        document.querySelectorAll('.shopping-item-drop-before, .shopping-item-drop-after').forEach(el => {
+            el.classList.remove('shopping-item-drop-before', 'shopping-item-drop-after');
+        });
+    }
+
     function setupDropZone(container, storeId) {
         container.addEventListener('dragover', e => {
-            if (dragState && dragState.fromStore !== storeId) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
+            if (!dragState) return;
+            const isCross = dragState.fromStore !== storeId;
+            const isSameGeneral = dragState.fromStore === storeId && dragState.type === 'general';
+            if (!isCross && !isSameGeneral) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (isCross) {
+                container.closest('.shopping-store-col')?.classList.add('shopping-store-drop-target');
+            } else if (isSameGeneral) {
+                clearDropIndicators();
+                const pos = getDropInsertIndex(container, e.clientY, dragState.name);
+                if (pos) pos.el.classList.add(pos.before ? 'shopping-item-drop-before' : 'shopping-item-drop-after');
             }
         });
         container.addEventListener('dragenter', e => {
@@ -2893,21 +3485,46 @@ function deleteReward(rewardId) {
         container.addEventListener('dragleave', e => {
             if (!container.contains(e.relatedTarget)) {
                 container.closest('.shopping-store-col')?.classList.remove('shopping-store-drop-target');
+                clearDropIndicators();
             }
         });
         container.addEventListener('drop', e => {
             e.preventDefault();
             container.closest('.shopping-store-col')?.classList.remove('shopping-store-drop-target');
-            if (!dragState || dragState.fromStore === storeId) { dragState = null; return; }
-            if (dragState.type === 'general') {
-                const item = shoppingGeneral.find(i => i.name.toLowerCase() === dragState.name);
-                if (item) { item.store = storeId; debouncedSave(); }
-            } else if (dragState.type === 'meal') {
-                const ings = mealIngredients[dragState.mealKey];
-                if (ings) {
-                    const ing = ings.find(i => i.name.toLowerCase() === dragState.ingName);
-                    if (ing) { ing.store = storeId; debouncedIngredientSave(); }
+            clearDropIndicators();
+            if (!dragState) return;
+            const isCross = dragState.fromStore !== storeId;
+            const isSameGeneral = dragState.fromStore === storeId && dragState.type === 'general';
+            if (isCross) {
+                if (dragState.type === 'general') {
+                    const item = shoppingGeneral.find(i => i.name.toLowerCase() === dragState.name);
+                    if (item) { item.store = storeId; debouncedSave(); }
+                } else if (dragState.type === 'meal') {
+                    const ings = mealIngredients[dragState.mealKey];
+                    if (ings) {
+                        const ing = ings.find(i => i.name.toLowerCase() === dragState.ingName);
+                        if (ing) { ing.store = storeId; debouncedIngredientSave(); }
+                    }
                 }
+            } else if (isSameGeneral) {
+                const pos = getDropInsertIndex(container, e.clientY, dragState.name);
+                if (pos) {
+                    const targetName = pos.el.dataset.key.replace('general::', '');
+                    const srcIdx = shoppingGeneral.findIndex(i => i.name.toLowerCase() === dragState.name && i.store === storeId);
+                    if (srcIdx !== -1) {
+                        const [srcItem] = shoppingGeneral.splice(srcIdx, 1);
+                        const tgtIdx = shoppingGeneral.findIndex(i => i.name.toLowerCase() === targetName && i.store === storeId);
+                        if (tgtIdx !== -1) {
+                            shoppingGeneral.splice(pos.before ? tgtIdx : tgtIdx + 1, 0, srcItem);
+                        } else {
+                            shoppingGeneral.push(srcItem);
+                        }
+                        debouncedSave();
+                    }
+                }
+            } else {
+                dragState = null;
+                return;
             }
             dragState = null;
             renderShoppingList();
@@ -2925,11 +3542,18 @@ function deleteReward(rewardId) {
                 (shoppingActive.includes(mealKey) || !!planned[mealKey]) &&
                 !hiddenForStore.includes(mealKey)
         );
+        // Sort by custom order first, then planned, then alphabetical
         mealEntries.sort(([a], [b]) => {
+            const aO = shoppingMealOrder.indexOf(a), bO = shoppingMealOrder.indexOf(b);
+            if (aO !== -1 && bO !== -1) return aO - bO;
+            if (aO !== -1) return -1;
+            if (bO !== -1) return 1;
             const aP = !!planned[a], bP = !!planned[b];
             if (aP !== bP) return aP ? -1 : 1;
             return a.localeCompare(b);
         });
+
+        let mealDragState = null;
 
         if (mealEntries.length) {
             const grid = document.createElement('div');
@@ -2941,23 +3565,165 @@ function deleteReward(rewardId) {
                 const displayName = planned[mealKey] || mealKey;
                 const group = document.createElement('div');
                 group.className = 'shopping-meal-group' + (isPlanned ? ' shopping-meal-group-planned' : '');
-                const plannedBadge = isPlanned ? `<span class="shopping-planned-badge">This week</span>` : '';
-                const removeGroupBtn = `<button type="button" class="shopping-remove-btn shopping-meal-group-remove" title="Hide from ${getStoreName(storeId)}">&#x2715;</button>`;
-                group.innerHTML = `<div class="shopping-meal-group-header"><span>${getEmoji(displayName)}</span><span class="shopping-meal-group-name">${displayName}</span>${plannedBadge}${removeGroupBtn}</div>`;
-                group.querySelector('.shopping-meal-group-remove').addEventListener('click', () => {
+
+                // Header
+                const hdr = document.createElement('div');
+                hdr.className = 'shopping-meal-group-header';
+
+                // Drag handle
+                const dragHandle = document.createElement('span');
+                dragHandle.className = 'shopping-meal-drag-handle';
+                dragHandle.innerHTML = '<i class="fas fa-grip-lines"></i>';
+                dragHandle.title = 'Drag to reorder';
+                hdr.appendChild(dragHandle);
+
+                // Meal image thumbnail or emoji
+                const imgKey = mealKey.toLowerCase();
+                if (mealImages[imgKey]) {
+                    const thumb = document.createElement('img');
+                    thumb.src = mealImages[imgKey]; thumb.className = 'shopping-meal-thumb'; thumb.alt = '';
+                    hdr.appendChild(thumb);
+                } else {
+                    const emoSpan = document.createElement('span'); emoSpan.textContent = getEmoji(displayName);
+                    hdr.appendChild(emoSpan);
+                }
+
+                const nameSpan = document.createElement('span'); nameSpan.className = 'shopping-meal-group-name'; nameSpan.textContent = displayName;
+                hdr.appendChild(nameSpan);
+                if (isPlanned) { const pb = document.createElement('span'); pb.className = 'shopping-planned-badge'; pb.textContent = 'This week'; hdr.appendChild(pb); }
+
+                // Quick-add ingredient button
+                const qaToggle = document.createElement('button');
+                qaToggle.type = 'button'; qaToggle.className = 'shopping-meal-qa-toggle'; qaToggle.title = 'Add ingredient';
+                qaToggle.innerHTML = '<i class="fas fa-pencil"></i>';
+                hdr.appendChild(qaToggle);
+
+                // Hide/remove button
+                const rmBtn = document.createElement('button');
+                rmBtn.type = 'button'; rmBtn.className = 'shopping-remove-btn shopping-meal-group-remove'; rmBtn.title = `Hide from ${getStoreName(storeId)}`; rmBtn.innerHTML = '&#x2715;';
+                rmBtn.addEventListener('click', () => {
                     if (!shoppingHidden[storeId]) shoppingHidden[storeId] = [];
                     if (!shoppingHidden[storeId].includes(mealKey)) shoppingHidden[storeId].push(mealKey);
-                    renderShoppingList();
-                    debouncedSave();
+                    renderShoppingList(); debouncedSave();
                 });
+                hdr.appendChild(rmBtn);
+                group.appendChild(hdr);
+
+                // Ingredients (with drag-to-reorder within meal)
+                let ingDragSrc = null;
                 ingredients.forEach(ing => {
                     const itemKey = `meal::${mealKey}::${ing.name.toLowerCase()}`;
                     if (!shoppingChecked[itemKey]) unchecked++;
-                    group.appendChild(createItem(
+                    const item = createItem(
                         ing.name, ing.qty, itemKey, false,
                         { type: 'meal', mealKey, ingName: ing.name.toLowerCase(), fromStore: storeId }
-                    ));
+                    );
+                    const handle = document.createElement('span');
+                    handle.className = 'shopping-ing-drag-handle';
+                    handle.innerHTML = '<i class="fas fa-grip-lines"></i>';
+                    handle.title = 'Drag to reorder';
+                    item.insertBefore(handle, item.firstChild);
+                    item.addEventListener('dragstart', () => { ingDragSrc = { name: ing.name.toLowerCase(), el: item }; }, true);
+                    item.addEventListener('dragend', () => { ingDragSrc = null; item.classList.remove('shopping-ing-drop-before','shopping-ing-drop-after'); });
+                    item.addEventListener('dragover', e => {
+                        if (!ingDragSrc || ingDragSrc.name === ing.name.toLowerCase()) return;
+                        e.preventDefault(); e.stopPropagation();
+                        const r = item.getBoundingClientRect();
+                        item.classList.toggle('shopping-ing-drop-before', e.clientY <= r.top + r.height / 2);
+                        item.classList.toggle('shopping-ing-drop-after', e.clientY > r.top + r.height / 2);
+                    });
+                    item.addEventListener('dragleave', () => item.classList.remove('shopping-ing-drop-before','shopping-ing-drop-after'));
+                    item.addEventListener('drop', e => {
+                        if (!ingDragSrc || ingDragSrc.name === ing.name.toLowerCase()) return;
+                        e.preventDefault(); e.stopPropagation();
+                        const r = item.getBoundingClientRect();
+                        const insertBefore = e.clientY <= r.top + r.height / 2;
+                        const fullList = mealIngredients[mealKey];
+                        const srcIdx = fullList.findIndex(i => i.name.toLowerCase() === ingDragSrc.name);
+                        const tgtIdx = fullList.findIndex(i => i.name.toLowerCase() === ing.name.toLowerCase());
+                        if (srcIdx === -1 || tgtIdx === -1) return;
+                        const [moved] = fullList.splice(srcIdx, 1);
+                        const newTgt = fullList.findIndex(i => i.name.toLowerCase() === ing.name.toLowerCase());
+                        fullList.splice(insertBefore ? newTgt : newTgt + 1, 0, moved);
+                        ingDragSrc = null;
+                        renderShoppingList(); debouncedIngredientSave();
+                    });
+                    group.appendChild(item);
                 });
+
+                // Quick-add ingredient row (hidden by default)
+                const qaRow = document.createElement('div');
+                qaRow.className = 'shopping-meal-qa-row'; qaRow.style.display = 'none';
+                const qaNameIn = document.createElement('input'); qaNameIn.type = 'text'; qaNameIn.className = 'meal-card-qa-input'; qaNameIn.placeholder = 'Add ingredient…'; qaNameIn.maxLength = 80;
+                const qaQtyIn = document.createElement('input'); qaQtyIn.type = 'text'; qaQtyIn.className = 'meal-card-qa-qty'; qaQtyIn.placeholder = 'Qty'; qaQtyIn.maxLength = 40;
+                const qaStoreSel = document.createElement('select'); qaStoreSel.className = 'meal-card-qa-store';
+                storeConfig.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = s.name; if (s.id === storeId) o.selected = true; qaStoreSel.appendChild(o); });
+                const qaAddBtn = document.createElement('button'); qaAddBtn.type = 'button'; qaAddBtn.className = 'meal-card-qa-btn'; qaAddBtn.innerHTML = '<i class="fas fa-plus"></i>';
+                const doQA = () => {
+                    const n = qaNameIn.value.trim(); if (!n) { qaNameIn.focus(); return; }
+                    const qty = qaQtyIn.value.trim(); const store = qaStoreSel.value || storeId;
+                    if (!mealIngredients[mealKey]) mealIngredients[mealKey] = [];
+                    if (!mealIngredients[mealKey].some(i => i.name.toLowerCase() === n.toLowerCase())) {
+                        mealIngredients[mealKey].push({name: n, store, qty});
+                        renderShoppingList(); debouncedIngredientSave();
+                    }
+                    qaNameIn.value = ''; qaQtyIn.value = '';
+                };
+                qaAddBtn.addEventListener('click', doQA);
+                qaNameIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doQA(); } });
+                qaQtyIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doQA(); } });
+                [qaNameIn, qaQtyIn, qaStoreSel, qaAddBtn].forEach(el => qaRow.appendChild(el));
+                group.appendChild(qaRow);
+
+                qaToggle.addEventListener('click', () => {
+                    const open = qaRow.style.display !== 'none';
+                    qaRow.style.display = open ? 'none' : '';
+                    qaToggle.classList.toggle('meal-card-btn--active', !open);
+                    if (!open) qaNameIn.focus();
+                });
+
+                // Drag-to-reorder meal groups
+                group.draggable = true;
+                group.dataset.mealKey = mealKey;
+                group.addEventListener('dragstart', e => {
+                    mealDragState = { mealKey, el: group };
+                    group.classList.add('shopping-item-dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', mealKey);
+                    e.stopPropagation();
+                });
+                group.addEventListener('dragend', () => {
+                    group.classList.remove('shopping-item-dragging');
+                    grid.querySelectorAll('.shopping-meal-drop-before,.shopping-meal-drop-after').forEach(el => el.classList.remove('shopping-meal-drop-before','shopping-meal-drop-after'));
+                    mealDragState = null;
+                });
+                group.addEventListener('dragover', e => {
+                    if (!mealDragState || mealDragState.mealKey === mealKey) return;
+                    e.preventDefault(); e.stopPropagation();
+                    grid.querySelectorAll('.shopping-meal-drop-before,.shopping-meal-drop-after').forEach(el => el.classList.remove('shopping-meal-drop-before','shopping-meal-drop-after'));
+                    const rect = group.getBoundingClientRect();
+                    group.classList.add(e.clientY <= rect.top + rect.height / 2 ? 'shopping-meal-drop-before' : 'shopping-meal-drop-after');
+                });
+                group.addEventListener('drop', e => {
+                    e.preventDefault(); e.stopPropagation();
+                    if (!mealDragState || mealDragState.mealKey === mealKey) { mealDragState = null; return; }
+                    const srcKey = mealDragState.mealKey;
+                    const rect = group.getBoundingClientRect();
+                    const insertBefore = e.clientY <= rect.top + rect.height / 2;
+                    // Build full current order from rendered groups
+                    const keys = [...grid.querySelectorAll('[data-meal-key]')].map(el => el.dataset.mealKey);
+                    const srcIdx = keys.indexOf(srcKey);
+                    keys.splice(srcIdx, 1);
+                    const tgtIdx = keys.indexOf(mealKey);
+                    keys.splice(insertBefore ? tgtIdx : tgtIdx + 1, 0, srcKey);
+                    // Merge into shoppingMealOrder preserving any existing keys not in this store
+                    const absent = shoppingMealOrder.filter(k => !keys.includes(k));
+                    shoppingMealOrder = [...absent, ...keys];
+                    mealDragState = null;
+                    debouncedSave();
+                    renderShoppingList();
+                });
+
                 grid.appendChild(group);
             });
             container.appendChild(grid);
@@ -3125,196 +3891,227 @@ function deleteReward(rewardId) {
         });
     }
 
+    function populateMealSelect() {
+        const sel = document.getElementById('shopping-meal-select');
+        if (!sel) return;
+        const current = sel.value;
+        sel.innerHTML = '<option value="">-- Select meal --</option><option value="__new__">+ New meal...</option>';
+        Object.keys(mealIngredients).sort().forEach(k => {
+            const opt = document.createElement('option');
+            opt.value = k;
+            opt.textContent = getEmoji(k) + ' ' + k.charAt(0).toUpperCase() + k.slice(1);
+            sel.appendChild(opt);
+        });
+        if (current && Array.from(sel.options).find(o => o.value === current)) sel.value = current;
+        const ni = document.getElementById('shopping-meal-new-name');
+        if (ni) ni.style.display = (sel.value === '__new__') ? '' : 'none';
+    }
+
+    document.getElementById('shopping-meal-select')?.addEventListener('change', function() {
+        const ni = document.getElementById('shopping-meal-new-name');
+        if (ni) ni.style.display = this.value === '__new__' ? '' : 'none';
+    });
+
+    function uploadMealImage(mealKey, file) {
+        if (!file) return;
+        const fd = new FormData();
+        fd.append('meal_key', mealKey);
+        fd.append('image', file);
+        fetch('/api/meal_image', { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(data => { if (data.success) { mealImages[mealKey] = data.image_url; renderIngredientsLibrary(); } });
+    }
+
     function renderIngredientsLibrary() {
+        // Keep globals in sync for meal planner picker/display
+        window.mealImages = mealImages;
+        window.mealIngredients = mealIngredients;
         const lib = document.getElementById('shopping-ingredients-library');
         if (!lib) return;
         lib.innerHTML = '';
         const keys = Object.keys(mealIngredients).sort();
         if (!keys.length) {
-            lib.innerHTML = '<div class="shopping-empty-msg" style="margin:4px 0 8px;">No meals defined yet &mdash; add ingredients above.</div>';
-            refreshMealDatalist();
+            lib.innerHTML = '<div class="shopping-empty-msg" style="margin:8px 0;">No meals yet - add ingredients above.</div>';
+            populateMealSelect();
             return;
         }
-
         const grid = document.createElement('div');
-        grid.className = 'shopping-lib-grid';
-
+        grid.className = 'meal-card-grid';
         keys.forEach(mealKey => {
             const items = mealIngredients[mealKey];
-            const group = document.createElement('div');
-            group.className = 'shopping-lib-group';
-
-            const header = document.createElement('div');
-            header.className = 'shopping-lib-group-header';
-            const title = document.createElement('span');
-            title.className = 'shopping-lib-group-title';
-            title.textContent = `${getEmoji(mealKey)} ${mealKey}`;
-            const removeAllBtn = document.createElement('button');
-            removeAllBtn.type = 'button';
-            removeAllBtn.className = 'shopping-remove-btn shopping-lib-remove-all';
-            removeAllBtn.title = 'Remove this meal and all its ingredients';
-            removeAllBtn.innerHTML = '&#x2715;';
-            removeAllBtn.addEventListener('click', () => {
-                delete mealIngredients[mealKey];
-                shoppingActive = shoppingActive.filter(k => k !== mealKey);
-                Object.keys(shoppingHidden).forEach(sid => {
-                    shoppingHidden[sid] = shoppingHidden[sid].filter(k => k !== mealKey);
-                });
-                renderIngredientsLibrary();
-                renderShoppingList();
-                debouncedIngredientSave();
-                debouncedSave();
-            });
-
             const planned = getPlannedMeals();
             const isActive = shoppingActive.includes(mealKey);
             const isPlanned = !!planned[mealKey];
-            const addBtn = document.createElement('button');
-            addBtn.type = 'button';
-            if (isPlanned) {
-                addBtn.className = 'shopping-lib-add-btn shopping-lib-add-btn--planned';
-                addBtn.title = 'In this week\'s meal plan';
-                addBtn.innerHTML = '<i class="fas fa-calendar-check" aria-hidden="true"></i>';
-                addBtn.disabled = true;
-            } else if (isActive) {
-                addBtn.className = 'shopping-lib-add-btn shopping-lib-add-btn--active';
-                addBtn.title = 'Remove from shopping run';
-                addBtn.innerHTML = '<i class="fas fa-cart-arrow-down" aria-hidden="true"></i>';
-                addBtn.addEventListener('click', () => {
-                    shoppingActive = shoppingActive.filter(k => k !== mealKey);
-                    renderIngredientsLibrary();
-                    renderShoppingList();
-                    debouncedSave();
+            const imageUrl = mealImages[mealKey] || '';
+            const displayName = mealKey.charAt(0).toUpperCase() + mealKey.slice(1);
+            const card = document.createElement('div');
+            card.className = 'meal-card';
+            // Image area
+            const imgArea = document.createElement('div');
+            imgArea.className = 'meal-card-img-area';
+            if (imageUrl) {
+                const img = document.createElement('img');
+                img.src = imageUrl; img.alt = displayName; img.className = 'meal-card-img';
+                imgArea.appendChild(img);
+                const overlay = document.createElement('div');
+                overlay.className = 'meal-card-img-overlay';
+                const chBtn = document.createElement('button');
+                chBtn.type = 'button'; chBtn.className = 'meal-card-img-btn';
+                chBtn.innerHTML = '<i class="fas fa-camera"></i>'; chBtn.title = 'Change photo';
+                const rmBtn = document.createElement('button');
+                rmBtn.type = 'button'; rmBtn.className = 'meal-card-img-btn meal-card-img-btn--remove';
+                rmBtn.innerHTML = '<i class="fas fa-trash"></i>'; rmBtn.title = 'Remove photo';
+                rmBtn.addEventListener('click', () => {
+                    fetch('/api/meal_image/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({meal_key:mealKey})})
+                        .then(() => { delete mealImages[mealKey]; renderIngredientsLibrary(); });
                 });
+                const fi = document.createElement('input'); fi.type = 'file'; fi.accept = 'image/*'; fi.style.display = 'none';
+                fi.addEventListener('change', () => uploadMealImage(mealKey, fi.files[0]));
+                chBtn.addEventListener('click', () => fi.click());
+                overlay.appendChild(chBtn); overlay.appendChild(rmBtn);
+                imgArea.appendChild(overlay); imgArea.appendChild(fi);
             } else {
-                addBtn.className = 'shopping-lib-add-btn';
-                addBtn.title = 'Add to shopping run';
-                addBtn.innerHTML = '<i class="fas fa-cart-plus" aria-hidden="true"></i>';
-                addBtn.addEventListener('click', () => {
+                const ph = document.createElement('div');
+                ph.className = 'meal-card-img-placeholder';
+                const emoSpan = document.createElement('span'); emoSpan.className = 'meal-card-emoji';
+                emoSpan.textContent = getEmoji(mealKey);
+                ph.appendChild(emoSpan);
+                const upBtn = document.createElement('button');
+                upBtn.type = 'button'; upBtn.className = 'meal-card-upload-btn';
+                upBtn.innerHTML = '<i class="fas fa-camera"></i> Add photo';
+                const fi = document.createElement('input'); fi.type = 'file'; fi.accept = 'image/*'; fi.style.display = 'none';
+                fi.addEventListener('change', () => uploadMealImage(mealKey, fi.files[0]));
+                upBtn.addEventListener('click', () => fi.click());
+                ph.appendChild(upBtn); ph.appendChild(fi);
+                imgArea.appendChild(ph);
+            }
+            card.appendChild(imgArea);
+            // Card header
+            const hdr = document.createElement('div');
+            hdr.className = 'meal-card-header';
+            const titleEl = document.createElement('span');
+            titleEl.className = 'meal-card-title'; titleEl.textContent = displayName;
+            hdr.appendChild(titleEl);
+            // Planner button
+            const planBtn = document.createElement('button');
+            planBtn.type = 'button';
+            planBtn.className = 'meal-card-action-btn meal-card-btn--plan';
+            planBtn.title = 'Add to this week\'s meal planner';
+            planBtn.innerHTML = '<i class="fas fa-calendar-plus"></i>';
+            planBtn.addEventListener('click', () => window.addMealToPlanner?.(displayName));
+            hdr.appendChild(planBtn);
+            const cartBtn = document.createElement('button');
+            cartBtn.type = 'button';
+            if (isPlanned) {
+                cartBtn.className = 'meal-card-action-btn meal-card-btn--planned';
+                cartBtn.title = "In this week's meal plan";
+                cartBtn.innerHTML = '<i class="fas fa-calendar-check"></i>'; cartBtn.disabled = true;
+            } else if (isActive) {
+                cartBtn.className = 'meal-card-action-btn meal-card-btn--active';
+                cartBtn.title = 'Remove from shopping run';
+                cartBtn.innerHTML = '<i class="fas fa-cart-arrow-down"></i>';
+                cartBtn.addEventListener('click', () => { shoppingActive = shoppingActive.filter(k => k !== mealKey); renderIngredientsLibrary(); renderShoppingList(); debouncedSave(); });
+            } else {
+                cartBtn.className = 'meal-card-action-btn';
+                cartBtn.title = 'Add to shopping run';
+                cartBtn.innerHTML = '<i class="fas fa-cart-plus"></i>';
+                cartBtn.addEventListener('click', () => {
                     if (!shoppingActive.includes(mealKey)) shoppingActive.push(mealKey);
-                    // Unhide from all stores so it becomes visible
-                    Object.keys(shoppingHidden).forEach(sid => {
-                        shoppingHidden[sid] = shoppingHidden[sid].filter(k => k !== mealKey);
-                    });
-                    renderIngredientsLibrary();
-                    renderShoppingList();
-                    debouncedSave();
+                    Object.keys(shoppingHidden).forEach(sid => { shoppingHidden[sid] = shoppingHidden[sid].filter(k => k !== mealKey); });
+                    renderIngredientsLibrary(); renderShoppingList(); debouncedSave();
                 });
             }
-            header.appendChild(title);
-            header.appendChild(addBtn);
-            header.appendChild(removeAllBtn);
-            group.appendChild(header);
-
+            hdr.appendChild(cartBtn);
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button'; delBtn.className = 'meal-card-action-btn meal-card-btn--delete'; delBtn.title = 'Delete meal';
+            delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            delBtn.addEventListener('click', () => {
+                showUnifiedModal({
+                    icon: '<i class="fas fa-trash" style="color:#f87171;"></i>',
+                    message: `Delete <b>${displayName}</b> and all its ingredients? This cannot be undone.`,
+                    buttons: [
+                        { text: 'Delete', color: '#ef4444', onClick: () => {
+                            delete mealIngredients[mealKey]; delete mealImages[mealKey];
+                            shoppingActive = shoppingActive.filter(k => k !== mealKey);
+                            Object.keys(shoppingHidden).forEach(sid => { shoppingHidden[sid] = shoppingHidden[sid].filter(k => k !== mealKey); });
+                            renderIngredientsLibrary(); renderShoppingList(); debouncedIngredientSave(); debouncedSave();
+                        }},
+                        { text: 'Cancel', color: '#6b7280', onClick: null }
+                    ]
+                });
+            });
+            hdr.appendChild(delBtn);
+            card.appendChild(hdr);
+            // Ingredients list
+            const ingList = document.createElement('div');
+            ingList.className = 'meal-card-ing-list';
+            if (!items.length) {
+                ingList.innerHTML = '<div class="shopping-empty-msg" style="padding:8px 10px;font-size:0.8rem;">No ingredients yet.</div>';
+            }
             items.forEach((item, idx) => {
                 const row = document.createElement('div');
-                row.className = 'shopping-lib-item';
-                row.dataset.editing = 'false';
-
-                const buildView = () => {
-                    const color = getStoreColor(item.store);
-                    const storeName = getStoreName(item.store);
+                row.className = 'meal-card-ing-row';
+                const buildIngView = () => {
                     row.innerHTML = '';
-                    const nameSpan = document.createElement('span');
-                    nameSpan.className = 'shopping-lib-item-name';
-                    nameSpan.innerHTML = item.name + (item.qty ? `<span class="shopping-lib-item-qty"> &middot; ${item.qty}</span>` : '');
-                    const dot = document.createElement('span');
-                    dot.className = 'shopping-lib-store-icon-badge';
-                    setStoreIconEl(dot, getStoreIcon(item.store));
-                    dot.title = getStoreName(item.store);
-                    const editBtn = document.createElement('button');
-                    editBtn.type = 'button';
-                    editBtn.className = 'shopping-lib-edit-btn';
-                    editBtn.title = 'Edit';
-                    editBtn.innerHTML = '<i class="fas fa-pencil" aria-hidden="true"></i>';
-                    editBtn.addEventListener('click', () => buildEdit());
-                    const removeBtn = document.createElement('button');
-                    removeBtn.type = 'button';
-                    removeBtn.className = 'shopping-remove-btn';
-                    removeBtn.setAttribute('aria-label', 'Remove ingredient');
-                    removeBtn.innerHTML = '&#x2715;';
-                    removeBtn.addEventListener('click', () => {
+                    const nEl = document.createElement('span'); nEl.className = 'meal-card-ing-name'; nEl.textContent = item.name;
+                    const qEl = document.createElement('span'); qEl.className = 'meal-card-ing-qty'; qEl.textContent = item.qty || '';
+                    const sIco = document.createElement('span'); sIco.className = 'shopping-lib-store-icon-badge meal-card-ing-store'; sIco.title = getStoreName(item.store);
+                    setStoreIconEl(sIco, getStoreIcon(item.store));
+                    const edBtn = document.createElement('button'); edBtn.type = 'button'; edBtn.className = 'meal-card-ing-btn'; edBtn.innerHTML = '<i class="fas fa-pencil"></i>'; edBtn.title = 'Edit';
+                    edBtn.addEventListener('click', buildIngEdit);
+                    const rmBtn = document.createElement('button'); rmBtn.type = 'button'; rmBtn.className = 'meal-card-ing-btn meal-card-ing-btn--remove'; rmBtn.innerHTML = '&#x2715;'; rmBtn.title = 'Remove';
+                    rmBtn.addEventListener('click', () => {
                         mealIngredients[mealKey].splice(idx, 1);
                         if (!mealIngredients[mealKey].length) delete mealIngredients[mealKey];
-                        renderIngredientsLibrary();
-                        renderShoppingList();
-                        debouncedIngredientSave();
+                        renderIngredientsLibrary(); renderShoppingList(); debouncedIngredientSave();
                     });
-                    row.appendChild(nameSpan);
-                    row.appendChild(dot);
-                    row.appendChild(editBtn);
-                    row.appendChild(removeBtn);
+                    [nEl, qEl, sIco, edBtn, rmBtn].forEach(el => row.appendChild(el));
                 };
-
-                const buildEdit = () => {
-                    row.innerHTML = '';
-                    row.className = 'shopping-lib-item shopping-lib-item--editing';
-                    const nameIn = document.createElement('input');
-                    nameIn.type = 'text';
-                    nameIn.className = 'shopping-lib-edit-input';
-                    nameIn.value = item.name;
-                    nameIn.placeholder = 'Ingredient';
-                    nameIn.maxLength = 80;
-                    const qtyIn = document.createElement('input');
-                    qtyIn.type = 'text';
-                    qtyIn.className = 'shopping-lib-edit-input shopping-lib-edit-qty';
-                    qtyIn.value = item.qty || '';
-                    qtyIn.placeholder = 'Qty';
-                    qtyIn.maxLength = 40;
-                    const storeSel = document.createElement('select');
-                    storeSel.className = 'shopping-lib-edit-store';
-                    storeConfig.forEach(s => {
-                        const opt = document.createElement('option');
-                        opt.value = s.id;
-                        opt.textContent = s.name;
-                        if (s.id === item.store) opt.selected = true;
-                        storeSel.appendChild(opt);
-                    });
-                    const saveBtn = document.createElement('button');
-                    saveBtn.type = 'button';
-                    saveBtn.className = 'shopping-lib-edit-save';
-                    saveBtn.title = 'Save';
-                    saveBtn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
-                    saveBtn.addEventListener('click', () => {
-                        const newName = nameIn.value.trim();
-                        if (!newName) return;
-                        item.name = newName;
-                        item.qty = qtyIn.value.trim();
-                        item.store = storeSel.value;
-                        row.className = 'shopping-lib-item';
-                        buildView();
-                        renderShoppingList();
-                        debouncedIngredientSave();
-                    });
-                    const cancelBtn = document.createElement('button');
-                    cancelBtn.type = 'button';
-                    cancelBtn.className = 'shopping-remove-btn';
-                    cancelBtn.title = 'Cancel';
-                    cancelBtn.innerHTML = '&#x2715;';
-                    cancelBtn.addEventListener('click', () => {
-                        row.className = 'shopping-lib-item';
-                        buildView();
-                    });
-                    [nameIn, qtyIn, storeSel, saveBtn, cancelBtn].forEach(el => row.appendChild(el));
-                    nameIn.focus();
-                    nameIn.select();
-                    const onKey = e => {
-                        if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
-                        if (e.key === 'Escape') { e.preventDefault(); cancelBtn.click(); }
-                    };
-                    nameIn.addEventListener('keydown', onKey);
-                    qtyIn.addEventListener('keydown', onKey);
+                const buildIngEdit = () => {
+                    row.innerHTML = ''; row.className = 'meal-card-ing-row meal-card-ing-row--editing';
+                    const nIn = document.createElement('input'); nIn.type = 'text'; nIn.className = 'shopping-lib-edit-input'; nIn.value = item.name; nIn.maxLength = 80;
+                    const qIn = document.createElement('input'); qIn.type = 'text'; qIn.className = 'shopping-lib-edit-input shopping-lib-edit-qty'; qIn.value = item.qty || ''; qIn.placeholder = 'Qty'; qIn.maxLength = 40;
+                    const sSel = document.createElement('select'); sSel.className = 'shopping-lib-edit-store';
+                    storeConfig.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = s.name; if (s.id === item.store) o.selected = true; sSel.appendChild(o); });
+                    const svBtn = document.createElement('button'); svBtn.type = 'button'; svBtn.className = 'shopping-lib-edit-save'; svBtn.innerHTML = '<i class="fas fa-check"></i>';
+                    svBtn.addEventListener('click', () => { const n = nIn.value.trim(); if (!n) return; item.name = n; item.qty = qIn.value.trim(); item.store = sSel.value; row.className = 'meal-card-ing-row'; buildIngView(); renderShoppingList(); debouncedIngredientSave(); });
+                    const cxBtn = document.createElement('button'); cxBtn.type = 'button'; cxBtn.className = 'shopping-remove-btn'; cxBtn.innerHTML = '&#x2715;';
+                    cxBtn.addEventListener('click', () => { row.className = 'meal-card-ing-row'; buildIngView(); });
+                    [nIn, qIn, sSel, svBtn, cxBtn].forEach(el => row.appendChild(el));
+                    const onKey = e => { if (e.key === 'Enter') { e.preventDefault(); svBtn.click(); } if (e.key === 'Escape') { e.preventDefault(); cxBtn.click(); } };
+                    nIn.addEventListener('keydown', onKey); qIn.addEventListener('keydown', onKey); nIn.focus(); nIn.select();
                 };
-
-                buildView();
-                group.appendChild(row);
+                buildIngView();
+                ingList.appendChild(row);
             });
-
-            grid.appendChild(group);
+            card.appendChild(ingList);
+            // Quick-add row at bottom of each card
+            const qaRow = document.createElement('div');
+            qaRow.className = 'meal-card-quick-add';
+            const qaNIn = document.createElement('input'); qaNIn.type = 'text'; qaNIn.className = 'meal-card-qa-input'; qaNIn.placeholder = 'Add ingredient...'; qaNIn.maxLength = 80;
+            const qaQIn = document.createElement('input'); qaQIn.type = 'text'; qaQIn.className = 'meal-card-qa-qty'; qaQIn.placeholder = 'Qty'; qaQIn.maxLength = 40;
+            const qaSSel = document.createElement('select'); qaSSel.className = 'meal-card-qa-store shopping-dynamic-store-select';
+            storeConfig.forEach(s => { const o = document.createElement('option'); o.value = s.id; o.textContent = s.name; qaSSel.appendChild(o); });
+            const qaBtn = document.createElement('button'); qaBtn.type = 'button'; qaBtn.className = 'meal-card-qa-btn'; qaBtn.innerHTML = '<i class="fas fa-plus"></i>'; qaBtn.title = 'Add ingredient';
+            const doQA = () => {
+                const n = qaNIn.value.trim(); if (!n) { qaNIn.focus(); return; }
+                const qty = qaQIn.value.trim(); const store = qaSSel.value || storeConfig[0]?.id || 'aldi';
+                if (!mealIngredients[mealKey]) mealIngredients[mealKey] = [];
+                if (!mealIngredients[mealKey].some(i => i.name.toLowerCase() === n.toLowerCase())) {
+                    mealIngredients[mealKey].push({name:n, store, qty});
+                    renderIngredientsLibrary(); renderShoppingList(); debouncedIngredientSave();
+                }
+                qaNIn.value = ''; qaQIn.value = '';
+            };
+            qaBtn.addEventListener('click', doQA);
+            qaNIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doQA(); } });
+            qaQIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doQA(); } });
+            [qaNIn, qaQIn, qaSSel, qaBtn].forEach(el => qaRow.appendChild(el));
+            card.appendChild(qaRow);
+            grid.appendChild(card);
         });
-
         lib.appendChild(grid);
-        refreshMealDatalist();
+        populateMealSelect();
     }
 
     function populateStoreSelects() {
@@ -3329,19 +4126,6 @@ function deleteReward(rewardId) {
         });
     }
 
-    function refreshMealDatalist() {
-        const dl = document.getElementById('shopping-meal-datalist');
-        if (!dl) return;
-        dl.innerHTML = '';
-        const planned = getPlannedMeals();
-        const all = new Set([...Object.keys(mealIngredients), ...Object.keys(planned)]);
-        all.forEach(k => {
-            const opt = document.createElement('option');
-            opt.value = k;
-            dl.appendChild(opt);
-        });
-    }
-
     function renderShoppingList() {
         renderStoresRow();
         storeConfig.forEach(store => {
@@ -3349,7 +4133,6 @@ function deleteReward(rewardId) {
             if (container) renderStoreColumn(store.id, container);
         });
         renderIngredientsLibrary();
-        refreshMealDatalist();
         populateStoreSelects();
     }
     window.renderShoppingList = renderShoppingList;
@@ -3407,23 +4190,34 @@ function deleteReward(rewardId) {
     document.getElementById('shopping-quick-add-btn')?.addEventListener('click', doQuickAddGeneral);
     quickInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doQuickAddGeneral(); } });
 
-    // Add meal ingredient
-    const mealNameInput = document.getElementById('shopping-meal-name-input');
+    // Add meal ingredient (top-level form)
     const ingredientInput = document.getElementById('shopping-ingredient-input');
     const ingredientQtyInput = document.getElementById('shopping-ingredient-qty');
     const ingredientStoreSelect = document.getElementById('shopping-ingredient-store');
     const doAddIngredient = () => {
-        const mealKey = mealNameInput?.value.trim().toLowerCase();
+        const mealSel = document.getElementById('shopping-meal-select');
+        const mealNewName = document.getElementById('shopping-meal-new-name');
+        let mealKey = mealSel?.value === '__new__'
+            ? (mealNewName?.value.trim().toLowerCase() || '')
+            : (mealSel?.value || '');
+        if (!mealKey) { mealSel?.focus(); return; }
         const ingName = ingredientInput?.value.trim();
-        if (!mealKey || !ingName) return;
+        if (!ingName) { ingredientInput?.focus(); return; }
         const qty = ingredientQtyInput?.value.trim() || '';
         const store = ingredientStoreSelect?.value || storeConfig[0]?.id || 'aldi';
         if (!mealIngredients[mealKey]) mealIngredients[mealKey] = [];
         if (!mealIngredients[mealKey].some(i => i.name.toLowerCase() === ingName.toLowerCase())) {
             mealIngredients[mealKey].push({ name: ingName, store, qty });
+            if (mealSel?.value === '__new__') {
+                // reset the new-name input and re-select the just-created meal
+                if (mealNewName) mealNewName.value = '';
+            }
             renderIngredientsLibrary();
             renderShoppingList();
             debouncedIngredientSave();
+            // re-select this meal in the dropdown
+            const sel = document.getElementById('shopping-meal-select');
+            if (sel) { sel.value = mealKey; const ni = document.getElementById('shopping-meal-new-name'); if(ni) ni.style.display = 'none'; }
         }
         if (ingredientInput) ingredientInput.value = '';
         if (ingredientQtyInput) ingredientQtyInput.value = '';
@@ -3944,7 +4738,7 @@ function updateStreakDisplay(column, streakCount) {
         });
     });
     </script>
-<section class="chores collapsible-section collapsed admin-only">
+<section class="chores collapsible-section collapsed admin-only" id="add-chores-section">
     <h2 class="section-title section-toggle">
         <i class="fas fa-tasks" style="color: rgb(225, 0, 255);"></i> Add Chores
         <i class="fas fa-chevron-down section-chevron"></i>
@@ -4262,325 +5056,7 @@ function updateStreakDisplay(column, streakCount) {
     });
     </script>
 </section>
-<section class="add-rewards-modern collapsible-section collapsed admin-only">
-    <h2 class="section-title section-toggle">
-        <i class="fas fa-trophy" style="color: #a78bfa;"></i> Create New Reward
-        <i class="fas fa-chevron-down section-chevron"></i>
-    </h2>
-
-    <!-- Suggestions bar (same pattern as chore form) -->
-    <div class="chore-suggestions-bar">
-        <div class="chore-suggestions-header">
-            <span class="chore-suggestions-label">Quick Suggestions</span>
-            <div class="chore-suggestions-actions">
-                <button type="button" class="btn-suggestion-add" title="Add a quick suggestion" onclick="toggleSuggestionInput()">
-                    <i class="fas fa-pencil-alt"></i>
-                </button>
-                <div id="suggestion-input-wrap" style="display:none;align-items:center;gap:6px;">
-                    <input type="text" id="new-reward-suggestion" placeholder="Add a quick suggestion..." class="modern-input suggestion-inline-input"
-                           onkeydown="if(event.key==='Enter'){event.preventDefault();addNewRewardSuggestion();}">
-                    <button type="button" onclick="addNewRewardSuggestion()" class="btn-secondary" style="white-space:nowrap;padding:0.55rem 0.9rem;">
-                        <i class="fas fa-plus"></i> Add
-                    </button>
-                </div>
-                <button type="button" id="reward-edit-mode-btn" onclick="toggleRewardEditMode()" class="btn-secondary" style="padding:0.55rem 0.9rem;">Edit</button>
-            </div>
-        </div>
-        <div class="reward-suggestions"></div>
-    </div>
-
-    <form action="{{ url_for('routes.add_reward') }}" method="POST" id="add-reward-form" class="chore-form-card" enctype="multipart/form-data">
-
-        <!-- Title -->
-        <div class="chore-field-group">
-            <label class="chore-field-label" for="reward-title">
-                <i class="fas fa-trophy" style="color:#a78bfa;"></i> Reward Title
-            </label>
-            <input type="text" id="reward-title" name="title"
-                   placeholder="e.g., Trip to the Zoo, Movie Night..."
-                   class="modern-input chore-title-input" required autocomplete="off">
-        </div>
-
-        <!-- Points + Assign to row -->
-        <div class="chore-meta-row">
-            <div class="chore-field-group">
-                <label class="chore-field-label" for="reward-points">
-                    {% if reward_system == 'cash' %}
-                    <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i> Cash Required
-                    {% else %}
-                    <i class="fas fa-star" style="color:#fbbf24;"></i> Points Required
-                    {% endif %}
-                </label>
-                <input type="number" id="reward-points" name="points_required"
-                       placeholder="{% if reward_system == 'cash' %}10.00{% else %}100{% endif %}"
-                       min="{% if reward_system == 'cash' %}0.01{% else %}1{% endif %}"
-                       step="{% if reward_system == 'cash' %}0.01{% else %}1{% endif %}"
-                       class="modern-input" required>
-            </div>
-            <div class="chore-field-group">
-                <label class="chore-field-label">
-                    <i class="fas fa-user-circle"></i> Assign To
-                </label>
-                <div class="chore-assign-pills" id="reward-assignee-pills">
-                    {% for person in family %}
-                    <button type="button" class="chore-assign-pill reward-assign-pill"
-                            data-person="{{ person.name }}">
-                        <span class="pill-avatar">{{ person.name[:1].upper() }}</span>
-                        <span class="pill-name">{{ person.name }}</span>
-                    </button>
-                    {% endfor %}
-                </div>
-                <input type="hidden" name="assigned_to" id="reward-assignee-hidden" required>
-            </div>
-        </div>
-
-        <!-- Description -->
-        <div class="chore-field-group">
-            <label class="chore-field-label" for="reward-description">
-                <i class="fas fa-align-left"></i> Description
-                <span class="chore-days-hint">(optional)</span>
-            </label>
-            <textarea id="reward-description" name="description"
-                      placeholder="Describe this amazing reward..."
-                      rows="2" class="modern-textarea"></textarea>
-        </div>
-
-        <!-- Image -->
-        <div class="chore-field-group reward-image-group">
-            <label class="chore-field-label">
-                <i class="fas fa-image"></i> Reward Image
-                <span class="chore-days-hint">(optional)</span>
-            </label>
-            <input type="hidden" id="reward-stock-image" name="stock_image_url">
-            <div class="reward-image-options">
-                <button type="button" id="stock-picker-toggle" onclick="toggleStockPicker()" class="stock-picker-btn">
-                    <i class="fas fa-images"></i>
-                    <span id="stock-picker-label">Choose a Stock Image</span>
-                    <i class="fas fa-chevron-down" id="stock-picker-chevron"></i>
-                </button>
-                <span class="reward-image-or">or</span>
-                <input type="text" id="reward-image" name="image_url" placeholder="Paste image URL" class="modern-input reward-url-input">
-                <span class="reward-image-or">or</span>
-                <input type="file" id="reward-image-upload" name="reward_image_file" accept="image/*" style="display:none;">
-                <button type="button" onclick="document.getElementById('reward-image-upload').click();" class="btn-upload-inline">
-                    <i class="fa-solid fa-upload"></i> Upload
-                </button>
-            </div>
-            <div class="stock-image-picker" id="stock-image-picker" style="display:none;margin-top:10px;">
-                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_takeout.svg') }}" onclick="selectStockImage(this)">
-                    <img src="{{ url_for('static', filename='images/rewards/reward_takeout.svg') }}" alt="Take Out Dinner">
-                    <span>Take Out Dinner</span>
-                </div>
-                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_order_in.svg') }}" onclick="selectStockImage(this)">
-                    <img src="{{ url_for('static', filename='images/rewards/reward_order_in.svg') }}" alt="Order In Dinner">
-                    <span>Order In Dinner</span>
-                </div>
-                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_shopping.svg') }}" onclick="selectStockImage(this)">
-                    <img src="{{ url_for('static', filename='images/rewards/reward_shopping.svg') }}" alt="Shopping Trip">
-                    <span>Shopping Trip</span>
-                </div>
-                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_movie.svg') }}" onclick="selectStockImage(this)">
-                    <img src="{{ url_for('static', filename='images/rewards/reward_movie.svg') }}" alt="Movie Night">
-                    <span>Movie Night</span>
-                </div>
-                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_baking.svg') }}" onclick="selectStockImage(this)">
-                    <img src="{{ url_for('static', filename='images/rewards/reward_baking.svg') }}" alt="Baking Day">
-                    <span>Baking Day</span>
-                </div>
-                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_minigolf.svg') }}" onclick="selectStockImage(this)">
-                    <img src="{{ url_for('static', filename='images/rewards/reward_minigolf.svg') }}" alt="Mini Golf">
-                    <span>Mini Golf</span>
-                </div>
-                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_screentime.svg') }}" onclick="selectStockImage(this)">
-                    <img src="{{ url_for('static', filename='images/rewards/reward_screentime.svg') }}" alt="Screen Time">
-                    <span>Screen Time</span>
-                </div>
-                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_tv.svg') }}" onclick="selectStockImage(this)">
-                    <img src="{{ url_for('static', filename='images/rewards/reward_tv.svg') }}" alt="TV Time">
-                    <span>TV Time</span>
-                </div>
-                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_icecream.svg') }}" onclick="selectStockImage(this)">
-                    <img src="{{ url_for('static', filename='images/rewards/reward_icecream.svg') }}" alt="Ice Cream">
-                    <span>Ice Cream</span>
-                </div>
-                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_gaming.svg') }}" onclick="selectStockImage(this)">
-                    <img src="{{ url_for('static', filename='images/rewards/reward_gaming.svg') }}" alt="Gaming Session">
-                    <span>Gaming Session</span>
-                </div>
-                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_swimming.svg') }}" onclick="selectStockImage(this)">
-                    <img src="{{ url_for('static', filename='images/rewards/reward_swimming.svg') }}" alt="Swimming">
-                    <span>Swimming</span>
-                </div>
-                <div class="stock-image-tile" data-url="{{ url_for('static', filename='images/rewards/reward_cafe.svg') }}" onclick="selectStockImage(this)">
-                    <img src="{{ url_for('static', filename='images/rewards/reward_cafe.svg') }}" alt="Café Treat">
-                    <span>Café Treat</span>
-                </div>
-            </div>
-        </div>
-
-        <button type="submit" class="btn-add-chore">
-            <i class="fas fa-plus"></i> Create Reward
-        </button>
-    </form>
-
-    <script>
-    const initialRewardSuggestions = [
-        'Millhouse Canteen', 'MiniGolf', '1 hour of ipad',
-        '1 hour of TV', 'A Movie', 'Baking Something Yum'
-    ];
-
-    let rewardSuggestions = [];
-    let rewardEditMode = false;
-
-    function initializeRewardSuggestions() {
-        if (localStorage.getItem('rewardSuggestions')) {
-            rewardSuggestions = JSON.parse(localStorage.getItem('rewardSuggestions'));
-        } else {
-            rewardSuggestions = [...initialRewardSuggestions];
-            saveRewardSuggestions();
-        }
-    }
-
-    function renderRewardSuggestions() {
-        const container = document.querySelector('.reward-suggestions');
-        container.innerHTML = '';
-        rewardSuggestions.forEach((reward, index) => {
-            if (rewardEditMode) {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'chore-suggestion-edit-item';
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.value = reward;
-                input.className = 'modern-input';
-                input.style.cssText = 'padding:4px 8px;font-size:0.85rem;width:120px;height:32px;';
-                const deleteBtn = document.createElement('button');
-                deleteBtn.innerHTML = '&times;';
-                deleteBtn.type = 'button';
-                deleteBtn.className = 'btn-suggestion-delete';
-                deleteBtn.onclick = () => {
-                    rewardSuggestions.splice(index, 1);
-                    saveRewardSuggestions();
-                    renderRewardSuggestions();
-                };
-                wrapper.appendChild(input);
-                wrapper.appendChild(deleteBtn);
-                container.appendChild(wrapper);
-            } else {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'chore-suggestion-chip';
-                button.textContent = reward;
-                button.onclick = function() {
-                    document.getElementById('reward-title').value = reward;
-                };
-                container.appendChild(button);
-            }
-        });
-    }
-
-    function toggleRewardEditMode() {
-        rewardEditMode = !rewardEditMode;
-        const btn = document.getElementById('reward-edit-mode-btn');
-        if (rewardEditMode) {
-            btn.innerHTML = '<i class="fas fa-save"></i> Save';
-            btn.onclick = function() {
-                const inputs = document.querySelectorAll('.reward-suggestions input[type="text"]');
-                rewardSuggestions = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
-                saveRewardSuggestions();
-                rewardEditMode = false;
-                btn.innerHTML = 'Edit';
-                btn.onclick = toggleRewardEditMode;
-                renderRewardSuggestions();
-            };
-        } else {
-            btn.innerHTML = 'Edit';
-            btn.onclick = toggleRewardEditMode;
-        }
-        renderRewardSuggestions();
-    }
-
-    function addNewRewardSuggestion() {
-        const input = document.getElementById('new-reward-suggestion');
-        const newReward = input.value.trim();
-        if (newReward && !rewardSuggestions.includes(newReward)) {
-            rewardSuggestions.push(newReward);
-            saveRewardSuggestions();
-            renderRewardSuggestions();
-            input.value = '';
-        }
-        document.getElementById('suggestion-input-wrap').style.display = 'none';
-    }
-
-    function toggleSuggestionInput() {
-        const wrap = document.getElementById('suggestion-input-wrap');
-        const visible = wrap.style.display === 'flex';
-        wrap.style.display = visible ? 'none' : 'flex';
-        if (!visible) document.getElementById('new-reward-suggestion').focus();
-    }
-
-    function saveRewardSuggestions() {
-        localStorage.setItem('rewardSuggestions', JSON.stringify(rewardSuggestions));
-    }
-
-    function toggleStockPicker() {
-        const picker = document.getElementById('stock-image-picker');
-        const chevron = document.getElementById('stock-picker-chevron');
-        const open = picker.style.display !== 'none';
-        picker.style.display = open ? 'none' : 'flex';
-        chevron.style.transform = open ? '' : 'rotate(180deg)';
-    }
-
-    function selectStockImage(tile) {
-        document.querySelectorAll('.stock-image-tile').forEach(t => t.classList.remove('selected'));
-        tile.classList.add('selected');
-        document.getElementById('reward-stock-image').value = tile.dataset.url;
-        document.getElementById('reward-image').value = '';
-        const label = tile.querySelector('span').textContent;
-        document.getElementById('stock-picker-label').textContent = '\u2713 ' + label;
-        document.getElementById('stock-picker-toggle').classList.add('stock-picker-chosen');
-        document.getElementById('stock-image-picker').style.display = 'none';
-        document.getElementById('stock-picker-chevron').style.transform = '';
-    }
-
-    function clearStockSelection() {
-        document.querySelectorAll('.stock-image-tile').forEach(t => t.classList.remove('selected'));
-        document.getElementById('reward-stock-image').value = '';
-        document.getElementById('stock-picker-label').textContent = 'Choose a Stock Image';
-        document.getElementById('stock-picker-toggle').classList.remove('stock-picker-chosen');
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        initializeRewardSuggestions();
-        renderRewardSuggestions();
-
-        // Assignee pill selection
-        const pills = document.querySelectorAll('.reward-assign-pill');
-        const hiddenInput = document.getElementById('reward-assignee-hidden');
-        if (pills.length > 0) {
-            pills[0].classList.add('selected');
-            hiddenInput.value = pills[0].getAttribute('data-person');
-        }
-        pills.forEach(pill => {
-            pill.addEventListener('click', function() {
-                pills.forEach(p => p.classList.remove('selected'));
-                this.classList.add('selected');
-                hiddenInput.value = this.getAttribute('data-person');
-            });
-        });
-
-        const urlInput = document.getElementById('reward-image');
-        if (urlInput) urlInput.addEventListener('input', clearStockSelection);
-        const fileInput = document.getElementById('reward-image-upload');
-        if (fileInput) {
-            fileInput.addEventListener('change', function() {
-                clearStockSelection();
-                document.getElementById('reward-image').value = '';
-            });
-        }
-    });
-    </script>
-</section>
-<section class="completed-rewards collapsible-section collapsed">
+<section class="completed-rewards collapsible-section collapsed" id="redeemed-section">
     <h2 class="section-toggle" style="text-align: center; color: #a78bfa;">
         <i class="fas fa-trophy" style="color: #a78bfa;"></i> Redeemed Rewards
         <i class="fas fa-chevron-down section-chevron"></i>
@@ -4858,33 +5334,6 @@ function updateStreakDisplay(column, streakCount) {
     </div>
 </div>
 
-<!--  Summary Section -->
-<section id="weekly-summary">
-    <h2 style="text-align: center; color: #ffd900; margin-bottom: 18px;">
-        <i class="fa-solid fa-crown" style="color: #ffd000;"></i> Weekly Summary
-    </h2>
-    <div style="display: flex; flex-wrap: wrap; gap: 24px; justify-content: center;">
-        {% for person in family %}
-        <div class="summary-card" style="background: #fffbe7; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px 20px; min-width: 260px; max-width: 320px; display: flex; flex-direction: column; align-items: center; position: relative;">
-            <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 10px;">
-                <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'default_avatar.png') }}" alt="{{ person.name }}" style="width: 56px; height: 56px; border-radius: 50%; border: 3px solid #ffd900; object-fit: cover;" onerror="this.onerror=null;this.src='/static/default_avatar.png';">
-                <span style="font-size: 1.35em; font-weight: 700; color: #222;">{{ person.name }}</span>
-            </div>
-            <div style="font-size: 1.1em; color: #333; margin-bottom: 8px;">
-                <b>Total Points This Week:</b> <span class="weekly-points" data-person="{{ person.name }}">0</span>
-            </div>
-            <div style="font-size: 1em; color: #444; margin-bottom: 8px;">
-                <b>Average Points/Week:</b> <span class="average-points" data-person="{{ person.name }}">0</span>
-            </div>
-            <div style="font-size: 0.98em; color: #666; margin-bottom: 8px;">
-                <b>All-Time Points:</b> <span class="alltime-points" data-person="{{ person.name }}">{{ person.points + person.bonus_points }}</span>
-            </div>
-            <div style="font-size: 0.95em; color: #888;">Week Ending: {{ end_of_week_date }}</div>
-        </div>
-        {% endfor %}
-    </div>
-    <div id="weekly-summary-total"></div>
-</section>
 
 <script>
 // --- Add/Delete Person Logic ---
@@ -5051,17 +5500,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Initialize weekly summary
-    updateWeeklySummary();
-    
-    // Set up a MutationObserver to watch for changes to points displays
-    const pointsDisplays = document.querySelectorAll('.points-display');
-    const observer = new MutationObserver(updateWeeklySummary);
-    const config = { childList: true, characterData: true, subtree: true };
-    
-    pointsDisplays.forEach(display => {
-        observer.observe(display, config);
-    });
 });
 
 // Initialize audio objects
@@ -5089,21 +5527,7 @@ function initializeAudio() {
 //     }
 // }
 
-// Theme toggle
-const themeToggle = document.getElementById('theme-toggle');
-const body = document.body;
-const savedTheme = localStorage.getItem('theme');
-if (savedTheme) {
-    body.setAttribute('data-theme', savedTheme);
-}
-if (themeToggle) {
-    themeToggle.addEventListener('click', () => {
-        const currentTheme = body.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        body.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-    });
-}
+// Theme removed — dark mode only
 
 // Add chore function
 function addChore(event) {
@@ -5458,9 +5882,9 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
         .then(response => response.json())
         .then(settings => {
             const bonusMode = settings.bonus_mode || 'static';
-            let bonusStatic = parseInt(settings.bonus_static) || 10;
-            let bonusMin = parseInt(settings.bonus_min) || 2;
-            let bonusMax = parseInt(settings.bonus_max) || 8;
+            let bonusStatic = parseFloat(settings.bonus_static) || 10;
+            let bonusMin = parseFloat(settings.bonus_min) || 2;
+            let bonusMax = parseFloat(settings.bonus_max) || 8;
             // If quiz correct, increase bonus
             if (correct) {
                 // Always award the highest possible bonus for correct answers
@@ -5505,7 +5929,7 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
                     bonusAwardingInProgress = false;
                 });
             } else if (bonusMode === 'range') {
-                let bonusPoints = Math.floor(Math.random() * (bonusMax - bonusMin + 1)) + bonusMin;
+                let bonusPoints = Math.round((Math.random() * (bonusMax - bonusMin) + bonusMin) * 10) / 10;
                 fetch('/award_bonus_points', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -5639,8 +6063,7 @@ function closeCelebration() {
             // Optionally, you could fetch the latest points from the backend here
             // For now, just trigger a UI update in case points were missed
             // (If you have an endpoint to get points, you could fetch and update here)
-            // updateWeeklySummary() will update the summary table as well
-            updateWeeklySummary();
+
         }
     }
 }
@@ -5946,31 +6369,6 @@ function randomStreamerColor() {
     return colors[Math.floor(Math.random()*colors.length)] + ' transparent transparent transparent';
 }
 
-// Update weekly summary function
-function updateWeeklySummary() {
-    const columns = document.querySelectorAll('.column');
-    let totalWeeklyPoints = 0;
-    
-    columns.forEach(column => {
-        const personName = column.getAttribute('data-person');
-        const pointsDisplay = column.querySelector('.points-display');
-        const pointsText = pointsDisplay ? pointsDisplay.textContent : '0 points';
-        const points = parseInt(pointsText) || 0;
-        
-        // Update the corresponding cell in the summary table
-        const pointsCell = document.querySelector(`.weekly-points[data-person="${personName}"]`);
-        if (pointsCell) {
-            pointsCell.textContent = points;
-            totalWeeklyPoints += points;
-        }
-    });
-    
-    // Update the total points display
-    const totalDisplay = document.getElementById("weekly-summary-total");
-    if (totalDisplay) {
-        totalDisplay.textContent = "Total Family Points : " + totalWeeklyPoints;
-    }
-}
 
 // Name editing functions
 let currentEditingPersonId = null;
@@ -6369,6 +6767,74 @@ function doRedeemReward(rewardId) {
         });
     });
 }
+</script>
+
+<script>
+// ── Side navigation ──────────────────────────────────────────────────────────
+(function() {
+    const nav = document.getElementById('side-nav');
+    const toggleBtn = document.getElementById('side-nav-toggle');
+    const COLLAPSED_KEY = 'sideNavCollapsed';
+
+    function setCollapsed(collapsed) {
+        nav.classList.toggle('side-nav-collapsed', collapsed);
+        document.body.classList.toggle('side-nav-body-collapsed', collapsed);
+        if (toggleBtn) {
+            toggleBtn.title = collapsed ? 'Open sidebar' : 'Close sidebar';
+            toggleBtn.querySelector('i').className = collapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+        }
+        localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0');
+    }
+
+    // Restore state on load
+    setCollapsed(localStorage.getItem(COLLAPSED_KEY) === '1');
+
+    toggleBtn?.addEventListener('click', () => {
+        setCollapsed(!nav.classList.contains('side-nav-collapsed'));
+    });
+
+    // Section scroll buttons
+    document.querySelectorAll('#side-nav .side-nav-btn[data-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const section = document.getElementById(btn.dataset.target);
+            if (!section) return;
+            if (section.classList.contains('collapsed')) section.classList.remove('collapsed');
+            const top = section.getBoundingClientRect().top + window.scrollY - 16;
+            window.scrollTo({ top, behavior: 'smooth' });
+            document.querySelectorAll('#side-nav .side-nav-btn').forEach(b => b.classList.remove('side-nav-active'));
+            btn.classList.add('side-nav-active');
+        });
+    });
+
+    // Mirror the existing admin lock button behaviour
+    const lockBtn = document.getElementById('side-nav-lock-btn');
+    const mainLockBtn = document.getElementById('adult-lock-btn');
+    if (lockBtn && mainLockBtn) {
+        const syncLock = () => {
+            const locked = mainLockBtn.classList.contains('locked');
+            lockBtn.querySelector('i').className = locked ? 'fas fa-lock' : 'fas fa-lock-open';
+            lockBtn.title = locked ? 'Unlock admin mode' : 'Lock admin mode';
+            lockBtn.classList.toggle('side-nav-active', !locked);
+        };
+        syncLock();
+        lockBtn.addEventListener('click', () => { mainLockBtn.click(); setTimeout(syncLock, 200); });
+        new MutationObserver(syncLock).observe(mainLockBtn, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    // Scroll highlight
+    const navSections = [...document.querySelectorAll('#side-nav .side-nav-btn[data-target]')]
+        .map(b => ({ btn: b, section: document.getElementById(b.dataset.target) }))
+        .filter(x => x.section);
+    window.addEventListener('scroll', () => {
+        const mid = window.scrollY + window.innerHeight / 3;
+        let active = null;
+        navSections.forEach(({ btn, section }) => {
+            if (section.getBoundingClientRect().top + window.scrollY <= mid) active = btn;
+        });
+        document.querySelectorAll('#side-nav .side-nav-btn[data-target]').forEach(b => b.classList.remove('side-nav-active'));
+        if (active) active.classList.add('side-nav-active');
+    }, { passive: true });
+})();
 </script>
 
 <div style="position:fixed; bottom:6px; right:10px; font-size:0.7em; color:rgba(255,255,255,0.25); pointer-events:none; z-index:1;">v2026.05.31-g</div>
