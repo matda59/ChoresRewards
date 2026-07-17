@@ -4055,15 +4055,20 @@ function deleteReward(rewardId) {
             hdr.appendChild(planBtn);
             const cartBtn = document.createElement('button');
             cartBtn.type = 'button';
-            if (isPlanned) {
-                cartBtn.className = 'meal-card-action-btn meal-card-btn--planned';
-                cartBtn.title = "In this week's meal plan";
-                cartBtn.innerHTML = '<i class="fas fa-calendar-check"></i>'; cartBtn.disabled = true;
-            } else if (isActive) {
+            if (isActive) {
                 cartBtn.className = 'meal-card-action-btn meal-card-btn--active';
                 cartBtn.title = 'Remove from shopping run';
                 cartBtn.innerHTML = '<i class="fas fa-cart-arrow-down"></i>';
                 cartBtn.addEventListener('click', () => { shoppingActive = shoppingActive.filter(k => k !== mealKey); renderIngredientsLibrary(); renderShoppingList(); debouncedSave(); });
+            } else if (isPlanned) {
+                cartBtn.className = 'meal-card-action-btn meal-card-btn--planned';
+                cartBtn.title = "In this week's meal plan — click to also add to shopping run";
+                cartBtn.innerHTML = '<i class="fas fa-calendar-check"></i>';
+                cartBtn.addEventListener('click', () => {
+                    if (!shoppingActive.includes(mealKey)) shoppingActive.push(mealKey);
+                    Object.keys(shoppingHidden).forEach(sid => { shoppingHidden[sid] = shoppingHidden[sid].filter(k => k !== mealKey); });
+                    renderIngredientsLibrary(); renderShoppingList(); debouncedSave();
+                });
             } else {
                 cartBtn.className = 'meal-card-action-btn';
                 cartBtn.title = 'Add to shopping run';
