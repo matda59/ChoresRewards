@@ -3219,6 +3219,69 @@ label,
     box-shadow: 0 2px 10px rgba(76,175,80,0.3);
 }
 
+/* Chore emoji picker */
+.chore-emoji-picker-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chore-emoji-preview-btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 1.15rem;
+    padding: 6px 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background 0.18s, border-color 0.18s;
+}
+.chore-emoji-preview-btn:hover {
+    background: rgba(255,255,255,0.14);
+    border-color: rgba(96,165,250,0.5);
+}
+
+.chore-emoji-grid {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 500;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    background: #1e2132;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 10px;
+    width: 280px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+}
+
+.chore-emoji-opt {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.25rem;
+    padding: 5px 7px;
+    line-height: 1;
+    transition: background 0.15s, border-color 0.15s;
+    color: inherit;
+}
+.chore-emoji-opt:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+}
+.chore-emoji-opt[data-emoji=""] {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.6);
+    padding: 6px 8px;
+}
+
 .btn-add-chore:hover {
     background: #45a049;
     box-shadow: 0 4px 16px rgba(76,175,80,0.45);
@@ -4384,6 +4447,36 @@ label,
 .shopping-archive-btn:hover {
     color: #fbbf24;
     background: rgba(251,191,36,0.1);
+}
+
+.shopping-edit-btn {
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.35);
+    cursor: pointer;
+    font-size: 0.78rem;
+    line-height: 1;
+    padding: 2px 5px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: color 0.2s, background 0.2s;
+}
+.shopping-edit-btn:hover {
+    color: #60a5fa;
+    background: rgba(96,165,250,0.1);
+}
+
+.shopping-inline-edit-input {
+    flex: 1 1 auto;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(96,165,250,0.5);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 0.9rem;
+    padding: 3px 8px;
+    outline: none;
+    min-width: 0;
+    width: 100%;
 }
 
 /* ── Archived Shopping Section ─────────────────────────────────────────── */

@@ -105,6 +105,13 @@ with app.app_context():
         if _svc_changed:
             db.session.commit()
 
+    # Safe migration: add icon column to chore table
+    if 'chore' in inspector.get_table_names():
+        chore_cols = [col['name'] for col in inspector.get_columns('chore')]
+        if 'icon' not in chore_cols:
+            db.session.execute(text('ALTER TABLE chore ADD COLUMN icon VARCHAR(20)'))
+            db.session.commit()
+
     # Clear stale upload references: null any avatar/image_url that points to a
     # file that no longer exists on disk (happens after container rebuilds when
     # the uploads volume is not yet mapped).

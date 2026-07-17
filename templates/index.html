@@ -3418,7 +3418,7 @@ function deleteReward(rewardId) {
         el.dataset.key = key;
         const qtyHtml = qty ? `<span class="shopping-item-qty">${qty}</span>` : '';
         const actionHtml = removable
-            ? `<button type="button" class="shopping-archive-btn" aria-label="Archive" title="Move to Old Shopping List"><i class="fas fa-box-archive"></i></button><button type="button" class="shopping-remove-btn" aria-label="Delete" title="Delete permanently">&#x2715;</button>`
+            ? `<button type="button" class="shopping-edit-btn" aria-label="Edit" title="Edit item"><i class="fas fa-pencil"></i></button><button type="button" class="shopping-archive-btn" aria-label="Archive" title="Move to Old Shopping List"><i class="fas fa-box-archive"></i></button><button type="button" class="shopping-remove-btn" aria-label="Delete" title="Delete permanently">&#x2715;</button>`
             : '';
         el.innerHTML = `
             <label class="shopping-item-label">
@@ -3432,6 +3432,41 @@ function deleteReward(rewardId) {
             debouncedSave();
         });
         if (removable) {
+            el.querySelector('.shopping-edit-btn').addEventListener('click', () => {
+                const label = el.querySelector('.shopping-item-label');
+                label.style.display = 'none';
+                const editInput = document.createElement('input');
+                editInput.type = 'text';
+                editInput.className = 'shopping-inline-edit-input';
+                editInput.value = name;
+                editInput.maxLength = 80;
+                el.insertBefore(editInput, label);
+                editInput.focus();
+                editInput.select();
+                let saved = false;
+                const doSave = () => {
+                    if (saved) return;
+                    saved = true;
+                    const newName = editInput.value.trim();
+                    if (newName && newName.toLowerCase() !== name.toLowerCase()) {
+                        const idx = shoppingGeneral.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
+                        if (idx !== -1) {
+                            const oldKey = `general::${name.toLowerCase()}`;
+                            const wasChecked = shoppingChecked[oldKey];
+                            delete shoppingChecked[oldKey];
+                            shoppingGeneral[idx].name = newName;
+                            shoppingChecked[`general::${newName.toLowerCase()}`] = wasChecked || false;
+                        }
+                        debouncedSave();
+                    }
+                    renderShoppingList();
+                };
+                editInput.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') { e.preventDefault(); doSave(); }
+                    if (e.key === 'Escape') { saved = true; renderShoppingList(); }
+                });
+                editInput.addEventListener('blur', doSave);
+            });
             el.querySelector('.shopping-archive-btn').addEventListener('click', () => {
                 const item = shoppingGeneral.find(i => i.name.toLowerCase() === name.toLowerCase());
                 shoppingGeneral = shoppingGeneral.filter(i => i.name.toLowerCase() !== name.toLowerCase());
@@ -4377,7 +4412,8 @@ function deleteReward(rewardId) {
 </div>
         <div id="kanban">
             {# ── Keyword-based chore icon macro ─────────────────────────────── #}
-            {% macro chore_icon(title) %}
+            {% macro chore_icon(title, icon=None) %}
+                {%- if icon -%}{{ icon }}{%- else -%}
                 {%- set t = title | lower -%}
                 {%- if 'tooth' in t or 'teeth' in t or 'dental' in t or 'brush' in t -%}🦷
                 {%- elif 'dishwasher' in t or 'dishes' in t or 'dish' in t -%}🍽️
@@ -4412,6 +4448,7 @@ function deleteReward(rewardId) {
                 {%- elif 'car' in t or 'drive' in t -%}🚗
                 {%- elif 'screen' in t or 'ipad' in t or 'computer' in t or 'phone' in t or 'tv' in t -%}📱
                 {%- else -%}✅
+                {%- endif -%}
                 {%- endif -%}
             {% endmacro %}
             {% set charlotte = family | selectattr("name", "equalto", "Charlotte") | list %}
@@ -4533,7 +4570,7 @@ function deleteReward(rewardId) {
                         <div class="chore{% if chore.due_datetime %} has-due-date{% endif %}" data-chore-id="{{ chore.id }}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px;">
                             <button class="btn-delete-chore-sm admin-only" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
                             <div class="chore-header">
-                                <span class="chore-icon">{{ chore_icon(chore.title) }}</span>
+                                <span class="chore-icon">{{ chore_icon(chore.title, chore.icon) }}</span>
                                 <span class="chore-title">{{ chore.title }}</span>
                             </div>
                             <div class="chore-meta">
@@ -4970,6 +5007,57 @@ function updateStreakDisplay(column, streakCount) {
             </div>
         </div>
 
+        <!-- Emoji icon picker -->
+        <div class="chore-field-group">
+            <label class="chore-field-label">
+                <i class="fas fa-face-smile"></i> Icon <span class="optional-label">(optional — auto-detected if left blank)</span>
+            </label>
+            <div class="chore-emoji-picker-wrap">
+                <button type="button" id="chore-emoji-preview-btn" class="chore-emoji-preview-btn" title="Click to choose an icon">
+                    <span id="chore-emoji-preview">✅</span>
+                    <i class="fas fa-chevron-down" style="font-size:0.65em;margin-left:4px;opacity:0.6;"></i>
+                </button>
+                <input type="hidden" id="chore-icon-input" name="icon" value="">
+                <div id="chore-emoji-grid" class="chore-emoji-grid" style="display:none;">
+                    <button type="button" class="chore-emoji-opt" data-emoji="">Auto ✨</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="✅">✅</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🍽️">🍽️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧺">🧺</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🗑️">🗑️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧹">🧹</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🚿">🚿</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🦷">🦷</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="👕">👕</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🌱">🌱</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🍳">🍳</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🥗">🥗</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🎵">🎵</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="📖">📖</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🎓">🎓</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🎒">🎒</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🐶">🐶</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🐱">🐱</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🦮">🦮</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🐾">🐾</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="💧">💧</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="💊">💊</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="📦">📦</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧽">🧽</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🛏️">🛏️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🚗">🚗</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🛒">🛒</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🎮">🎮</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="📱">📱</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🖥️">🖥️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="😴">😴</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🏋️">🏋️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="⭐">⭐</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🔥">🔥</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🌟">🌟</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Submit -->
         <button type="submit" class="btn-add-chore">
             <i class="fas fa-plus"></i> Add Chore
@@ -5158,8 +5246,38 @@ function updateStreakDisplay(column, streakCount) {
                 if (daysRow) daysRow.style.display = 'none';
                 if (repeatingLabel) repeatingLabel.textContent = 'Off';
                 if (dueWrap) dueWrap.style.display = 'none';
+                // Reset emoji picker
+                const iconInput = document.getElementById('chore-icon-input');
+                const previewEl = document.getElementById('chore-emoji-preview');
+                if (iconInput) iconInput.value = '';
+                if (previewEl) previewEl.textContent = '✅';
             }, 0);
         });
+
+        // Emoji picker
+        const emojiPreviewBtn = document.getElementById('chore-emoji-preview-btn');
+        const emojiPreviewEl = document.getElementById('chore-emoji-preview');
+        const choreIconInput = document.getElementById('chore-icon-input');
+        const emojiGrid = document.getElementById('chore-emoji-grid');
+        if (emojiPreviewBtn && emojiGrid) {
+            emojiPreviewBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                emojiGrid.style.display = emojiGrid.style.display === 'flex' ? 'none' : 'flex';
+            });
+            emojiGrid.querySelectorAll('.chore-emoji-opt').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const emoji = btn.dataset.emoji;
+                    choreIconInput.value = emoji;
+                    emojiPreviewEl.textContent = emoji || '✅';
+                    emojiGrid.style.display = 'none';
+                });
+            });
+            document.addEventListener('click', e => {
+                if (!emojiPreviewBtn.contains(e.target) && !emojiGrid.contains(e.target)) {
+                    emojiGrid.style.display = 'none';
+                }
+            });
+        }
     });
     </script>
 </section>
@@ -5645,6 +5763,9 @@ function addChore(event) {
         assigned_to: form['assigned_to'].value,
         points: form['points'].value,
     };
+    // Custom icon
+    const iconVal = document.getElementById('chore-icon-input')?.value?.trim();
+    if (iconVal) data.icon = iconVal;
     // Days of week
     const daysChecked = Array.from(form.querySelectorAll('input[name="days_of_week"]:checked')).map(cb => cb.value);
     if (daysChecked.length > 0) {
@@ -5771,7 +5892,7 @@ function injectNewChoreCard(resp, formData) {
     const cardHtml = `<div class="chore" data-chore-id="${resp.chore_id}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px;">
         <button class="btn-delete-chore-sm" onclick="confirmDeleteChore(${resp.chore_id}, ${isDaily})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
         <div class="chore-header">
-            <span class="chore-icon">${_getChoreIcon(formData.title)}</span>
+            <span class="chore-icon">${formData.icon || _getChoreIcon(formData.title)}</span>
             <span class="chore-title">${_escapeHtml(formData.title)}</span>
         </div>
         <div class="chore-meta">

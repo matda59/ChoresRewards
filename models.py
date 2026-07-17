@@ -97,6 +97,7 @@ class Chore(db.Model):
     due_date = db.Column(db.Date, nullable=True)  # For daily chore scheduling
     due_datetime = db.Column(db.DateTime, nullable=True)  # New field for due date and time
     deleted = db.Column(db.Boolean, default=False)  # New field to track deletion for daily chores
+    icon = db.Column(db.String(20), nullable=True)  # Optional custom emoji icon
     
     def __init__(self, **kwargs):
         super(Chore, self).__init__(**kwargs)
@@ -119,7 +120,8 @@ class Chore(db.Model):
             'is_daily': self.is_daily,
             'days_of_week': days_of_week,
             'due_date': self.due_date.isoformat() if self.due_date else None,
-            'date_completed': self.date_completed.isoformat() if self.date_completed else None
+            'date_completed': self.date_completed.isoformat() if self.date_completed else None,
+            'icon': self.icon
         }
 
     @staticmethod

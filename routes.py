@@ -2576,6 +2576,11 @@ def add_chore():
             is_daily = True  # Force is_daily True if days_of_week is set
         else:
             days_of_week_str = None
+        icon = None
+        if request.is_json:
+            raw_icon = str(data.get('icon', '') or '').strip()
+            if raw_icon:
+                icon = raw_icon[:20]
         new_chore = Chore(
             title=title,
             assigned_to=person.name,
@@ -2586,7 +2591,8 @@ def add_chore():
             date_completed=None,
             due_date=due_datetime.date() if due_datetime else (date.today() if is_daily else None),
             due_datetime=due_datetime,
-            days_of_week=days_of_week_str
+            days_of_week=days_of_week_str,
+            icon=icon
         )
         
         db.session.add(new_chore)
