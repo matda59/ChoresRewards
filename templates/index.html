@@ -812,11 +812,16 @@ window.addEventListener('DOMContentLoaded', function() {
 <!-- All site content is wrapped in the site-content container -->
 <div id="site-content" style="display:none;">
     <header>
-<div class="header-content" style="display:flex; align-items:center; justify-content:flex-start; background:linear-gradient(135deg,#141f33 0%,#1a2840 100%); padding:0.75rem 1.5rem; border-radius:14px; border-bottom:1px solid rgba(255,255,255,0.07); margin-bottom:1.2rem; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
-    <img src="{{ url_for('static', filename='images/mascot-transp.png') }}" 
-         alt="Chores Reward Icon" 
-         style="height:70px; width:70px; margin-right:10px;">
-    <h2 style="color: white; margin:0; font-size:1.4rem; text-transform:none; letter-spacing:0;">Chores and Rewards</h2>
+<div class="header-content" style="display:flex; align-items:center; justify-content:space-between; background:linear-gradient(135deg,#141f33 0%,#1a2840 100%); padding:0.75rem 1.5rem; border-radius:14px; border-bottom:1px solid rgba(255,255,255,0.07); margin-bottom:1.2rem; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+    <div style="display:flex; align-items:center;">
+        <img src="{{ url_for('static', filename='images/mascot-transp.png') }}" 
+             alt="Chores Reward Icon" 
+             style="height:70px; width:70px; margin-right:10px;">
+        <h2 style="color: white; margin:0; font-size:1.4rem; text-transform:none; letter-spacing:0;">Chores and Rewards</h2>
+    </div>
+    <button class="mute-toggle" id="mute-toggle" title="Mute All Sounds" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:10px;border-radius:50%;cursor:pointer;font-size:1.2em;">
+        <i class="fas fa-volume-up" id="mute-icon"></i>
+    </button>
 </div>
     <!-- Navigation -->
 <nav class="activity-page-nav">
@@ -844,11 +849,7 @@ window.addEventListener('DOMContentLoaded', function() {
     </div>
 
 
-    <div style="display:flex;align-items:center;gap:10px; margin-left:4px; margin-bottom:0.75rem;">
-        <button class="mute-toggle" id="mute-toggle" title="Mute All Sounds" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:10px;border-radius:50%;cursor:pointer;font-size:1.2em;">
-            <i class="fas fa-volume-up" id="mute-icon"></i>
-        </button>
-    </div>
+
  
 
 <!-- Edit Name Modal -->
@@ -3259,6 +3260,18 @@ function deleteReward(rewardId) {
         </div>
     </div>
 
+    <div class="shopping-archived-wrap collapsible-section collapsed" id="shopping-archived-section">
+        <h3 class="section-toggle shopping-archived-toggle">
+            <i class="fas fa-box-archive"></i> Old Shopping List
+            <span id="shopping-archived-count" class="shopping-archived-count"></span>
+            <i class="fas fa-chevron-down section-chevron"></i>
+        </h3>
+        <div id="shopping-archived-list"></div>
+        <div class="shopping-archived-actions">
+            <button type="button" class="edit-btn" id="shopping-clear-archived-btn"><i class="fas fa-trash-alt"></i> Clear All</button>
+        </div>
+    </div>
+
 </section>
 
 <section class="meal-planner-section collapsible-section collapsed" id="meal-library-section">
@@ -3299,6 +3312,7 @@ function deleteReward(rewardId) {
     let storeConfig = {{ shopping_stores | tojson }};
     let mealImages = {{ meal_images | tojson }};
     let shoppingMealOrder = {{ shopping_meal_order | tojson }};
+    let shoppingArchived = {{ shopping_list_archived | tojson }};
     // Expose for use by meal planner script
     window.mealImages = mealImages;
     window.mealIngredients = mealIngredients;
@@ -3366,7 +3380,7 @@ function deleteReward(rewardId) {
             fetch('/api/shopping_list', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ checked: shoppingChecked, general: shoppingGeneral, hidden: shoppingHidden, active: shoppingActive, meal_order: shoppingMealOrder })
+                body: JSON.stringify({ checked: shoppingChecked, general: shoppingGeneral, hidden: shoppingHidden, active: shoppingActive, meal_order: shoppingMealOrder, archived: shoppingArchived })
             }).catch(() => {});
         }, 900);
     }
@@ -3403,14 +3417,14 @@ function deleteReward(rewardId) {
         el.className = 'shopping-item' + (checked ? ' shopping-item-checked' : '');
         el.dataset.key = key;
         const qtyHtml = qty ? `<span class="shopping-item-qty">${qty}</span>` : '';
-        const removeHtml = removable
-            ? `<button type="button" class="shopping-remove-btn" aria-label="Remove">&#x2715;</button>`
+        const actionHtml = removable
+            ? `<button type="button" class="shopping-archive-btn" aria-label="Archive" title="Move to Old Shopping List"><i class="fas fa-box-archive"></i></button><button type="button" class="shopping-remove-btn" aria-label="Delete" title="Delete permanently">&#x2715;</button>`
             : '';
         el.innerHTML = `
             <label class="shopping-item-label">
                 <input type="checkbox" class="shopping-checkbox"${checked ? ' checked' : ''}>
                 <span class="shopping-item-name">${name}${qtyHtml}</span>
-            </label>${removeHtml}`;
+            </label>${actionHtml}`;
         el.querySelector('.shopping-checkbox').addEventListener('change', e => {
             shoppingChecked[key] = e.target.checked;
             el.classList.toggle('shopping-item-checked', e.target.checked);
@@ -3418,6 +3432,17 @@ function deleteReward(rewardId) {
             debouncedSave();
         });
         if (removable) {
+            el.querySelector('.shopping-archive-btn').addEventListener('click', () => {
+                const item = shoppingGeneral.find(i => i.name.toLowerCase() === name.toLowerCase());
+                shoppingGeneral = shoppingGeneral.filter(i => i.name.toLowerCase() !== name.toLowerCase());
+                delete shoppingChecked[key];
+                if (item && !shoppingArchived.some(a => a.name.toLowerCase() === name.toLowerCase())) {
+                    shoppingArchived.unshift(item);
+                }
+                renderShoppingList();
+                renderArchivedList();
+                debouncedSave();
+            });
             el.querySelector('.shopping-remove-btn').addEventListener('click', () => {
                 shoppingGeneral = shoppingGeneral.filter(i => i.name.toLowerCase() !== name.toLowerCase());
                 delete shoppingChecked[key];
@@ -3922,6 +3947,16 @@ function deleteReward(rewardId) {
             .then(data => { if (data.success) { mealImages[mealKey] = data.image_url; renderIngredientsLibrary(); } });
     }
 
+    function saveMealImageUrl(mealKey, url) {
+        fetch('/api/meal_image_url', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({meal_key: mealKey, url: url})
+        })
+        .then(r => r.json())
+        .then(data => { if (data.success) { mealImages[mealKey] = url; renderIngredientsLibrary(); } });
+    }
+
     function renderIngredientsLibrary() {
         // Keep globals in sync for meal planner picker/display
         window.mealImages = mealImages;
@@ -3958,6 +3993,13 @@ function deleteReward(rewardId) {
                 const chBtn = document.createElement('button');
                 chBtn.type = 'button'; chBtn.className = 'meal-card-img-btn';
                 chBtn.innerHTML = '<i class="fas fa-camera"></i>'; chBtn.title = 'Change photo';
+                const chUrlBtn = document.createElement('button');
+                chUrlBtn.type = 'button'; chUrlBtn.className = 'meal-card-img-btn';
+                chUrlBtn.innerHTML = '<i class="fas fa-link"></i>'; chUrlBtn.title = 'Set image URL';
+                chUrlBtn.addEventListener('click', () => {
+                    const url = prompt('Enter image URL:');
+                    if (url && url.trim()) saveMealImageUrl(mealKey, url.trim());
+                });
                 const rmBtn = document.createElement('button');
                 rmBtn.type = 'button'; rmBtn.className = 'meal-card-img-btn meal-card-img-btn--remove';
                 rmBtn.innerHTML = '<i class="fas fa-trash"></i>'; rmBtn.title = 'Remove photo';
@@ -3968,7 +4010,7 @@ function deleteReward(rewardId) {
                 const fi = document.createElement('input'); fi.type = 'file'; fi.accept = 'image/*'; fi.style.display = 'none';
                 fi.addEventListener('change', () => uploadMealImage(mealKey, fi.files[0]));
                 chBtn.addEventListener('click', () => fi.click());
-                overlay.appendChild(chBtn); overlay.appendChild(rmBtn);
+                overlay.appendChild(chBtn); overlay.appendChild(chUrlBtn); overlay.appendChild(rmBtn);
                 imgArea.appendChild(overlay); imgArea.appendChild(fi);
             } else {
                 const ph = document.createElement('div');
@@ -3978,11 +4020,22 @@ function deleteReward(rewardId) {
                 ph.appendChild(emoSpan);
                 const upBtn = document.createElement('button');
                 upBtn.type = 'button'; upBtn.className = 'meal-card-upload-btn';
-                upBtn.innerHTML = '<i class="fas fa-camera"></i> Add photo';
+                upBtn.innerHTML = '<i class="fas fa-camera"></i> Photo';
                 const fi = document.createElement('input'); fi.type = 'file'; fi.accept = 'image/*'; fi.style.display = 'none';
                 fi.addEventListener('change', () => uploadMealImage(mealKey, fi.files[0]));
                 upBtn.addEventListener('click', () => fi.click());
-                ph.appendChild(upBtn); ph.appendChild(fi);
+                const urlBtn = document.createElement('button');
+                urlBtn.type = 'button'; urlBtn.className = 'meal-card-upload-btn';
+                urlBtn.innerHTML = '<i class="fas fa-link"></i> URL';
+                urlBtn.addEventListener('click', () => {
+                    const url = prompt('Enter image URL:');
+                    if (url && url.trim()) saveMealImageUrl(mealKey, url.trim());
+                });
+                const btnRow = document.createElement('div');
+                btnRow.style.cssText = 'display:flex;gap:4px;flex-shrink:0;';
+                btnRow.appendChild(upBtn); btnRow.appendChild(urlBtn);
+                ph.appendChild(fi);
+                ph.appendChild(btnRow);
                 imgArea.appendChild(ph);
             }
             card.appendChild(imgArea);
@@ -4134,8 +4187,57 @@ function deleteReward(rewardId) {
         });
         renderIngredientsLibrary();
         populateStoreSelects();
+        renderArchivedList();
     }
     window.renderShoppingList = renderShoppingList;
+
+    function renderArchivedList() {
+        const list = document.getElementById('shopping-archived-list');
+        const countEl = document.getElementById('shopping-archived-count');
+        if (!list) return;
+        list.innerHTML = '';
+        if (countEl) countEl.textContent = shoppingArchived.length ? shoppingArchived.length : '';
+        if (!shoppingArchived.length) {
+            list.innerHTML = '<div class="shopping-empty-msg" style="padding:8px 12px;">No archived items yet.</div>';
+            return;
+        }
+        shoppingArchived.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'shopping-archived-row';
+            const storeLabel = storeConfig.find(s => s.id === item.store)?.name || item.store || '';
+            row.innerHTML = `
+                <span class="shopping-archived-name">${item.name}</span>
+                ${storeLabel ? `<span class="shopping-archived-store">${storeLabel}</span>` : ''}
+                <button type="button" class="shopping-restore-btn" title="Restore to shopping list"><i class="fas fa-rotate-left"></i> Restore</button>
+                <button type="button" class="shopping-remove-btn" title="Delete permanently">&#x2715;</button>`;
+            row.querySelector('.shopping-restore-btn').addEventListener('click', () => {
+                if (!shoppingGeneral.some(g => g.name.toLowerCase() === item.name.toLowerCase())) {
+                    shoppingGeneral.push(item);
+                }
+                shoppingArchived = shoppingArchived.filter(a => a.name.toLowerCase() !== item.name.toLowerCase());
+                renderShoppingList();
+                debouncedSave();
+            });
+            row.querySelector('.shopping-remove-btn').addEventListener('click', () => {
+                shoppingArchived = shoppingArchived.filter(a => a.name.toLowerCase() !== item.name.toLowerCase());
+                renderArchivedList();
+                debouncedSave();
+            });
+            list.appendChild(row);
+        });
+    }
+
+    document.getElementById('shopping-clear-archived-btn')?.addEventListener('click', () => {
+        if (!shoppingArchived.length) return;
+        showUnifiedModal({
+            icon: '<i class="fas fa-trash" style="color:#f87171;"></i>',
+            message: 'Clear all archived items? This cannot be undone.',
+            buttons: [
+                { text: 'Clear All', color: '#ef4444', onClick: () => { shoppingArchived = []; renderArchivedList(); debouncedSave(); } },
+                { text: 'Cancel', color: '#6b7280', onClick: null }
+            ]
+        });
+    });
 
     // Add store
     document.getElementById('add-store-btn')?.addEventListener('click', () => {

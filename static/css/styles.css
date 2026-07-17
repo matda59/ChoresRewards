@@ -4369,7 +4369,94 @@ label,
     background: rgba(248,113,113,0.1);
 }
 
-.shopping-empty-msg {
+.shopping-archive-btn {
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.35);
+    cursor: pointer;
+    font-size: 0.82rem;
+    line-height: 1;
+    padding: 2px 5px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: color 0.2s, background 0.2s;
+}
+.shopping-archive-btn:hover {
+    color: #fbbf24;
+    background: rgba(251,191,36,0.1);
+}
+
+/* ── Archived Shopping Section ─────────────────────────────────────────── */
+.shopping-archived-wrap {
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin-top: 14px;
+    padding-top: 4px;
+}
+.shopping-archived-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: rgba(255,255,255,0.55);
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 6px 4px;
+    user-select: none;
+}
+.shopping-archived-toggle:hover { color: rgba(255,255,255,0.8); }
+.shopping-archived-count {
+    background: rgba(251,191,36,0.2);
+    color: #fbbf24;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.shopping-archived-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.12s;
+}
+.shopping-archived-row:hover { background: rgba(255,255,255,0.04); }
+.shopping-archived-name {
+    flex: 1;
+    font-size: 0.84rem;
+    color: rgba(255,255,255,0.65);
+}
+.shopping-archived-store {
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 1px 7px;
+    flex-shrink: 0;
+}
+.shopping-restore-btn {
+    border: 1px solid rgba(96,165,250,0.25);
+    background: rgba(96,165,250,0.1);
+    color: #93c5fd;
+    cursor: pointer;
+    font-size: 0.74rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    transition: background 0.18s, color 0.18s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.shopping-restore-btn:hover {
+    background: rgba(96,165,250,0.22);
+    color: #bfdbfe;
+}
+.shopping-archived-actions {
+    padding: 8px 4px 4px;
+}
+
+
     color: rgba(255,255,255,0.38);
     font-size: 0.8rem;
     font-style: italic;
@@ -4604,7 +4691,7 @@ label,
 
 .meal-card-img-area {
     position: relative;
-    height: 150px;
+    height: 100px;
     overflow: hidden;
     background: linear-gradient(135deg, rgba(96,165,250,0.12) 0%, rgba(167,139,250,0.12) 100%);
 }
@@ -4619,29 +4706,32 @@ label,
 .meal-card-img-placeholder {
     height: 100%;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
+    padding: 0 8px;
 }
 
 .meal-card-emoji {
-    font-size: 3rem;
+    font-size: 2rem;
     line-height: 1;
+    flex-shrink: 0;
 }
 
 .meal-card-upload-btn {
     background: rgba(255,255,255,0.12);
     border: 1px solid rgba(255,255,255,0.2);
     color: rgba(255,255,255,0.7);
-    border-radius: 20px;
-    padding: 5px 12px;
-    font-size: 0.78rem;
+    border-radius: 16px;
+    padding: 3px 8px;
+    font-size: 0.7rem;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
+    white-space: nowrap;
 }
 .meal-card-upload-btn:hover { background: rgba(255,255,255,0.22); color: #fff; }
 
@@ -4721,7 +4811,7 @@ label,
     display: flex;
     align-items: center;
     gap: 5px;
-    padding: 5px 10px;
+    padding: 2px 8px;
     border-bottom: 1px solid rgba(255,255,255,0.04);
     transition: background 0.12s;
 }

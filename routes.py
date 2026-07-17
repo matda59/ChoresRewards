@@ -364,6 +364,7 @@ def _get_shopping_data():
     hidden = raw_list.get('hidden', {}) if isinstance(raw_list, dict) else {}
     active = raw_list.get('active', []) if isinstance(raw_list, dict) else []
     meal_order = raw_list.get('meal_order', []) if isinstance(raw_list, dict) else []
+    archived = raw_list.get('archived', []) if isinstance(raw_list, dict) else []
     stores = _get_shopping_stores()
     meal_images = raw_images if isinstance(raw_images, dict) else {}
     return (
@@ -375,6 +376,7 @@ def _get_shopping_data():
         stores,
         meal_images,
         meal_order if isinstance(meal_order, list) else [],
+        archived if isinstance(archived, list) else [],
     )
 
 
@@ -1191,6 +1193,29 @@ def api_meal_image():
         return jsonify({'success': False, 'error': str(exc)}), 400
 
 
+@routes_bp.route('/api/meal_image_url', methods=['POST'])
+def api_meal_image_url():
+    try:
+        data = request.get_json() or {}
+        meal_key = str(data.get('meal_key', '')).strip().lower()[:80]
+        url = str(data.get('url', '')).strip()[:2048]
+        if not meal_key:
+            return jsonify({'success': False, 'error': 'meal_key required'}), 400
+        if not url or not url.startswith(('http://', 'https://')):
+            return jsonify({'success': False, 'error': 'Invalid URL: must start with http:// or https://'}), 400
+        try:
+            images = _json.loads(AppSetting.get('meal_images_json', '{}'))
+        except Exception:
+            images = {}
+        if not isinstance(images, dict):
+            images = {}
+        images[meal_key] = url
+        AppSetting.set('meal_images_json', _json.dumps(images))
+        return jsonify({'success': True, 'image_url': url})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
 @routes_bp.route('/api/meal_image/delete', methods=['POST'])
 def api_meal_image_delete():
     try:
@@ -1226,7 +1251,8 @@ def api_shopping_list():
                             'general': data.get('general', []),
                             'hidden': data.get('hidden', {}),
                             'active': data.get('active', []),
-                            'meal_order': data.get('meal_order', [])})
+                            'meal_order': data.get('meal_order', []),
+                            'archived': data.get('archived', [])})
 
         data = request.get_json() or {}
         checked = data.get('checked', {})
@@ -1281,9 +1307,23 @@ def api_shopping_list():
                 clean_meal_order.append(key)
                 seen_order.add(key)
 
-        payload = {'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden, 'active': clean_active, 'meal_order': clean_meal_order}
+        archived = data.get('archived', [])
+        if not isinstance(archived, list):
+            archived = []
+        seen_arch = set()
+        clean_archived = []
+        for item in archived:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get('name', '')).strip()[:80]
+            store = re.sub(r'[^a-z0-9\-]', '', str(item.get('store', '')).strip().lower())[:50]
+            if name and name.lower() not in seen_arch:
+                clean_archived.append({'name': name, 'store': store})
+                seen_arch.add(name.lower())
+
+        payload = {'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden, 'active': clean_active, 'meal_order': clean_meal_order, 'archived': clean_archived}
         AppSetting.set('shopping_list_json', _json.dumps(payload))
-        return jsonify({'success': True, 'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden, 'active': clean_active, 'meal_order': clean_meal_order})
+        return jsonify({'success': True, 'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden, 'active': clean_active, 'meal_order': clean_meal_order, 'archived': clean_archived})
     except Exception as exc:
         return jsonify({'success': False, 'error': str(exc)}), 400
 
@@ -1601,7 +1641,7 @@ def index():
     meal_planner_week_start = _get_week_start()
     meal_planner_week_days = _build_meal_week_days(meal_planner_week_start)
     meal_planner_plan, meal_planner_suggestions, meal_planner_recurring = _get_meal_planner_data(meal_planner_week_start)
-    meal_ingredients, shopping_list_checked, shopping_list_general, shopping_hidden, shopping_active, shopping_stores, meal_images, shopping_meal_order = _get_shopping_data()
+    meal_ingredients, shopping_list_checked, shopping_list_general, shopping_hidden, shopping_active, shopping_stores, meal_images, shopping_meal_order, shopping_list_archived = _get_shopping_data()
 
     try:
         _notes_raw = _json.loads(AppSetting.get('notes_kanban_json', '{}'))
@@ -1710,6 +1750,7 @@ def index():
         shopping_stores=shopping_stores,
         meal_images=meal_images,
         shopping_meal_order=shopping_meal_order,
+        shopping_list_archived=shopping_list_archived,
         notes_columns=notes_columns,
         notes_notes=notes_notes,
         timedelta=timedelta,
