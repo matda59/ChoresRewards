@@ -4,6 +4,7 @@
     <head>
     <script>
         window.REWARD_SYSTEM = "{{ reward_system }}";
+        window.APP_TIMEZONE  = {{ timezone | tojson }};
     </script>
         <noscript>
             <style>
@@ -822,9 +823,30 @@ window.addEventListener('DOMContentLoaded', function() {
              style="height:70px; width:70px; margin-right:10px;">
         <h2 style="color: white; margin:0; font-size:1.4rem; text-transform:none; letter-spacing:0;">Chores and Rewards</h2>
     </div>
+    <!-- Weather Widget -->
+    <div id="weather-widget" title="Click for 7-day forecast" style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:8px 14px;color:white;cursor:pointer;flex-shrink:0;transition:background 0.15s;">
+        <i id="weather-icon" class="fas fa-sun" style="font-size:1.6em;color:#fbbf24;"></i>
+        <div style="line-height:1.2;">
+            <div id="weather-temp" style="font-size:1.15em;font-weight:700;">--°C</div>
+            <div id="weather-desc" style="font-size:0.68em;opacity:0.65;white-space:nowrap;">Locating…</div>
+        </div>
+    </div>
     <button class="mute-toggle" id="mute-toggle" title="Mute All Sounds" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:10px;border-radius:50%;cursor:pointer;font-size:1.2em;">
         <i class="fas fa-volume-up" id="mute-icon"></i>
     </button>
+</div>
+
+<!-- 7-Day Forecast Modal -->
+<div id="weather-forecast-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:#1a2438; border:1px solid rgba(255,255,255,0.12); border-radius:16px; padding:24px; max-width:640px; width:92%; box-shadow:0 12px 48px rgba(0,0,0,0.5);">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <h3 id="weather-forecast-title" style="color:#fff; margin:0; font-size:1.15em;"><i class="fas fa-cloud-sun" style="margin-right:8px;color:#fbbf24;"></i>7-Day Forecast</h3>
+            <button onclick="document.getElementById('weather-forecast-modal').style.display='none';" style="background:transparent;border:none;color:#94a3b8;font-size:1.3em;cursor:pointer;line-height:1;">&times;</button>
+        </div>
+        <div id="weather-forecast-days" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(78px, 1fr)); gap:10px;">
+            <div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:20px;">Loading forecast…</div>
+        </div>
+    </div>
 </div>
     <!-- Navigation -->
 <nav class="activity-page-nav">
@@ -2064,6 +2086,14 @@ window.addEventListener('DOMContentLoaded', function() {
     <section class="rewards-section collapsible-section" style="margin-top:1rem;" id="events-section">
         <h2 class="section-title section-toggle">
             <i class="fas fa-calendar-alt" style="color:#60a5fa;"></i> <span style="color:#60a5fa;">Upcoming Family Events</span>
+            <div class="gcal-view-switch" onclick="event.stopPropagation();" title="Switch calendar view">
+                <button type="button" class="gcal-view-switch-btn" data-gcal-view="grid" onclick="event.stopPropagation(); setGcalView('grid');" title="Time grid view">
+                    <i class="fas fa-stream"></i>
+                </button>
+                <button type="button" class="gcal-view-switch-btn" data-gcal-view="list" onclick="event.stopPropagation(); setGcalView('list');" title="List view">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
             <i class="fas fa-chevron-down section-chevron"></i>
         </h2>
         {% if google_calendar_error %}
@@ -2092,18 +2122,60 @@ window.addEventListener('DOMContentLoaded', function() {
         </div>
         {% else %}
         <div class="google-week-calendar">
-            <div class="gcal-week-grid">
+            <div class="gcal-timegrid" id="gcal-view-grid">
+                <div class="gcal-timegrid-header">
+                    <div class="gcal-time-gutter"></div>
+                    {% for day in google_calendar_week_columns %}
+                    <div class="gcal-day-header{% if day.is_today %} gcal-day-today{% endif %}">
+                        <div class="gcal-day-name">{{ day.day_name }}</div>
+                        <div class="gcal-day-date">{{ day.date_label }}</div>
+                        {% if day.all_day_events %}
+                        <div class="gcal-allday-row">
+                            {% for event in day.all_day_events %}
+                            {% if event.html_link %}<a href="{{ event.html_link }}" target="_blank" rel="noopener"{% else %}<span{% endif %} class="gcal-allday-chip" style="--gcal-event-color: {{ event.color }}; --gcal-event-color-tint: {{ event.color_tint }};" title="{{ event.title }}">{{ event.title }}{% if event.html_link %}</a>{% else %}</span>{% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="gcal-timegrid-scroll" id="gcal-timegrid-scroll">
+                    <div class="gcal-timegrid-body">
+                        <div class="gcal-time-gutter">
+                            {% for label in gcal_hour_labels %}
+                            <div class="gcal-hour-row"><span class="gcal-hour-label">{{ label }}</span></div>
+                            {% endfor %}
+                        </div>
+                        {% for day in google_calendar_week_columns %}
+                        <div class="gcal-day-col{% if day.is_today %} gcal-day-today{% endif %}" {% if day.is_today %}id="gcal-today-col"{% endif %}>
+                            {% for label in gcal_hour_labels %}<div class="gcal-hour-row"></div>{% endfor %}
+                            {% for event in day.events %}
+                            <div class="gcal-tg-event" style="top:{{ event.start_minutes }}px; height:{{ event.duration_minutes if event.duration_minutes > 22 else 22 }}px; left:{{ (100 / event.col_count * event.col_index) }}%; width:calc({{ (100 / event.col_count) }}% - 4px); --gcal-event-color: {{ event.color }}; --gcal-event-color-tint: {{ event.color_tint }};" title="{{ event.title }}{% if event.location %} · {{ event.location }}{% endif %}">
+                                {% if event.html_link %}<a href="{{ event.html_link }}" target="_blank" rel="noopener" class="gcal-tg-event-inner">{% else %}<div class="gcal-tg-event-inner">{% endif %}
+                                    <div class="gcal-tg-event-time">{{ event.start_time_display }}{% if event.duration_display %} <span class="gcal-tg-event-duration">({{ event.duration_display }})</span>{% endif %}</div>
+                                    <div class="gcal-tg-event-title">{{ event.title }}</div>
+                                    {% if event.location %}<div class="gcal-tg-event-location">{{ event.location }}</div>{% endif %}
+                                {% if event.html_link %}</a>{% else %}</div>{% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="gcal-week-grid" id="gcal-view-list">
                 {% for day in google_calendar_week_columns %}
+                {% set day_all_events = day.all_day_events + day.events %}
                 <div class="gcal-day-column">
                     <div class="gcal-day-header">
                         <div class="gcal-day-name">{{ day.day_name }}</div>
                         <div class="gcal-day-date">{{ day.date_label }}</div>
                     </div>
                     <div class="gcal-day-events">
-                        {% if day.events|length == 0 %}
+                        {% if day_all_events|length == 0 %}
                         <div class="gcal-no-events">No events</div>
                         {% else %}
-                            {% for event in day.events %}
+                            {% for event in day_all_events %}
                             <div class="gcal-event-card" style="--gcal-event-color: {{ event.color }}; --gcal-event-color-tint: {{ event.color_tint }};">
                                 <div class="gcal-event-time">
                                     {{ event.start_time_display }}{% if event.end_time_display %} - {{ event.end_time_display }}{% endif %}
@@ -2124,6 +2196,52 @@ window.addEventListener('DOMContentLoaded', function() {
                 {% endfor %}
             </div>
         </div>
+        <script>
+        (function() {
+            const gridView = document.getElementById('gcal-view-grid');
+            const listView = document.getElementById('gcal-view-list');
+            const todayCol = document.getElementById('gcal-today-col');
+            const scrollEl = document.getElementById('gcal-timegrid-scroll');
+            const switchBtns = document.querySelectorAll('.gcal-view-switch-btn');
+
+            function updateNowLine() {
+                if (!todayCol) return 0;
+                const now = new Date();
+                const minutes = now.getHours() * 60 + now.getMinutes();
+                let line = todayCol.querySelector('.gcal-now-line');
+                if (!line) {
+                    line = document.createElement('div');
+                    line.className = 'gcal-now-line';
+                    line.innerHTML = '<span class="gcal-now-dot"></span>';
+                    todayCol.appendChild(line);
+                }
+                line.style.top = minutes + 'px';
+                return minutes;
+            }
+
+            function scrollToNow() {
+                if (!scrollEl) return;
+                scrollEl.scrollTop = Math.max(updateNowLine() - 120, 0);
+            }
+
+            function applyGcalView(mode) {
+                const isList = mode === 'list';
+                if (gridView) gridView.style.display = isList ? 'none' : '';
+                if (listView) listView.style.display = isList ? '' : 'none';
+                switchBtns.forEach(b => b.classList.toggle('active', b.dataset.gcalView === (isList ? 'list' : 'grid')));
+                if (!isList) scrollToNow();
+            }
+
+            window.setGcalView = function(mode) {
+                localStorage.setItem('gcalViewMode', mode);
+                applyGcalView(mode);
+            };
+
+            updateNowLine();
+            setInterval(updateNowLine, 60000);
+            applyGcalView(localStorage.getItem('gcalViewMode') || 'grid');
+        })();
+        </script>
         {% endif %}
         {% endif %}
     </section>
@@ -7128,3 +7246,117 @@ function doRedeemReward(rewardId) {
 </script>
 
 <div style="position:fixed; bottom:6px; right:10px; font-size:0.7em; color:rgba(255,255,255,0.25); pointer-events:none; z-index:1;">v2026.05.31-g</div>
+
+<script>
+// ── Weather Widget ─────────────────────────────────────────────────────────────
+(function () {
+    const iconEl   = document.getElementById('weather-icon');
+    const tempEl   = document.getElementById('weather-temp');
+    const descEl   = document.getElementById('weather-desc');
+    const widgetEl = document.getElementById('weather-widget');
+    const modalEl  = document.getElementById('weather-forecast-modal');
+    const daysEl   = document.getElementById('weather-forecast-days');
+    const titleEl  = document.getElementById('weather-forecast-title');
+
+    let cachedLat = null, cachedLon = null, cachedTz = null, cachedCity = '';
+
+    // WMO weather-code → icon / colour / label
+    function weatherInfo(code) {
+        if (code === 0)  return { icon: 'fa-sun',                color: '#fbbf24', desc: 'Clear Sky' };
+        if (code <= 2)   return { icon: 'fa-cloud-sun',          color: '#fbbf24', desc: 'Partly Cloudy' };
+        if (code === 3)  return { icon: 'fa-cloud',              color: '#94a3b8', desc: 'Overcast' };
+        if (code <= 48)  return { icon: 'fa-smog',               color: '#94a3b8', desc: 'Foggy' };
+        if (code <= 55)  return { icon: 'fa-cloud-rain',         color: '#93c5fd', desc: 'Drizzle' };
+        if (code <= 67)  return { icon: 'fa-cloud-rain',         color: '#60a5fa', desc: 'Rain' };
+        if (code <= 77)  return { icon: 'fa-snowflake',          color: '#bae6fd', desc: 'Snow' };
+        if (code <= 82)  return { icon: 'fa-cloud-showers-heavy',color: '#3b82f6', desc: 'Showers' };
+        if (code <= 86)  return { icon: 'fa-snowflake',          color: '#bae6fd', desc: 'Snow Showers' };
+        if (code <= 99)  return { icon: 'fa-bolt',               color: '#fbbf24', desc: 'Thunderstorm' };
+        return { icon: 'fa-cloud', color: '#94a3b8', desc: 'Unknown' };
+    }
+
+    async function fetchWeather(lat, lon, tz) {
+        try {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode&temperature_unit=celsius&timezone=${encodeURIComponent(tz)}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('weather error');
+            const data = await res.json();
+            const temp = Math.round(data.current.temperature_2m);
+            const info = weatherInfo(data.current.weathercode);
+            iconEl.className = `fas ${info.icon}`;
+            iconEl.style.color = info.color;
+            tempEl.textContent = `${temp}\u00b0C`;
+            descEl.textContent = info.desc;
+            widgetEl.title = `${info.desc} \u2014 ${temp}\u00b0C (click for 7-day forecast)`;
+        } catch (e) {
+            descEl.textContent = 'Unavailable';
+        }
+    }
+
+    async function showForecast() {
+        if (cachedLat === null) return;
+        modalEl.style.display = 'flex';
+        titleEl.innerHTML = `<i class="fas fa-cloud-sun" style="margin-right:8px;color:#fbbf24;"></i>7-Day Forecast${cachedCity ? ' \u2014 ' + cachedCity : ''}`;
+        daysEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:20px;">Loading forecast\u2026</div>';
+        try {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${cachedLat}&longitude=${cachedLon}&daily=weathercode,temperature_2m_max,temperature_2m_min&temperature_unit=celsius&timezone=${encodeURIComponent(cachedTz)}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('forecast error');
+            const data = await res.json();
+            const { time, weathercode, temperature_2m_max, temperature_2m_min } = data.daily;
+            daysEl.innerHTML = time.map((dateStr, i) => {
+                const d = new Date(dateStr + 'T00:00:00');
+                const dayLabel = i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' });
+                const info = weatherInfo(weathercode[i]);
+                const max = Math.round(temperature_2m_max[i]);
+                const min = Math.round(temperature_2m_min[i]);
+                return `<div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:12px 8px;text-align:center;">
+                    <div style="color:#cbd5e1;font-size:0.78em;font-weight:700;margin-bottom:6px;">${dayLabel}</div>
+                    <i class="fas ${info.icon}" style="font-size:1.6em;color:${info.color};"></i>
+                    <div style="color:#fff;font-size:0.85em;font-weight:700;margin-top:6px;">${max}\u00b0</div>
+                    <div style="color:#94a3b8;font-size:0.78em;">${min}\u00b0</div>
+                </div>`;
+            }).join('');
+        } catch (e) {
+            daysEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#f87171;padding:20px;">Forecast unavailable</div>';
+        }
+    }
+
+    async function initWeather() {
+        // Derive location from the app's configured IANA timezone (e.g. "Australia/Brisbane")
+        // Extract the city/region name and geocode it via Open-Meteo's free geocoding API.
+        const tz = (window.APP_TIMEZONE && window.APP_TIMEZONE !== 'UTC')
+            ? window.APP_TIMEZONE
+            : Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+        // e.g. "Australia/Brisbane" -> "Brisbane", "America/New_York" -> "New York"
+        const city = tz.split('/').pop().replace(/_/g, ' ');
+
+        try {
+            descEl.textContent = city + '\u2026';
+            const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
+            const geoRes = await fetch(geoUrl);
+            if (!geoRes.ok) throw new Error('geo error');
+            const geoData = await geoRes.json();
+            if (!geoData.results || !geoData.results.length) throw new Error('not found');
+            const { latitude, longitude } = geoData.results[0];
+            cachedLat = latitude;
+            cachedLon = longitude;
+            cachedTz = tz;
+            cachedCity = city;
+            await fetchWeather(latitude, longitude, tz);
+            // Auto-refresh every 30 minutes
+            setInterval(() => fetchWeather(latitude, longitude, tz), 30 * 60 * 1000);
+        } catch (e) {
+            descEl.textContent = 'Unavailable';
+        }
+    }
+
+    widgetEl.addEventListener('click', showForecast);
+    widgetEl.addEventListener('mouseenter', () => { widgetEl.style.background = 'rgba(255,255,255,0.15)'; });
+    widgetEl.addEventListener('mouseleave', () => { widgetEl.style.background = 'rgba(255,255,255,0.08)'; });
+    modalEl.addEventListener('click', (e) => { if (e.target === modalEl) modalEl.style.display = 'none'; });
+
+    initWeather();
+})();
+</script>

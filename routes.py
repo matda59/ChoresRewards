@@ -242,6 +242,48 @@ def _format_duration_minutes(total_minutes):
     return f'{minutes}m'
 
 
+def _layout_day_events(events):
+    """Assign col_index/col_count to overlapping timed events so they can be
+    rendered side-by-side on a time-axis grid, like Google Calendar's day view."""
+    if not events:
+        return events
+    sorted_events = sorted(events, key=lambda e: (e['start_minutes'], e['duration_minutes']))
+    clusters = []
+    current_cluster = []
+    current_end = None
+    for ev in sorted_events:
+        start = ev['start_minutes']
+        end = start + ev['duration_minutes']
+        if current_cluster and start < current_end:
+            current_cluster.append(ev)
+            current_end = max(current_end, end)
+        else:
+            if current_cluster:
+                clusters.append(current_cluster)
+            current_cluster = [ev]
+            current_end = end
+    if current_cluster:
+        clusters.append(current_cluster)
+
+    for cluster in clusters:
+        columns_end = []
+        for ev in cluster:
+            placed = False
+            for idx, col_end in enumerate(columns_end):
+                if ev['start_minutes'] >= col_end:
+                    columns_end[idx] = ev['start_minutes'] + ev['duration_minutes']
+                    ev['col_index'] = idx
+                    placed = True
+                    break
+            if not placed:
+                columns_end.append(ev['start_minutes'] + ev['duration_minutes'])
+                ev['col_index'] = len(columns_end) - 1
+        col_count = len(columns_end)
+        for ev in cluster:
+            ev['col_count'] = col_count
+    return sorted_events
+
+
 def _round_points(value):
     try:
         return float(Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
@@ -541,7 +583,7 @@ def fetch_google_calendar_events(app_timezone):
     calendar_ids = [part.strip() for part in re.split(r'[,;\n\r]+', calendar_id_raw) if part.strip()]
     manual_color_rules_raw = AppSetting.get('google_calendar_color_rules', '')
     manual_color_rules = _parse_manual_color_rules(manual_color_rules_raw)
-    max_results = _safe_int(AppSetting.get('google_calendar_max_results', '8'), 8, 1, 20)
+    max_results = _safe_int(AppSetting.get('google_calendar_max_results', '8'), 8, 1, 100)
     days_ahead = _safe_int(AppSetting.get('google_calendar_days_ahead', '14'), 14, 1, 60)
     refresh_minutes = _safe_int(AppSetting.get('google_calendar_refresh_minutes', '10'), 10, 1, 60)
 
@@ -700,6 +742,8 @@ def fetch_google_calendar_events(app_timezone):
                     end_time_display = ''
                     end_date_raw = end_obj.get('date')
                     duration_display = 'All day'
+                    start_minutes = 0
+                    duration_minutes = 24 * 60
                     if end_date_raw:
                         try:
                             end_date = datetime.fromisoformat(end_date_raw).date()
@@ -715,12 +759,14 @@ def fetch_google_calendar_events(app_timezone):
                     start_date = start_dt.date()
                     start_time_display = start_dt.strftime('%I:%M %p').lstrip('0')
                     start_time_sort = start_dt.strftime('%H:%M')
+                    start_minutes = start_dt.hour * 60 + start_dt.minute
                     duration_display = ''
+                    duration_minutes = 60
                     end_time_display = ''
                     if end_obj.get('dateTime'):
                         end_dt = datetime.fromisoformat(end_obj['dateTime'].replace('Z', '+00:00')).astimezone(tzinfo)
                         end_time_display = end_dt.strftime('%I:%M %p').lstrip('0')
-                        duration_minutes = int((end_dt - start_dt).total_seconds() // 60)
+                        duration_minutes = max(int((end_dt - start_dt).total_seconds() // 60), 15)
                         duration_display = _format_duration_minutes(duration_minutes)
                 else:
                     continue
@@ -738,6 +784,8 @@ def fetch_google_calendar_events(app_timezone):
                     'all_day': all_day,
                     'end_time_display': end_time_display,
                     'duration_display': duration_display,
+                    'start_minutes': start_minutes,
+                    'duration_minutes': duration_minutes,
                     'color': event_color,
                     'color_tint': _hex_to_rgba(event_color, 0.20),
                 })
@@ -1814,17 +1862,23 @@ def index():
 
         for day in week_dates:
             day_iso = day.isoformat()
-            day_events = sorted(
+            day_events_all = sorted(
                 events_by_day[day_iso],
                 key=lambda item: (0 if item.get('all_day') else 1, item.get('start_time_sort', '23:59'))
             )
+            day_events = _layout_day_events([e for e in day_events_all if not e.get('all_day')])
+            all_day_events = [e for e in day_events_all if e.get('all_day')]
             google_calendar_week_columns.append({
                 'day_name': day.strftime('%a'),
                 'day_full': day.strftime('%A'),
                 'date_label': day.strftime('%d %b'),
                 'date_iso': day_iso,
+                'is_today': day == local_today,
                 'events': day_events,
+                'all_day_events': all_day_events,
             })
+
+    gcal_hour_labels = [datetime(2000, 1, 1, hour).strftime('%I %p').lstrip('0') for hour in range(24)]
 
     quiz_questions_enabled = AppSetting.get('quiz_questions_enabled', 'true').lower() == 'true'
     quiz_questions = load_quiz_questions()
@@ -1894,6 +1948,7 @@ def index():
         google_calendar_enabled=google_calendar_enabled,
         google_calendar_events=google_calendar_events,
         google_calendar_week_columns=google_calendar_week_columns,
+        gcal_hour_labels=gcal_hour_labels,
         google_calendar_error=google_calendar_error,
         quiz_questions=filtered_questions,
         quiz_questions_enabled=quiz_questions_enabled,
@@ -3012,7 +3067,7 @@ def settings():
             google_calendar_api_key = request.form.get('google_calendar_api_key', '').strip()
             google_calendar_id = request.form.get('google_calendar_id', '').strip()
             google_calendar_color_rules = request.form.get('google_calendar_color_rules', '').strip()
-            google_calendar_max_results = _safe_int(request.form.get('google_calendar_max_results', '8'), 8, 1, 20)
+            google_calendar_max_results = _safe_int(request.form.get('google_calendar_max_results', '8'), 8, 1, 100)
             google_calendar_days_ahead = _safe_int(request.form.get('google_calendar_days_ahead', '14'), 14, 1, 60)
             google_calendar_refresh_minutes = _safe_int(request.form.get('google_calendar_refresh_minutes', '10'), 10, 1, 60)
 
@@ -3086,7 +3141,7 @@ def settings():
     google_calendar_api_key = AppSetting.get('google_calendar_api_key', '')
     google_calendar_id = AppSetting.get('google_calendar_id', '')
     google_calendar_color_rules = AppSetting.get('google_calendar_color_rules', '')
-    google_calendar_max_results = _safe_int(AppSetting.get('google_calendar_max_results', '8'), 8, 1, 20)
+    google_calendar_max_results = _safe_int(AppSetting.get('google_calendar_max_results', '8'), 8, 1, 100)
     google_calendar_days_ahead = _safe_int(AppSetting.get('google_calendar_days_ahead', '14'), 14, 1, 60)
     google_calendar_refresh_minutes = _safe_int(AppSetting.get('google_calendar_refresh_minutes', '10'), 10, 1, 60)
     gcal_sa_email, _ = _get_gcal_service_account_info() if google_calendar_feature_enabled else (None, None)
