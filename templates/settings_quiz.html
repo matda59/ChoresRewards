@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quiz Questions - ChoresAwards</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ── Layout ── */
+        .settings-layout {
+            display: flex;
+            max-width: 1100px;
+            margin: 2rem auto;
+            background: linear-gradient(135deg, #141f33 0%, #1a2840 100%);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 16px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+            color: #fff;
+        }
+        .settings-nav {
+            width: 220px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px 0 0 16px;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            border-right: 1px solid rgba(255,255,255,0.07);
+        }
+        .settings-nav a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 0.97rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.7em;
+            padding: 0.7em 1em;
+            border-radius: 10px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .settings-nav a.active, .settings-nav a:hover {
+            background: rgba(76,175,80,0.18);
+            color: #4CAF50;
+        }
+        .settings-nav a.active { background: rgba(76,175,80,0.25); font-weight: 700; }
+        .settings-content {
+            flex: 1;
+            padding: 2rem 2.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            min-width: 0;
+        }
+        .section-title {
+            font-size: 1.1rem; font-weight: 700; margin-bottom: 0.9rem;
+            color: #fff; display: flex; align-items: center; gap: 0.5em;
+        }
+        .section-title > i { color: #4CAF50; }
+        .settings-section {
+            background: linear-gradient(135deg, #1a2436 0%, #1e2d42 100%);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 14px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 14px rgba(0,0,0,0.2);
+            color: #fff;
+        }
+        .save-btn {
+            padding: 0.55rem 1.2rem; border-radius: 8px; border: none;
+            cursor: pointer; font-size: 0.9rem; font-weight: 700;
+            background: #4CAF50; color: #fff;
+            box-shadow: 0 2px 8px rgba(76,175,80,0.3);
+            transition: all 0.2s;
+        }
+        .save-btn:hover { background: #45a049; box-shadow: 0 3px 14px rgba(76,175,80,0.45); }
+
+        .success-message {
+            color: #a5d6a7; font-weight: 500; margin-top: 0.5rem;
+            padding: 0.6rem 1rem; background: rgba(76,175,80,0.1);
+            border: 1px solid rgba(76,175,80,0.25); border-radius: 10px;
+        }
+        .error-message {
+            color: #ef9a9a; font-weight: 500; margin-top: 0.5rem;
+            padding: 0.6rem 1rem; background: rgba(244,67,54,0.1);
+            border: 1px solid rgba(244,67,54,0.25); border-radius: 10px;
+        }
+
+        /* ── Quiz editor ── */
+        .quiz-toolbar {
+            display: flex; align-items: center; gap: 0.75rem;
+            flex-wrap: wrap; margin-bottom: 1rem;
+        }
+        .quiz-count { color: rgba(255,255,255,0.55); font-size: 0.9rem; }
+        .quiz-search {
+            flex: 1; min-width: 180px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px; padding: 0.5rem 0.8rem; color: #fff; font-size: 0.9rem;
+        }
+        .btn-outline {
+            padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;
+            font-size: 0.88rem; font-weight: 600;
+            background: rgba(76,175,80,0.15); color: #4CAF50;
+            border: 1.5px solid rgba(76,175,80,0.35); transition: all 0.2s;
+        }
+        .btn-outline:hover { background: rgba(76,175,80,0.28); border-color: #4CAF50; }
+        .btn-danger {
+            background: rgba(239,68,68,0.12); color: #f87171;
+            border: 1px solid rgba(239,68,68,0.3);
+            padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer;
+            font-size: 0.82rem; font-weight: 600; transition: all 0.2s;
+        }
+        .btn-danger:hover { background: rgba(239,68,68,0.22); }
+
+        .quiz-card {
+            background: rgba(0,0,0,0.22);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; padding: 1.1rem 1.2rem; margin-bottom: 1rem;
+        }
+        .quiz-card-head {
+            display: flex; align-items: center; gap: 0.6rem;
+            margin-bottom: 0.9rem; flex-wrap: wrap;
+        }
+        .quiz-card-index {
+            width: 26px; height: 26px; border-radius: 50%;
+            background: rgba(76,175,80,0.2); color: #4CAF50;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+        }
+        .quiz-field { margin-bottom: 0.8rem; }
+        .quiz-label {
+            display: block; font-size: 0.74rem; font-weight: 700;
+            letter-spacing: 0.05em; text-transform: uppercase;
+            color: rgba(255,255,255,0.5); margin-bottom: 0.35rem;
+        }
+        .quiz-input, .quiz-select {
+            width: 100%; box-sizing: border-box;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px; padding: 0.5rem 0.7rem;
+            color: #fff; font-size: 0.9rem;
+        }
+        .quiz-select option { color: #222; background: #fff; }
+        .quiz-row { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+        .quiz-row > .quiz-field { flex: 1; min-width: 160px; }
+
+        .quiz-choice {
+            display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;
+        }
+        .quiz-choice input[type="radio"] {
+            width: 18px; height: 18px; accent-color: #4CAF50; flex-shrink: 0; cursor: pointer;
+        }
+        .quiz-choice .quiz-input { flex: 1; }
+        .quiz-choice-thumb {
+            width: 40px; height: 40px; border-radius: 6px; object-fit: cover;
+            background: rgba(255,255,255,0.05); flex-shrink: 0; display: none;
+        }
+        .quiz-media-preview { margin-top: 0.5rem; }
+        .quiz-media-preview img {
+            max-height: 110px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .quiz-correct-hint { font-size: 0.72rem; color: rgba(255,255,255,0.4); margin-top: 0.2rem; }
+        .quiz-media-note { font-size: 0.75rem; color: rgba(255,255,255,0.4); margin-top: 0.3rem; }
+
+        @media (max-width: 900px) {
+            .settings-layout { flex-direction: column; }
+            .settings-nav { width: 100%; border-radius: 16px 16px 0 0; flex-direction: row; flex-wrap: wrap; gap: 0.4rem; padding: 1rem; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); }
+            .settings-content { padding: 1.5rem 1rem; }
+        }
+        .settings-topnav {
+            margin: 0 0 28px 0; display: flex; justify-content: flex-start;
+            gap: 12px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 16px;
+        }
+        .topnav-link {
+            color: #fff; padding: 8px 16px; text-decoration: none;
+            font-size: 1em; font-weight: 500; transition: all 0.3s ease; border-radius: 4px;
+        }
+        .topnav-link:hover { color: #4CAF50; background: rgba(76, 175, 80, 0.1); }
+    </style>
+</head>
+<body data-theme="dark">
+    <header>
+        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#141f33 0%,#1a2840 100%);padding:0.75rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.07);">
+            <h2 style="color: white;">Chores and Rewards - Settings</h2>
+        </div>
+        <nav class="settings-topnav">
+            <a href="{{ url_for('routes.index') }}" class="topnav-link">Home</a>
+            <a href="{{ url_for('routes.activity_log') }}" class="topnav-link">Activity Log</a>
+        </nav>
+    </header>
+    <main>
+        <div class="settings-layout">
+            <nav class="settings-nav">
+                <a href="{{ url_for('routes.settings') }}"{% if request.endpoint == 'routes.settings' %} class="active"{% endif %}><i class="fas fa-cog"></i> General Settings</a>
+                <a href="{{ url_for('routes.settings_audio') }}"{% if request.endpoint == 'routes.settings_audio' %} class="active"{% endif %}><i class="fas fa-volume-up"></i> Audio Settings</a>
+                <a href="{{ url_for('routes.settings_notification') }}"{% if request.endpoint == 'routes.settings_notification' %} class="active"{% endif %}><i class="fas fa-bell"></i> Notification Settings</a>
+                <a href="{{ url_for('routes.settings_quiz') }}"{% if request.endpoint == 'routes.settings_quiz' %} class="active"{% endif %}><i class="fas fa-question-circle"></i> Quiz Questions</a>
+            </nav>
+            <div class="settings-content">
+                <h3 class="section-title"><i class="fas fa-question-circle"></i> Quiz Questions</h3>
+                <section class="settings-section">
+                    <h3 class="section-title" style="margin-bottom:0.6rem;"><i class="fas fa-brain"></i> Bonus Quiz Questions</h3>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">
+                        These are the questions shown in the <strong style="color:rgba(255,255,255,0.8);">Brain Quiz</strong> bonus round when a family member completes all their chores.
+                        Each question has a <strong style="color:rgba(255,255,255,0.8);">type</strong>, answer choices, and one correct answer (marked with the green dot).
+                        <strong style="color:rgba(255,255,255,0.8);">Easy</strong> questions are shown to younger children; <strong style="color:rgba(255,255,255,0.8);">Complex</strong> ones to older kids (based on each person's age).
+                        Add, edit, or remove questions below, then press <strong style="color:rgba(255,255,255,0.8);">Save Questions</strong>.
+                    </p>
+
+                    {% if success %}<div class="success-message"><i class="fas fa-check-circle"></i> {{ success }}</div>{% endif %}
+                    {% if error %}<div class="error-message"><i class="fas fa-exclamation-triangle"></i> {{ error }}</div>{% endif %}
+
+                    <div class="quiz-toolbar">
+                        <button type="button" class="btn-outline" onclick="addQuestion()"><i class="fas fa-plus"></i> Add Question</button>
+                        <input type="text" id="quiz-search" class="quiz-search" placeholder="Search questions…" oninput="filterQuestions(this.value)">
+                        <span class="quiz-count" id="quiz-count"></span>
+                    </div>
+
+                    <div id="quiz-list"></div>
+
+                    <form method="POST" action="{{ url_for('routes.settings_quiz') }}" id="quiz-form" onsubmit="return prepareSave()">
+                        <input type="hidden" name="quiz_questions_json" id="quiz-json-field">
+                        <div style="display:flex;gap:0.75rem;align-items:center;margin-top:0.5rem;">
+                            <button type="submit" class="save-btn"><i class="fas fa-save" style="margin-right:6px;"></i>Save Questions</button>
+                            <span id="quiz-save-note" style="color:rgba(255,255,255,0.45);font-size:0.85rem;"></span>
+                        </div>
+                    </form>
+
+                    <datalist id="image-options"></datalist>
+                    <datalist id="sound-options"></datalist>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    // ── Data ──────────────────────────────────────────────────────────────────
+    let questions = {{ quiz_questions | tojson }};
+    if (!Array.isArray(questions)) questions = [];
+
+    const TYPE_LABELS = {
+        'animal_image': 'Image — pick the name',
+        'animal_sound': 'Sound — pick the picture',
+        'landmark': 'Landmark — pick the name',
+        'fact': 'Fact / Trivia'
+    };
+    // Types whose answer CHOICES are image paths (so choices render as pictures)
+    const CHOICES_ARE_IMAGES = new Set(['animal_sound']);
+    // Types that have a media path field, and what kind
+    const MEDIA_KIND = { 'animal_image': 'image', 'landmark': 'image', 'animal_sound': 'sound' };
+
+    let imageOptions = [];
+    let soundOptions = [];
+
+    // ── Rendering ────────────────────────────────────────────────────────────
+    function esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function renderAll() {
+        const list = document.getElementById('quiz-list');
+        list.innerHTML = '';
+        questions.forEach((q, i) => list.appendChild(buildCard(q, i)));
+        updateCount();
+        filterQuestions(document.getElementById('quiz-search').value);
+    }
+
+    function updateCount() {
+        document.getElementById('quiz-count').textContent = questions.length + ' question' + (questions.length === 1 ? '' : 's');
+    }
+
+    function buildCard(q, index) {
+        const card = document.createElement('div');
+        card.className = 'quiz-card';
+        card.dataset.index = index;
+
+        const type = q.type || 'fact';
+        const mediaKind = MEDIA_KIND[type];
+        const choicesAreImages = CHOICES_ARE_IMAGES.has(type);
+        const searchText = ((q.question || '') + ' ' + (q.choices || []).join(' ')).toLowerCase();
+        card.dataset.search = searchText;
+
+        // Head: index + type + difficulty + delete
+        const head = document.createElement('div');
+        head.className = 'quiz-card-head';
+        head.innerHTML =
+            '<span class="quiz-card-index">' + (index + 1) + '</span>' +
+            '<select class="quiz-select js-type" style="max-width:230px;">' +
+                Object.keys(TYPE_LABELS).map(t =>
+                    '<option value="' + t + '"' + (t === type ? ' selected' : '') + '>' + esc(TYPE_LABELS[t]) + '</option>'
+                ).join('') +
+            '</select>' +
+            '<select class="quiz-select js-difficulty" style="max-width:130px;">' +
+                ['easy', 'complex'].map(d =>
+                    '<option value="' + d + '"' + (d === (q.difficulty || 'complex') ? ' selected' : '') + '>' +
+                    (d === 'easy' ? 'Easy (younger)' : 'Complex (older)') + '</option>'
+                ).join('') +
+            '</select>' +
+            '<span style="flex:1;"></span>' +
+            '<button type="button" class="btn-danger js-delete"><i class="fas fa-trash"></i> Delete</button>';
+        card.appendChild(head);
+
+        // Question text
+        const qField = document.createElement('div');
+        qField.className = 'quiz-field';
+        qField.innerHTML =
+            '<label class="quiz-label">Question</label>' +
+            '<input type="text" class="quiz-input js-question" value="' + esc(q.question) + '" placeholder="e.g. What animal is this?">';
+        card.appendChild(qField);
+
+        // Media path (image / sound)
+        if (mediaKind) {
+            const media = document.createElement('div');
+            media.className = 'quiz-field';
+            const val = mediaKind === 'image' ? (q.image || '') : (q.sound || '');
+            const listId = mediaKind === 'image' ? 'image-options' : 'sound-options';
+            const label = mediaKind === 'image' ? 'Image path' : 'Sound path';
+            media.innerHTML =
+                '<label class="quiz-label">' + label + '</label>' +
+                '<input type="text" class="quiz-input js-media" list="' + listId + '" value="' + esc(val) + '" placeholder="/static/' + (mediaKind === 'image' ? 'images/…jpg' : 'sounds/…mp3') + '">' +
+                '<div class="quiz-media-preview js-media-preview"></div>' +
+                '<div class="quiz-media-note">Type a path or pick from the list. Files live in <code>static/' + (mediaKind === 'image' ? 'images' : 'sounds') + '/</code>.</div>';
+            card.appendChild(media);
+        }
+
+        // Choices
+        const choicesWrap = document.createElement('div');
+        choicesWrap.className = 'quiz-field';
+        choicesWrap.innerHTML =
+            '<label class="quiz-label">Answer choices ' + (choicesAreImages ? '(image paths — select the correct one)' : '(select the correct one)') + '</label>' +
+            '<div class="js-choices"></div>' +
+            '<button type="button" class="btn-outline js-add-choice" style="margin-top:0.3rem;padding:0.35rem 0.8rem;font-size:0.82rem;"><i class="fas fa-plus"></i> Add choice</button>' +
+            '<div class="quiz-correct-hint">The green dot marks the correct answer.</div>';
+        card.appendChild(choicesWrap);
+
+        const choicesHost = choicesWrap.querySelector('.js-choices');
+        (q.choices || []).forEach(c => choicesHost.appendChild(buildChoiceRow(index, c, c === q.answer, choicesAreImages)));
+
+        wireCard(card);
+        updateMediaPreview(card);
+        return card;
+    }
+
+    function buildChoiceRow(index, value, checked, isImage) {
+        const row = document.createElement('div');
+        row.className = 'quiz-choice';
+        const listAttr = isImage ? ' list="image-options"' : '';
+        row.innerHTML =
+            '<input type="radio" name="answer-' + index + '"' + (checked ? ' checked' : '') + ' title="Mark as correct answer">' +
+            '<img class="quiz-choice-thumb js-thumb">' +
+            '<input type="text" class="quiz-input js-choice"' + listAttr + ' value="' + esc(value) + '" placeholder="' + (isImage ? '/static/images/…jpg' : 'Answer text') + '">' +
+            '<button type="button" class="btn-danger js-remove-choice" title="Remove choice"><i class="fas fa-times"></i></button>';
+        if (isImage) updateThumb(row);
+        return row;
+    }
+
+    function updateThumb(row) {
+        const img = row.querySelector('.js-thumb');
+        const val = row.querySelector('.js-choice').value.trim();
+        if (img && val) { img.src = val; img.style.display = 'inline-block'; }
+        else if (img) { img.style.display = 'none'; }
+    }
+
+    function updateMediaPreview(card) {
+        const preview = card.querySelector('.js-media-preview');
+        if (!preview) return;
+        const kind = MEDIA_KIND[card.querySelector('.js-type').value];
+        const val = (card.querySelector('.js-media') || {}).value || '';
+        preview.innerHTML = '';
+        if (!val.trim()) return;
+        if (kind === 'image') {
+            preview.innerHTML = '<img src="' + esc(val.trim()) + '" alt="preview">';
+        } else if (kind === 'sound') {
+            preview.innerHTML = '<audio controls preload="none" style="height:34px;"><source src="' + esc(val.trim()) + '"></audio>';
+        }
+    }
+
+    // ── Wiring ───────────────────────────────────────────────────────────────
+    function wireCard(card) {
+        const index = () => parseInt(card.dataset.index, 10);
+
+        card.querySelector('.js-type').addEventListener('change', function () {
+            syncCardToModel(card);
+            const q = questions[index()];
+            q.type = this.value;
+            // Clear media that no longer applies
+            if (!MEDIA_KIND[q.type]) { delete q.image; delete q.sound; }
+            renderAll();
+        });
+
+        card.querySelector('.js-difficulty').addEventListener('change', function () {
+            questions[index()].difficulty = this.value;
+        });
+
+        card.querySelector('.js-delete').addEventListener('click', function () {
+            if (!confirm('Delete this question?')) return;
+            syncAllFromDom();
+            questions.splice(index(), 1);
+            renderAll();
+        });
+
+        card.querySelector('.js-add-choice').addEventListener('click', function () {
+            const type = card.querySelector('.js-type').value;
+            const isImage = CHOICES_ARE_IMAGES.has(type);
+            const host = card.querySelector('.js-choices');
+            host.appendChild(buildChoiceRow(index(), '', false, isImage));
+            wireChoiceRows(card);
+        });
+
+        const media = card.querySelector('.js-media');
+        if (media) media.addEventListener('input', function () { updateMediaPreview(card); });
+
+        wireChoiceRows(card);
+    }
+
+    function wireChoiceRows(card) {
+        card.querySelectorAll('.quiz-choice').forEach(row => {
+            const choiceInput = row.querySelector('.js-choice');
+            const removeBtn = row.querySelector('.js-remove-choice');
+            choiceInput.oninput = function () { updateThumb(row); };
+            removeBtn.onclick = function () {
+                if (card.querySelectorAll('.quiz-choice').length <= 2) {
+                    alert('A question needs at least two choices.');
+                    return;
+                }
+                row.remove();
+            };
+        });
+    }
+
+    // ── Model sync ───────────────────────────────────────────────────────────
+    function syncCardToModel(card) {
+        const i = parseInt(card.dataset.index, 10);
+        const q = questions[i] || (questions[i] = {});
+        q.type = card.querySelector('.js-type').value;
+        q.difficulty = card.querySelector('.js-difficulty').value;
+        q.question = card.querySelector('.js-question').value.trim();
+
+        const media = card.querySelector('.js-media');
+        const kind = MEDIA_KIND[q.type];
+        delete q.image; delete q.sound;
+        if (media && kind === 'image') q.image = media.value.trim();
+        if (media && kind === 'sound') q.sound = media.value.trim();
+
+        const rows = Array.from(card.querySelectorAll('.quiz-choice'));
+        q.choices = rows.map(r => r.querySelector('.js-choice').value.trim()).filter(v => v !== '');
+        const checked = rows.find(r => r.querySelector('input[type="radio"]').checked);
+        q.answer = checked ? checked.querySelector('.js-choice').value.trim() : '';
+    }
+
+    function syncAllFromDom() {
+        document.querySelectorAll('.quiz-card').forEach(syncCardToModel);
+    }
+
+    // ── Toolbar actions ──────────────────────────────────────────────────────
+    function addQuestion() {
+        syncAllFromDom();
+        questions.push({
+            type: 'fact',
+            question: '',
+            choices: ['True', 'False'],
+            answer: 'True',
+            difficulty: 'complex'
+        });
+        renderAll();
+        // Scroll to the new card
+        const cards = document.querySelectorAll('.quiz-card');
+        const last = cards[cards.length - 1];
+        if (last) { last.scrollIntoView({ behavior: 'smooth', block: 'center' }); last.querySelector('.js-question').focus(); }
+    }
+
+    function filterQuestions(term) {
+        term = (term || '').trim().toLowerCase();
+        document.querySelectorAll('.quiz-card').forEach(card => {
+            card.style.display = (!term || card.dataset.search.includes(term)) ? '' : 'none';
+        });
+    }
+
+    function prepareSave() {
+        syncAllFromDom();
+        // Client-side validation for clearer messages
+        for (let i = 0; i < questions.length; i++) {
+            const q = questions[i];
+            if (!q.question) { alert('Question ' + (i + 1) + ' is missing its question text.'); return false; }
+            if (!q.choices || q.choices.length < 2) { alert('Question ' + (i + 1) + ' needs at least two choices.'); return false; }
+            if (!q.answer || q.choices.indexOf(q.answer) === -1) { alert('Question ' + (i + 1) + ': pick the correct answer (green dot).'); return false; }
+            const kind = MEDIA_KIND[q.type];
+            if (kind === 'image' && !q.image) { alert('Question ' + (i + 1) + ' needs an image path.'); return false; }
+            if (kind === 'sound' && !q.sound) { alert('Question ' + (i + 1) + ' needs a sound path.'); return false; }
+        }
+        document.getElementById('quiz-json-field').value = JSON.stringify(questions);
+        return true;
+    }
+
+    // ── Media option lists (datalists) ───────────────────────────────────────
+    function loadImageOptions() {
+        fetch('/api/images').then(r => r.json()).then(data => {
+            if (data.success) {
+                imageOptions = data.images || [];
+                const dl = document.getElementById('image-options');
+                dl.innerHTML = imageOptions.map(p => '<option value="' + esc(p) + '">').join('');
+            }
+        }).catch(() => {});
+    }
+    function loadSoundOptions() {
+        fetch('/api/sounds').then(r => r.json()).then(data => {
+            if (data.success) {
+                soundOptions = (data.sounds || []).map(s => '/static/sounds/' + s);
+                const dl = document.getElementById('sound-options');
+                dl.innerHTML = soundOptions.map(p => '<option value="' + esc(p) + '">').join('');
+            }
+        }).catch(() => {});
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadImageOptions();
+        loadSoundOptions();
+        renderAll();
+    });
+    </script>
+</body>
+</html>

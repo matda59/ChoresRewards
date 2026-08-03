@@ -7,7 +7,7 @@ quiz_questions = [
     {
         'type': 'animal_image',
         'question': 'What animal is this?',
-        'image': '/static/images/elephant.jpg',
+        'image': '/static/images/Elephant.jpg',
         'choices': ['Elephant', 'Lion', 'Giraffe', 'Dog'],
         'answer': 'Elephant',
         'difficulty': 'complex'
@@ -51,7 +51,7 @@ quiz_questions = [
     {
         'type': 'landmark',
         'question': 'Where is this landmark located?',
-        'image': '/static/images/statue_of_liberty.jpg',
+        'image': '/static/images/Statue_of_Liberty.jpg',
         'choices': ['New York', 'Paris', 'London', 'Rome'],
         'answer': 'New York',
         'difficulty': 'complex'
@@ -68,12 +68,12 @@ quiz_questions = [
         'question': 'Which animal makes this sound?',
         'sound': '/static/sounds/duck-quack.mp3',
         'choices': [
-            '/static/images/Mallard2.jpg',
-            '/static/images/cow.jpg',
+            '/static/images/mallard2.jpg',
+            '/static/images/Cow.jpg',
             '/static/images/Sheep_in_field_(Unsplash).jpg',
             '/static/images/Pig_looking_up.jpg'
         ],
-        'answer': '/static/images/Mallard2.jpg',
+        'answer': '/static/images/mallard2.jpg',
         'difficulty': 'easy'
     },
     {
@@ -126,12 +126,12 @@ quiz_questions = [
         'question': 'Which animal makes this sound?',
         'sound': '/static/sounds/elephant-trumpet.mp3',
         'choices': [
-            '/static/images/elephant.jpg',
+            '/static/images/Elephant.jpg',
             '/static/images/Lion.jpg',
             '/static/images/monkey.jpg',
             '/static/images/tiger.jpg'
         ],
-        'answer': '/static/images/elephant.jpg',
+        'answer': '/static/images/Elephant.jpg',
         'difficulty': 'easy'
     },
     {

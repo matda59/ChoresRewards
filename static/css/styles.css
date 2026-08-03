@@ -1428,6 +1428,23 @@ h3 {
     color: var(--text-color);
 }
 
+/* Incomplete chore tiles: big centred emoji */
+.incomplete-chores-list .chore-header {
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+}
+
+.incomplete-chores-list .chore-icon {
+    font-size: 2.7em;
+    width: auto;
+}
+
+.incomplete-chores-list .chore-title {
+    text-align: center;
+}
+
 /* Small unobtrusive delete button — absolutely pinned to top-right of card */
 .btn-delete-chore-sm {
     position: absolute !important;

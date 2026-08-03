@@ -477,6 +477,9 @@ window.addEventListener('DOMContentLoaded', function() {
     <button class="side-nav-btn" data-target="meal-library-section" title="Meal Library">
         <i class="fas fa-book-open"></i>
     </button>
+       <button class="side-nav-btn" data-target="kanban" title="Family Members Chores">
+        <i class="fas fa-house"></i>
+    </button>
     <div class="side-nav-divider"></div>
     <button class="side-nav-btn admin-only" data-target="add-chores-section" title="Add Chores">
         <i class="fas fa-tasks"></i>
@@ -4567,8 +4570,17 @@ function deleteReward(rewardId) {
             {% if filtered_incomplete_chores %}
                 <div class="chores-list incomplete-chores-list">
                     {% for chore in filtered_incomplete_chores %}
-                        <div class="chore{% if chore.due_datetime %} has-due-date{% endif %}" data-chore-id="{{ chore.id }}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px;">
+                        <div class="chore{% if chore.due_datetime %} has-due-date{% endif %}" data-chore-id="{{ chore.id }}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px; padding-top:40px;">
                             <button class="btn-delete-chore-sm admin-only" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
+                            <span class="chore-points-badge" style="position:absolute;top:6px;left:6px;margin-left:0;" title="Points for this chore">
+                                {% if reward_system == 'cash' %}
+                                    <i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i>
+                                    <span class="chore-points-value">${{ chore.points }}</span>
+                                {% else %}
+                                    <i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i>
+                                    <span class="chore-points-value">{{ chore.points }}</span>
+                                {% endif %}
+                            </span>
                             <div class="chore-header">
                                 <span class="chore-icon">{{ chore_icon(chore.title, chore.icon) }}</span>
                                 <span class="chore-title">{{ chore.title }}</span>
@@ -4598,15 +4610,6 @@ function deleteReward(rewardId) {
                                         <span class="chore-tag chore-tag-due"><i class="fas fa-clock"></i> Due {% if is_today %}Today{% elif is_tomorrow %}Tomorrow{% else %}{{ chore.due_datetime.strftime('%a %b %d') }}{% endif %} {{ chore.due_datetime.strftime('%-I:%M%p')|replace(':00','') }}</span>
                                     {% endif %}
                                 </div>
-                                <span class="chore-points-badge" title="Points for this chore">
-                                    {% if reward_system == 'cash' %}
-                                        <i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i>
-                                        <span class="chore-points-value">${{ chore.points }}</span>
-                                    {% else %}
-                                        <i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i>
-                                        <span class="chore-points-value">{{ chore.points }}</span>
-                                    {% endif %}
-                                </span>
                             </div>
                             <button class="btn-complete-chore" onclick="completeChore({{ chore.id }})"><i class="fas fa-check"></i> Complete</button>
                         </div>
@@ -5054,6 +5057,65 @@ function updateStreakDisplay(column, streakCount) {
                     <button type="button" class="chore-emoji-opt" data-emoji="⭐">⭐</button>
                     <button type="button" class="chore-emoji-opt" data-emoji="🔥">🔥</button>
                     <button type="button" class="chore-emoji-opt" data-emoji="🌟">🌟</button>
+                    <!-- Household & Cleaning -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧼">🧼</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🪣">🪣</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🪥">🪥</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧻">🧻</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🛋️">🛋️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🪟">🪟</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧴">🧴</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧦">🧦</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="👟">👟</button>
+                    <!-- Yard, Garden & Tools -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="🪴">🪴</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🌻">🌻</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧹">🧹</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🔨">🔨</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🔧">🔧</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🪛">🪛</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="✂️">✂️</button>
+                    <!-- Kitchen, Cooking & Food -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="🍲">🍲</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🍞">🍞</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🍎">🍎</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🥛">🥛</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="☕">☕</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🍕">🍕</button>
+                    <!-- Pets & Animals -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="🦴">🦴</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🐟">🐟</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🦜">🦜</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🐹">🐹</button>
+                    <!-- School, Homework & Self-Care -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="✏️">✏️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="📝">📝</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🎨">🎨</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧘">🧘</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🛁">🛁</button>
+                    <!-- Activities & Fitness -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="🏃">🏃</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🚲">🚲</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="⚽">⚽</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🏀">🏀</button>
+                    <!-- Errands, Mail & Family Org -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="✉️">✉️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="📬">📬</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🛍️">🛍️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="💵">💵</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="📅">📅</button>
+                    <!-- Rewards, Badges & Status -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="🏆">🏆</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🥇">🥇</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🎯">🎯</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🎉">🎉</button>
+                    <!-- Night & Morning Routines -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="⏰">⏰</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="☀️">☀️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🌙">🌙</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧸">🧸</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧼">🧼</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🔒">🔒</button>
                 </div>
             </div>
         </div>
@@ -5889,15 +5951,15 @@ function injectNewChoreCard(resp, formData) {
         ? `<i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i><span class="chore-points-value">$${points}</span>`
         : `<i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i><span class="chore-points-value">${points}</span>`;
 
-    const cardHtml = `<div class="chore" data-chore-id="${resp.chore_id}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px;">
+    const cardHtml = `<div class="chore" data-chore-id="${resp.chore_id}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px; padding-top:40px;">
         <button class="btn-delete-chore-sm" onclick="confirmDeleteChore(${resp.chore_id}, ${isDaily})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
+        <span class="chore-points-badge" style="position:absolute;top:6px;left:6px;margin-left:0;" title="Points for this chore">${pointsHtml}</span>
         <div class="chore-header">
             <span class="chore-icon">${formData.icon || _getChoreIcon(formData.title)}</span>
             <span class="chore-title">${_escapeHtml(formData.title)}</span>
         </div>
         <div class="chore-meta">
             <div class="chore-tags">${tagsHtml}</div>
-            <span class="chore-points-badge" title="Points for this chore">${pointsHtml}</span>
         </div>
         <button class="btn-complete-chore" onclick="completeChore(${resp.chore_id})"><i class="fas fa-check"></i> Complete</button>
     </div>`;

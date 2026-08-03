@@ -293,6 +293,7 @@
                 <a href="{{ url_for('routes.settings') }}"{% if request.endpoint == 'routes.settings' %} class="active"{% endif %}><i class="fas fa-cog"></i> General Settings</a>
                 <a href="{{ url_for('routes.settings_audio') }}"{% if request.endpoint == 'routes.settings_audio' %} class="active"{% endif %}><i class="fas fa-volume-up"></i> Audio Settings</a>
                 <a href="{{ url_for('routes.settings_notification') }}"{% if request.endpoint == 'routes.settings_notification' %} class="active"{% endif %}><i class="fas fa-bell"></i> Notification Settings</a>
+                <a href="{{ url_for('routes.settings_quiz') }}"{% if request.endpoint == 'routes.settings_quiz' %} class="active"{% endif %}><i class="fas fa-question-circle"></i> Quiz Questions</a>
             </nav>
             <div class="settings-content">
                 <h3 class="section-title"><i class="fas fa-cog"></i> General Settings</h3>
@@ -478,7 +479,7 @@
                     <div class="table-container">
                         <div class="chores-card-list" id="all-chores-tbody">
                             {% for chore in all_chores if not chore.completed or chore.is_daily %}
-                            <div class="chore-card" id="chore-row-{{ chore.id }}">
+                            <div class="chore-card" id="chore-row-{{ chore.id }}" data-chore-icon="{{ chore.icon or '' }}">
                                 <div class="chore-card-main">
                                     <div class="chore-card-title-area">
                                         <span class="chore-title">{{ chore.title }}</span>
@@ -1128,6 +1129,51 @@
                 </select><br />
                 <label for="editChorePoints">Points:</label><br />
                 <input type="number" id="editChorePoints" name="points" min="0" step="0.01" required style="width: 100%; margin-bottom: 10px; padding: 5px; border-radius: 6px; border: 1px solid #555; background: #333; color: white;" /><br />
+                <label style="display:block; color:#fff; font-weight:600; margin-bottom:6px;">Icon:</label>
+                <div class="chore-emoji-picker-wrap" style="margin-bottom:12px;">
+                    <button type="button" id="editChoreEmojiBtn" class="chore-emoji-preview-btn" title="Click to choose an icon">
+                        <span id="editChoreEmojiPreview">✅</span>
+                        <i class="fas fa-chevron-down" style="font-size:0.65em;margin-left:4px;opacity:0.6;"></i>
+                    </button>
+                    <input type="hidden" id="editChoreIcon" name="icon" value="">
+                    <div id="editChoreEmojiGrid" class="chore-emoji-grid" style="display:none;">
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="">Auto ✨</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="✅">✅</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🍽️">🍽️</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🧺">🧺</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🗑️">🗑️</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🧹">🧹</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🚿">🚿</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🦷">🦷</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="👕">👕</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🌱">🌱</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🍳">🍳</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🥗">🥗</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🎵">🎵</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="📖">📖</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🎓">🎓</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🎒">🎒</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🐶">🐶</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🐱">🐱</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🦮">🦮</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🐾">🐾</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="💧">💧</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="💊">💊</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="📦">📦</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🧽">🧽</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🛏️">🛏️</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🚗">🚗</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🛒">🛒</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🎮">🎮</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="📱">📱</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🖥️">🖥️</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="😴">😴</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🏋️">🏋️</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="⭐">⭐</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🔥">🔥</button>
+                        <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🌟">🌟</button>
+                    </div>
+                </div>
                 <label style="margin-top:8px; display:block; color:#fff; font-weight:600;">Specific Day(s) of the Week:</label>
                 <div id="editChoreDaysOfWeek" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 8px;">
                     {% for day in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
@@ -1188,11 +1234,40 @@
             document.querySelectorAll('.edit-chore-day-checkbox').forEach(cb => {
                 cb.checked = daysOfWeek.includes(cb.value);
             });
+            // Set icon/emoji
+            const icon = row.dataset.choreIcon || '';
+            document.getElementById('editChoreIcon').value = icon;
+            document.getElementById('editChoreEmojiPreview').textContent = icon || '\u2705';
             editChoreError.style.display = 'none';
             editChoreError.textContent = '';
 
             editChoreModal.style.display = 'block';
         }
+
+        // Emoji picker open/close for edit modal
+        document.addEventListener('DOMContentLoaded', function() {
+            const editEmojiBtn = document.getElementById('editChoreEmojiBtn');
+            const editEmojiGrid = document.getElementById('editChoreEmojiGrid');
+            if (editEmojiBtn && editEmojiGrid) {
+                editEmojiBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    editEmojiGrid.style.display = editEmojiGrid.style.display === 'none' ? 'flex' : 'none';
+                });
+                document.querySelectorAll('.edit-emoji-opt').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        const emoji = this.dataset.emoji;
+                        document.getElementById('editChoreIcon').value = emoji;
+                        document.getElementById('editChoreEmojiPreview').textContent = emoji || '\u2705';
+                        editEmojiGrid.style.display = 'none';
+                    });
+                });
+                document.addEventListener('click', function(e) {
+                    if (!editEmojiBtn.contains(e.target) && !editEmojiGrid.contains(e.target)) {
+                        editEmojiGrid.style.display = 'none';
+                    }
+                });
+            }
+        });
 
         // Close modal
         if (cancelEditChoreBtn && editChoreModal) {
@@ -1221,12 +1296,14 @@
 
             // Gather days of week from checkboxes
             const daysOfWeek = Array.from(document.querySelectorAll('.edit-chore-day-checkbox:checked')).map(cb => cb.value);
+            const icon = document.getElementById('editChoreIcon')?.value ?? '';
             const data = {
                 chore_id: choreId,
                 title: title,
                 assigned_to: assignedTo,
                 points: points,
-                days_of_week: daysOfWeek
+                days_of_week: daysOfWeek,
+                icon: icon
             };
 
             try {
@@ -1248,6 +1325,7 @@
                         row.querySelector('.chore-title').textContent = title;
                         row.querySelector('.chore-assigned-to').textContent = assignedTo;
                         row.querySelector('.chore-points').textContent = points;
+                        row.dataset.choreIcon = icon;
                     }
                     editChoreModal.style.display = 'none';
                     alert('Chore updated successfully');

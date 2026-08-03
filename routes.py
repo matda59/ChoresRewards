@@ -39,6 +39,91 @@ except ImportError:
 routes_bp = Blueprint('routes', __name__)
 
 
+# ── Quiz Questions storage ─────────────────────────────────────────────────────
+# Questions are stored in a writable JSON file in the instance folder so they can
+# be edited from the Settings UI. On first run the file is seeded from the bundled
+# quiz_questions.py defaults.
+QUIZ_QUESTIONS_FILENAME = 'quiz_questions.json'
+QUIZ_QUESTION_TYPES = ('animal_image', 'animal_sound', 'landmark', 'fact')
+QUIZ_DIFFICULTIES = ('easy', 'complex')
+
+
+def _quiz_questions_path():
+    return os.path.join(current_app.instance_path, QUIZ_QUESTIONS_FILENAME)
+
+
+def load_quiz_questions():
+    """Load quiz questions from the writable JSON file, seeding from the bundled
+    quiz_questions.py defaults on first run."""
+    path = _quiz_questions_path()
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                data = _json.load(f)
+            if isinstance(data, list):
+                return data
+        except Exception:
+            pass
+    # Seed from bundled defaults
+    try:
+        from quiz_questions import quiz_questions as _default_questions
+        save_quiz_questions(_default_questions)
+        return list(_default_questions)
+    except Exception:
+        return []
+
+
+def save_quiz_questions(questions):
+    """Persist the list of quiz questions to the instance JSON file."""
+    path = _quiz_questions_path()
+    os.makedirs(current_app.instance_path, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        _json.dump(questions, f, indent=2, ensure_ascii=False)
+
+
+def _normalise_quiz_question(raw):
+    """Validate and normalise a single question dict coming from the editor.
+    Returns a cleaned dict or raises ValueError."""
+    if not isinstance(raw, dict):
+        raise ValueError('Each question must be an object')
+    qtype = str(raw.get('type', '')).strip()
+    if qtype not in QUIZ_QUESTION_TYPES:
+        raise ValueError(f'Invalid question type: {qtype!r}')
+    question_text = str(raw.get('question', '')).strip()
+    if not question_text:
+        raise ValueError('Question text is required')
+    choices = raw.get('choices', [])
+    if not isinstance(choices, list):
+        raise ValueError('Choices must be a list')
+    choices = [str(c).strip() for c in choices if str(c).strip()]
+    if len(choices) < 2:
+        raise ValueError('Each question needs at least two answer choices')
+    answer = str(raw.get('answer', '')).strip()
+    if answer not in choices:
+        raise ValueError('The correct answer must match one of the choices')
+    difficulty = str(raw.get('difficulty', 'complex')).strip()
+    if difficulty not in QUIZ_DIFFICULTIES:
+        difficulty = 'complex'
+    cleaned = {
+        'type': qtype,
+        'question': question_text,
+        'choices': choices,
+        'answer': answer,
+        'difficulty': difficulty,
+    }
+    if qtype in ('animal_image', 'landmark'):
+        image = str(raw.get('image', '')).strip()
+        if not image:
+            raise ValueError('Image questions require an image path')
+        cleaned['image'] = image
+    elif qtype == 'animal_sound':
+        sound = str(raw.get('sound', '')).strip()
+        if not sound:
+            raise ValueError('Sound questions require a sound path')
+        cleaned['sound'] = sound
+    return cleaned
+
+
 def _adult_required():
     """Return a 403 JSON response if the session is not in adult mode, else None."""
     if not session.get('adult_mode', False):
@@ -747,6 +832,52 @@ def settings_audio():
         return redirect(url_for('routes.index'))
     return render_template('settings_audio.html')
 
+# Quiz Questions Settings Page
+@routes_bp.route('/settings/quiz', methods=['GET', 'POST'])
+def settings_quiz():
+    """Render and save the bonus quiz questions from a dedicated settings page."""
+    if not session.get('adult_mode', False) and not session.get('authenticated', False):
+        return redirect(url_for('routes.index'))
+    error = None
+    success = None
+    if request.method == 'POST':
+        raw = request.form.get('quiz_questions_json', '')
+        try:
+            data = _json.loads(raw) if raw else []
+            if not isinstance(data, list):
+                raise ValueError('Expected a list of questions')
+            cleaned = [_normalise_quiz_question(q) for q in data]
+            save_quiz_questions(cleaned)
+            log_activity('settings_updated', 'Quiz questions were updated')
+            success = f'Saved {len(cleaned)} quiz question(s).'
+        except ValueError as e:
+            error = str(e)
+        except Exception as e:
+            error = f'Could not save quiz questions: {e}'
+    questions = load_quiz_questions()
+    return render_template(
+        'settings_quiz.html',
+        quiz_questions=questions,
+        error=error,
+        success=success,
+    )
+
+# API endpoint to list all image files in static/images (for the quiz editor)
+@routes_bp.route('/api/images', methods=['GET'])
+def list_images():
+    images_dir = os.path.join(current_app.root_path, 'static', 'images')
+    try:
+        supported_exts = ('.jpg', '.jpeg', '.png', '.gif', '.webp')
+        image_files = [
+            '/static/images/' + f
+            for f in os.listdir(images_dir)
+            if f.lower().endswith(supported_exts)
+        ]
+        image_files.sort(key=str.lower)
+        return jsonify({'success': True, 'images': image_files})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @routes_bp.route('/completed_chores_fragment')
 def completed_chores_fragment():
     """
@@ -856,6 +987,9 @@ def edit_chore():
         person = Person.query.filter_by(name=assigned_to).first()
         chore.assigned_to_id = person.id if person else None
         chore.points = points
+        icon = data.get('icon', None)
+        if icon is not None:
+            chore.icon = icon if icon else None
         # Normalize days_of_week to lowercase and trimmed before saving
         if days_of_week:
             days_of_week = [d.strip().lower() for d in days_of_week]
@@ -1693,7 +1827,7 @@ def index():
             })
 
     quiz_questions_enabled = AppSetting.get('quiz_questions_enabled', 'true').lower() == 'true'
-    from quiz_questions import quiz_questions
+    quiz_questions = load_quiz_questions()
     
     # Load person ages for frontend use
     person_ages = load_person_ages()
