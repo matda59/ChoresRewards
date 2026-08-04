@@ -10,9 +10,8 @@
                 <a href="{{ url_for('routes.activity_log') }}">Activity Log</a>
             </nav>
             <div class="theme-toggle-container">
-                <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode">
-                    <i class="fas fa-sun light-icon"></i>
-                    <i class="fas fa-moon dark-icon"></i>
+                <button class="theme-toggle" id="theme-toggle-btn" title="Toggle light/dark mode">
+                    <i class="fas fa-sun"></i>
                 </button>
             </div>
         </div>
@@ -146,21 +145,7 @@
 </style>
 
 <script>
-    // Theme toggle logic (same as activity_log.html)
-    document.addEventListener('DOMContentLoaded', function() {
-        const themeToggle = document.getElementById('theme-toggle');
-        const body = document.body;
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) {
-            body.setAttribute('data-theme', savedTheme);
-        }
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = body.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            body.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-        });
-    });
+    if (typeof initThemeToggle === 'function') initThemeToggle('theme-toggle-btn');
 
     // DataTables for enhanced table
     $(document).ready(function() {

@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <title>Audio Settings - ChoresAwards</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function () {
+            var t = localStorage.getItem('cr-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -135,10 +141,12 @@
         }
     </style>
 </head>
-<body data-theme="dark">
+<body>
+    {% include 'fragments/side_nav.html' %}
+    <script src="{{ url_for('static', filename='js/side_nav.js') }}"></script>
     <header>
-        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#141f33 0%,#1a2840 100%);padding:0.75rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.07);">
-            <h2 style="color: white;">Chores and Rewards - Settings</h2>
+        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,var(--cr-header-bg-1) 0%,var(--cr-header-bg-2) 100%);padding:0.75rem 1.5rem;border-bottom:1px solid var(--cr-surface-border);">
+            <h2 style="color: var(--cr-text-primary);">Chores and Rewards - Settings</h2>
         </div>
         <nav class="settings-topnav">
             <a href="{{ url_for('routes.index') }}" class="topnav-link">Home</a>
@@ -181,7 +189,7 @@
                 <h3 class="section-title"><i class="fas fa-volume-up"></i> Audio Settings</h3>
                 <section class="settings-section">
                     <h3 class="section-title" style="margin-bottom:0.6rem;"><i class="fas fa-music"></i> Sound Effects Library</h3>
-                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">When a chore is completed, a sound effect from this list is played at random — great for keeping kids motivated. You can preview any sound with the play button, download it, or delete ones you don’t want. Upload your own <strong style="color:rgba(255,255,255,0.8);">MP3, WAV, or OGG</strong> files to personalise the experience.</p>
+                    <p style="color:var(--cr-text-secondary);margin-top:0;">When a chore is completed, a sound effect from this list is played at random — great for keeping kids motivated. You can preview any sound with the play button, download it, or delete ones you don’t want. Upload your own <strong style="color:var(--cr-text-primary);">MP3, WAV, or OGG</strong> files to personalise the experience.</p>
                     <form id="upload-sound-form" enctype="multipart/form-data" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.5rem;">
                         <label for="sound-file-input" class="custom-file-label">
                             <i class="fas fa-upload"></i>Choose File
@@ -373,6 +381,24 @@
             </script>
         </div>
     </main>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+
+    <!-- Adult PIN unlock overlay (used on every page) -->
+    <div id="adult-pin-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
+        <div id="adult-pin-box" style="background:var(--cr-modal-surface); border-radius:16px; padding:32px 28px; min-width:300px; text-align:center; box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+            <div style="font-size:2.5em; margin-bottom:10px;">🔒</div>
+            <h3 style="color:var(--cr-text-primary); margin:0 0 6px; font-size:1.3em;">Adult Mode</h3>
+            <p style="color:var(--cr-text-secondary); margin:0 0 20px; font-size:0.9em;">Enter your 4-digit PIN</p>
+            <form id="adult-pin-form" autocomplete="off">
+                <input id="adult-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
+                       maxlength="4" placeholder="••••"
+                       style="width:120px; font-size:2em; text-align:center; letter-spacing:8px; padding:10px; border:2px solid var(--cr-subtle-panel-border); border-radius:10px; background:var(--cr-subtle-panel); color:var(--cr-text-primary); outline:none;">
+            </form>
+            <p id="adult-pin-error" style="color:#f87171; min-height:1.4em; margin-top:12px; font-size:0.9em;"></p>
+            <button onclick="document.getElementById('adult-pin-overlay').style.display='none'" style="margin-top:4px; background:transparent; border:none; color:var(--cr-text-secondary); font-size:0.85em; cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/auth_profile.js') }}"></script>
 </body>
 </html>

@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <title>Quiz Questions - ChoresAwards</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function () {
+            var t = localStorage.getItem('cr-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -177,12 +183,33 @@
             font-size: 1em; font-weight: 500; transition: all 0.3s ease; border-radius: 4px;
         }
         .topnav-link:hover { color: #4CAF50; background: rgba(76, 175, 80, 0.1); }
+
+        [data-theme="light"] .quiz-count,
+        [data-theme="light"] .quiz-correct-hint,
+        [data-theme="light"] .quiz-media-note { color: rgba(15,23,42,0.45); }
+        [data-theme="light"] .quiz-search,
+        [data-theme="light"] .quiz-input,
+        [data-theme="light"] .quiz-select {
+            background: rgba(15,23,42,0.05);
+            border-color: rgba(15,23,42,0.15);
+            color: var(--text-color);
+        }
+        [data-theme="light"] .quiz-select option { color: #222; background: #fff; }
+        [data-theme="light"] .quiz-card {
+            background: rgba(15,23,42,0.03);
+            border-color: rgba(15,23,42,0.08);
+        }
+        [data-theme="light"] .quiz-label { color: rgba(15,23,42,0.55); }
+        [data-theme="light"] .quiz-choice-thumb { background: rgba(15,23,42,0.05); }
+        [data-theme="light"] #quiz-save-note { color: rgba(15,23,42,0.45); }
     </style>
 </head>
-<body data-theme="dark">
+<body>
+    {% include 'fragments/side_nav.html' %}
+    <script src="{{ url_for('static', filename='js/side_nav.js') }}"></script>
     <header>
-        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#141f33 0%,#1a2840 100%);padding:0.75rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.07);">
-            <h2 style="color: white;">Chores and Rewards - Settings</h2>
+        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,var(--cr-header-bg-1) 0%,var(--cr-header-bg-2) 100%);padding:0.75rem 1.5rem;border-bottom:1px solid var(--cr-surface-border);">
+            <h2 style="color: var(--cr-text-primary);">Chores and Rewards - Settings</h2>
         </div>
         <nav class="settings-topnav">
             <a href="{{ url_for('routes.index') }}" class="topnav-link">Home</a>
@@ -201,11 +228,11 @@
                 <h3 class="section-title"><i class="fas fa-question-circle"></i> Quiz Questions</h3>
                 <section class="settings-section">
                     <h3 class="section-title" style="margin-bottom:0.6rem;"><i class="fas fa-brain"></i> Bonus Quiz Questions</h3>
-                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">
-                        These are the questions shown in the <strong style="color:rgba(255,255,255,0.8);">Brain Quiz</strong> bonus round when a family member completes all their chores.
-                        Each question has a <strong style="color:rgba(255,255,255,0.8);">type</strong>, answer choices, and one correct answer (marked with the green dot).
-                        <strong style="color:rgba(255,255,255,0.8);">Easy</strong> questions are shown to younger children; <strong style="color:rgba(255,255,255,0.8);">Complex</strong> ones to older kids (based on each person's age).
-                        Add, edit, or remove questions below, then press <strong style="color:rgba(255,255,255,0.8);">Save Questions</strong>.
+                    <p style="color:var(--cr-text-secondary);margin-top:0;">
+                        These are the questions shown in the <strong style="color:var(--cr-text-primary);">Brain Quiz</strong> bonus round when a family member completes all their chores.
+                        Each question has a <strong style="color:var(--cr-text-primary);">type</strong>, answer choices, and one correct answer (marked with the green dot).
+                        <strong style="color:var(--cr-text-primary);">Easy</strong> questions are shown to younger children; <strong style="color:var(--cr-text-primary);">Complex</strong> ones to older kids (based on each person's age).
+                        Add, edit, or remove questions below, then press <strong style="color:var(--cr-text-primary);">Save Questions</strong>.
                     </p>
 
                     {% if success %}<div class="success-message"><i class="fas fa-check-circle"></i> {{ success }}</div>{% endif %}
@@ -223,7 +250,7 @@
                         <input type="hidden" name="quiz_questions_json" id="quiz-json-field">
                         <div style="display:flex;gap:0.75rem;align-items:center;margin-top:0.5rem;">
                             <button type="submit" class="save-btn"><i class="fas fa-save" style="margin-right:6px;"></i>Save Questions</button>
-                            <span id="quiz-save-note" style="color:rgba(255,255,255,0.45);font-size:0.85rem;"></span>
+                            <span id="quiz-save-note" style="color:var(--cr-text-secondary);font-size:0.85rem;"></span>
                         </div>
                     </form>
 
@@ -520,5 +547,23 @@
         renderAll();
     });
     </script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+
+    <!-- Adult PIN unlock overlay (used on every page) -->
+    <div id="adult-pin-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
+        <div id="adult-pin-box" style="background:var(--cr-modal-surface); border-radius:16px; padding:32px 28px; min-width:300px; text-align:center; box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+            <div style="font-size:2.5em; margin-bottom:10px;">🔒</div>
+            <h3 style="color:var(--cr-text-primary); margin:0 0 6px; font-size:1.3em;">Adult Mode</h3>
+            <p style="color:var(--cr-text-secondary); margin:0 0 20px; font-size:0.9em;">Enter your 4-digit PIN</p>
+            <form id="adult-pin-form" autocomplete="off">
+                <input id="adult-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
+                       maxlength="4" placeholder="••••"
+                       style="width:120px; font-size:2em; text-align:center; letter-spacing:8px; padding:10px; border:2px solid var(--cr-subtle-panel-border); border-radius:10px; background:var(--cr-subtle-panel); color:var(--cr-text-primary); outline:none;">
+            </form>
+            <p id="adult-pin-error" style="color:#f87171; min-height:1.4em; margin-top:12px; font-size:0.9em;"></p>
+            <button onclick="document.getElementById('adult-pin-overlay').style.display='none'" style="margin-top:4px; background:transparent; border:none; color:var(--cr-text-secondary); font-size:0.85em; cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/auth_profile.js') }}"></script>
 </body>
 </html>

@@ -1,0 +1,60 @@
+<!-- Shared left side navigation — included on every page so it looks and behaves
+     identically no matter where you're navigating (index, activity log, settings, etc). -->
+<button id="side-nav-toggle" title="Close sidebar" aria-label="Toggle sidebar">
+    <i class="fas fa-chevron-left"></i>
+</button>
+
+<nav id="side-nav" aria-label="Section navigation">
+    <div class="side-nav-divider" style="margin-top:8px;"></div>
+
+    <a class="side-nav-btn" data-target="notes-kanban-section" href="{{ url_for('routes.index') }}#notes-kanban-section" title="Notes">
+        <i class="fas fa-sticky-note"></i>
+    </a>
+    <a class="side-nav-btn" data-target="rewards-section" href="{{ url_for('routes.index') }}#rewards-section" title="Available Rewards">
+        <i class="fas fa-trophy"></i>
+    </a>
+    <a class="side-nav-btn" data-target="events-section" href="{{ url_for('routes.index') }}#events-section" title="Family Events">
+        <i class="fas fa-calendar-alt"></i>
+    </a>
+    <a class="side-nav-btn" data-target="meal-planner-section" href="{{ url_for('routes.index') }}#meal-planner-section" title="Weekly Meal Plan">
+        <i class="fas fa-utensils"></i>
+    </a>
+    <a class="side-nav-btn" data-target="shopping-list-section" href="{{ url_for('routes.index') }}#shopping-list-section" title="Shopping List">
+        <i class="fas fa-cart-shopping"></i>
+    </a>
+    <a class="side-nav-btn" data-target="meal-library-section" href="{{ url_for('routes.index') }}#meal-library-section" title="Meal Library">
+        <i class="fas fa-book-open"></i>
+    </a>
+    <a class="side-nav-btn" data-target="kanban" href="{{ url_for('routes.index') }}#kanban" title="Family Members Chores">
+        <i class="fas fa-house"></i>
+    </a>
+    <div class="side-nav-divider"></div>
+    <a class="side-nav-btn admin-only" data-target="add-chores-section" href="{{ url_for('routes.index') }}#add-chores-section" title="Add Chores">
+        <i class="fas fa-tasks"></i>
+    </a>
+    <a class="side-nav-btn admin-only" data-target="create-reward-section" href="{{ url_for('routes.index') }}#create-reward-section" title="Create Reward">
+        <i class="fas fa-gift"></i>
+    </a>
+    <a class="side-nav-btn" data-target="redeemed-section" href="{{ url_for('routes.index') }}#redeemed-section" title="Redeemed Rewards">
+        <i class="fas fa-medal"></i>
+    </a>
+    <a class="side-nav-btn admin-only" data-target="organise-section" href="{{ url_for('routes.index') }}#organise-section" title="Organise">
+        <i class="fas fa-folder-open"></i>
+    </a>
+    <div class="side-nav-divider"></div>
+    <a class="side-nav-btn side-nav-link{% if request.endpoint == 'routes.activity_log' %} side-nav-active{% endif %}" href="{{ url_for('routes.activity_log') }}" title="Activity Log">
+        <i class="fas fa-history"></i>
+    </a>
+    <a class="side-nav-btn side-nav-link admin-only{% if request.endpoint and request.endpoint.startswith('routes.settings') %} side-nav-active{% endif %}" href="{{ url_for('routes.settings') }}" title="Settings">
+        <i class="fas fa-cog"></i>
+    </a>
+    {% if request.endpoint == 'routes.index' %}
+    <button class="side-nav-btn" id="side-nav-lock-btn" title="Admin lock / unlock">
+        <i class="fas fa-lock"></i>
+    </button>
+    {% else %}
+    <button class="side-nav-btn" id="adult-lock-btn" title="Tap to unlock adult mode">
+        <i class="fas fa-lock"></i>
+    </button>
+    {% endif %}
+</nav>

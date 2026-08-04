@@ -6,6 +6,13 @@
         window.REWARD_SYSTEM = "{{ reward_system }}";
         window.APP_TIMEZONE  = {{ timezone | tojson }};
     </script>
+    <script>
+        // Apply saved theme before first paint to avoid a flash of the wrong theme
+        (function () {
+            var t = localStorage.getItem('cr-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
         <noscript>
             <style>
                 #site-content { display: block !important; }
@@ -21,10 +28,11 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260804b">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260804c">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+                <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
                 <style id="hide-overlays-style">
                     #pin-overlay, #site-content { display: none !important; }
                     #toast-container { z-index: 99999; }
@@ -411,32 +419,32 @@ window.addEventListener('DOMContentLoaded', function() {
         </script>
 
 <!-- Edit Reward Modal -->
-<div id="edit-reward-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
-    <div style="background:#1e1e2e; padding:28px 24px; border-radius:18px; min-width:320px; max-width:480px; width:90vw; box-shadow:0 4px 32px rgba(0,0,0,0.7); display:flex; flex-direction:column; gap:14px;">
-        <h3 style="color:#fff; margin:0 0 4px; font-size:1.2rem;"><i class="fas fa-edit" style="color:#a78bfa;"></i> Edit Reward</h3>
+<div id="edit-reward-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:var(--cr-modal-surface); padding:28px 24px; border-radius:18px; min-width:320px; max-width:480px; width:90vw; box-shadow:0 4px 32px rgba(0,0,0,0.7); display:flex; flex-direction:column; gap:14px;">
+        <h3 style="color:var(--cr-text-primary); margin:0 0 4px; font-size:1.2rem;"><i class="fas fa-edit" style="color:#a78bfa;"></i> Edit Reward</h3>
 
-        <label style="color:#aaa; font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">Title</label>
+        <label style="color:var(--cr-text-secondary); font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">Title</label>
         <input type="text" id="er-title" class="modern-input" style="margin:0;" placeholder="Reward title">
 
-        <label style="color:#aaa; font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">
+        <label style="color:var(--cr-text-secondary); font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">
             {% if reward_system == 'cash' %}<i class="fas fa-money-bill-wave" style="color:#4ade80;"></i> Cash Required{% else %}<i class="fas fa-star" style="color:#fbbf24;"></i> Points Required{% endif %}
         </label>
         <input type="number" id="er-points" class="modern-input" style="margin:0;"
                min="{% if reward_system == 'cash' %}0.01{% else %}1{% endif %}"
                step="{% if reward_system == 'cash' %}0.01{% else %}1{% endif %}">
 
-        <label style="color:#aaa; font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">Description <span style="font-weight:400;opacity:0.6;">(optional)</span></label>
+        <label style="color:var(--cr-text-secondary); font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">Description <span style="font-weight:400;opacity:0.6;">(optional)</span></label>
         <textarea id="er-description" class="modern-input modern-textarea" style="margin:0;" placeholder="A short description..."></textarea>
 
-        <label style="color:#aaa; font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;"><i class="fas fa-user-circle"></i> Assigned To</label>
+        <label style="color:var(--cr-text-secondary); font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;"><i class="fas fa-user-circle"></i> Assigned To</label>
         <select id="er-assigned-to" class="modern-input modern-select" style="margin:0;">
             {% for person in family %}
             <option value="{{ person.name }}">{{ person.name }}</option>
             {% endfor %}
         </select>
 
-        <label style="color:#aaa; font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">Image <span style="font-weight:400;opacity:0.6;">(optional)</span></label>
-        <input type="file" id="er-image-upload" accept="image/*" style="color:#ccc; margin:0;">
+        <label style="color:var(--cr-text-secondary); font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">Image <span style="font-weight:400;opacity:0.6;">(optional)</span></label>
+        <input type="file" id="er-image-upload" accept="image/*" style="color:var(--cr-text-secondary); margin:0;">
         <input type="text" id="er-image-url" class="modern-input" style="margin:0;" placeholder="Or paste image URL">
 
         <div style="display:flex; gap:10px; margin-top:4px;">
@@ -451,60 +459,8 @@ window.addEventListener('DOMContentLoaded', function() {
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 <body>
 
-<!-- Side Navigation toggle (always visible, centered on edge) -->
-<button id="side-nav-toggle" title="Close sidebar" aria-label="Toggle sidebar">
-    <i class="fas fa-chevron-left"></i>
-</button>
-
-<!-- Side Navigation -->
-<nav id="side-nav" aria-label="Section navigation">
-    <div class="side-nav-divider" style="margin-top:8px;"></div>
-
-    <button class="side-nav-btn" data-target="notes-kanban-section" title="Notes">
-        <i class="fas fa-sticky-note"></i>
-    </button>
-    <button class="side-nav-btn" data-target="rewards-section" title="Available Rewards">
-        <i class="fas fa-trophy"></i>
-    </button>
-    <button class="side-nav-btn" data-target="events-section" title="Family Events">
-        <i class="fas fa-calendar-alt"></i>
-    </button>
-    <button class="side-nav-btn" data-target="meal-planner-section" title="Weekly Meal Plan">
-        <i class="fas fa-utensils"></i>
-    </button>
-    <button class="side-nav-btn" data-target="shopping-list-section" title="Shopping List">
-        <i class="fas fa-cart-shopping"></i>
-    </button>
-    <button class="side-nav-btn" data-target="meal-library-section" title="Meal Library">
-        <i class="fas fa-book-open"></i>
-    </button>
-       <button class="side-nav-btn" data-target="kanban" title="Family Members Chores">
-        <i class="fas fa-house"></i>
-    </button>
-    <div class="side-nav-divider"></div>
-    <button class="side-nav-btn admin-only" data-target="add-chores-section" title="Add Chores">
-        <i class="fas fa-tasks"></i>
-    </button>
-    <button class="side-nav-btn admin-only" data-target="create-reward-section" title="Create Reward">
-        <i class="fas fa-gift"></i>
-    </button>
-    <button class="side-nav-btn" data-target="redeemed-section" title="Redeemed Rewards">
-        <i class="fas fa-medal"></i>
-    </button>
-    <button class="side-nav-btn admin-only" data-target="organise-section" title="Organise">
-        <i class="fas fa-folder-open"></i>
-    </button>
-    <div class="side-nav-divider"></div>
-    <a class="side-nav-btn side-nav-link" href="{{ url_for('routes.activity_log') }}" title="Activity Log">
-        <i class="fas fa-history"></i>
-    </a>
-    <a class="side-nav-btn side-nav-link admin-only" href="{{ url_for('routes.settings') }}" title="Settings">
-        <i class="fas fa-cog"></i>
-    </a>
-    <button class="side-nav-btn" id="side-nav-lock-btn" title="Admin lock / unlock">
-        <i class="fas fa-lock"></i>
-    </button>
-</nav>
+{% include 'fragments/side_nav.html' %}
+<script src="{{ url_for('static', filename='js/side_nav.js') }}"></script>
 <!-- Toast container for notifications -->
 <div id="toast-container" style="position:fixed;top:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:12px;"></div>
 <!-- Now moved below the main heading -->
@@ -816,20 +772,20 @@ window.addEventListener('DOMContentLoaded', function() {
 <!-- All site content is wrapped in the site-content container -->
 <div id="site-content" style="display:none;">
     <header class="dashboard-header-sticky">
-<div class="header-content" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; row-gap:0.6rem; background:linear-gradient(135deg,#141f33 0%,#1a2840 100%); padding:0.75rem 1.5rem; border-radius:14px 14px 0 0; border-bottom:1px solid rgba(255,255,255,0.07); box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+<div class="header-content" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; row-gap:0.6rem; background:linear-gradient(135deg, var(--cr-header-bg-1) 0%, var(--cr-header-bg-2) 100%); padding:0.75rem 1.5rem; border-radius:14px 14px 0 0; border-bottom:1px solid var(--cr-surface-border); box-shadow:0 4px 20px var(--cr-shadow);">
     <div style="display:flex; align-items:center;">
         <img src="{{ url_for('static', filename='images/mascot-transp.png') }}" 
              alt="Chores Reward Icon" 
              style="height:70px; width:70px; margin-right:10px;">
-        <h2 style="color: white; margin:0; font-size:1.4rem; text-transform:none; letter-spacing:0;">Chores and Rewards</h2>
+        <h2 style="color: var(--cr-text-primary); margin:0; font-size:1.4rem; text-transform:none; letter-spacing:0;">Chores and Rewards</h2>
     </div>
     <!-- Clock Widget -->
-    <div id="clock-widget" style="display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;flex-shrink:0;line-height:1.05;padding:0 8px;">
+    <div id="clock-widget" style="display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--cr-text-primary);flex-shrink:0;line-height:1.05;padding:0 8px;">
         <div id="clock-time" style="font-size:2.6em;font-weight:800;white-space:nowrap;letter-spacing:0.01em;">--:-- --</div>
         <div id="clock-date" style="font-size:1.05em;opacity:0.75;white-space:nowrap;font-weight:600;">Loading…</div>
     </div>
     <!-- Weather Widget -->
-    <div id="weather-widget" style="display:flex;align-items:center;gap:14px;color:white;flex-shrink:0;padding:0 6px;">
+    <div id="weather-widget" style="display:flex;align-items:center;gap:14px;color:var(--cr-text-primary);flex-shrink:0;padding:0 6px;">
         <i id="weather-icon" class="fas fa-sun" style="font-size:2.9em;color:#fbbf24;flex-shrink:0;"></i>
         <div style="line-height:1.1;">
             <div style="display:flex;align-items:baseline;gap:12px;">
@@ -838,7 +794,7 @@ window.addEventListener('DOMContentLoaded', function() {
             </div>
             <div id="weather-desc" style="font-size:1.05em;opacity:0.8;white-space:nowrap;font-weight:600;">Locating…</div>
         </div>
-        <button id="weather-expand-btn" title="Show 7-day forecast" aria-expanded="false" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:1.15em;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.15s;">
+        <button id="weather-expand-btn" title="Show 7-day forecast" aria-expanded="false" style="background:var(--cr-header-control-bg);border:1px solid var(--cr-header-control-border);color:var(--cr-text-primary);width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:1.15em;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.15s;">
             <i class="fas fa-chevron-down" id="weather-expand-icon" style="transition:transform 0.25s;"></i>
         </button>
     </div>
@@ -846,16 +802,19 @@ window.addEventListener('DOMContentLoaded', function() {
     <nav class="header-nav-actions">
         <a href="{{ url_for('routes.activity_log') }}"><i class="fas fa-history"></i> Activity Log</a>
         <a href="{{ url_for('routes.settings') }}" class="admin-only flex-admin-only"><i class="fas fa-cog"></i> Settings</a>
+        <button id="theme-toggle-btn" title="Toggle light/dark mode">
+            <i class="fas fa-sun"></i>
+        </button>
         <button id="adult-lock-btn" class="locked" title="Tap to unlock adult mode">
             <i class="fas fa-lock"></i>
         </button>
     </nav>
-    <button class="mute-toggle" id="mute-toggle" title="Mute All Sounds" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:10px;border-radius:50%;cursor:pointer;font-size:1.2em;">
+    <button class="mute-toggle" id="mute-toggle" title="Mute All Sounds" style="background:var(--cr-header-control-bg);border:none;color:var(--cr-text-primary);padding:10px;border-radius:50%;cursor:pointer;font-size:1.2em;">
         <i class="fas fa-volume-up" id="mute-icon"></i>
     </button>
 </div>
 <!-- 7-Day Forecast Panel — expands directly under the weather widget, inside the frozen header -->
-<div id="weather-forecast-panel" style="max-height:0; overflow:hidden; transition:max-height 0.35s ease; background:linear-gradient(135deg,#101c30 0%,#16233a 100%); border-radius:0 0 14px 14px; margin-bottom:1.2rem;">
+<div id="weather-forecast-panel" style="max-height:0; overflow:hidden; transition:max-height 0.35s ease; background:linear-gradient(135deg, var(--cr-header-bg-1) 0%, var(--cr-header-bg-2) 100%); border-radius:0 0 14px 14px; margin-bottom:1.2rem;">
     <div id="weather-forecast-days" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(90px, 1fr)); gap:12px; padding:16px 22px;">
         <div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:20px;">Loading forecast…</div>
     </div>
@@ -863,18 +822,18 @@ window.addEventListener('DOMContentLoaded', function() {
 </header>
 
     <!-- Adult PIN overlay for index page -->
-    <div id="adult-pin-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.82); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
-        <div id="adult-pin-box" style="background:#1e293b; border-radius:16px; padding:32px 28px; min-width:300px; text-align:center; box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+    <div id="adult-pin-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
+        <div id="adult-pin-box" style="background:var(--cr-modal-surface); border-radius:16px; padding:32px 28px; min-width:300px; text-align:center; box-shadow:0 8px 40px rgba(0,0,0,0.5);">
             <div style="font-size:2.5em; margin-bottom:10px;">🔒</div>
-            <h3 style="color:#fff; margin:0 0 6px; font-size:1.3em;">Adult Mode</h3>
-            <p style="color:#94a3b8; margin:0 0 20px; font-size:0.9em;">Enter your 4-digit PIN</p>
+            <h3 style="color:var(--cr-text-primary); margin:0 0 6px; font-size:1.3em;">Adult Mode</h3>
+            <p style="color:var(--cr-text-secondary); margin:0 0 20px; font-size:0.9em;">Enter your 4-digit PIN</p>
             <form id="adult-pin-form" autocomplete="off">
                 <input id="adult-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
                        maxlength="4" placeholder="••••"
-                       style="width:120px; font-size:2em; text-align:center; letter-spacing:8px; padding:10px; border:2px solid rgba(255,255,255,0.2); border-radius:10px; background:rgba(255,255,255,0.08); color:#fff; outline:none;">
+                       style="width:120px; font-size:2em; text-align:center; letter-spacing:8px; padding:10px; border:2px solid var(--cr-subtle-panel-border); border-radius:10px; background:var(--cr-subtle-panel); color:var(--cr-text-primary); outline:none;">
             </form>
             <p id="adult-pin-error" style="color:#f87171; min-height:1.4em; margin-top:12px; font-size:0.9em;"></p>
-            <button onclick="document.getElementById('adult-pin-overlay').style.display='none'" style="margin-top:4px; background:transparent; border:none; color:#64748b; font-size:0.85em; cursor:pointer;">Cancel</button>
+            <button onclick="document.getElementById('adult-pin-overlay').style.display='none'" style="margin-top:4px; background:transparent; border:none; color:var(--cr-text-secondary); font-size:0.85em; cursor:pointer;">Cancel</button>
         </div>
     </div>
 
@@ -883,9 +842,9 @@ window.addEventListener('DOMContentLoaded', function() {
  
 
 <!-- Edit Name Modal -->
-<div id="edit-name-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
-  <div style="background:#676665; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
-    <h3>Edit Name</h3>
+<div id="edit-name-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:var(--cr-modal-surface); padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+    <h3 style="color:var(--cr-text-primary); margin:0 0 12px;">Edit Name</h3>
     <input type="text" id="edit-name-input" placeholder="Enter new name" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:80%; margin-bottom:18px;">
     <div style="margin-top:10px; display:flex; gap:16px; justify-content:center;">
       <button class="confirm-btn" onclick="confirmEditName()" style="background:#2d2d2d; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Confirm</button>
@@ -1510,7 +1469,7 @@ window.addEventListener('DOMContentLoaded', function() {
     <!-- Enhanced Rewards Section -->
     <section class="rewards-section collapsible-section" id="rewards-section">
         <h2 class="section-title section-toggle">
-<i class="fas fa-trophy" style="color: #a78bfa;"></i> <span style="color: #a78bfa;">Available Rewards</span>
+<i class="fas fa-trophy" style="color: #a78bfa;"></i> <span>Available Rewards</span>
             <i class="fas fa-chevron-down section-chevron"></i>
         </h2>
         {% set uncompleted_rewards = rewards | selectattr('completed', 'equalto', False) | list %}
@@ -2090,7 +2049,7 @@ window.addEventListener('DOMContentLoaded', function() {
     {% if google_calendar_feature_enabled and google_calendar_enabled %}
     <section class="rewards-section collapsible-section" style="margin-top:1rem;" id="events-section">
         <h2 class="section-title section-toggle">
-            <i class="fas fa-calendar-alt" style="color:#60a5fa;"></i> <span style="color:#60a5fa;">Upcoming Family Events</span>
+            <i class="fas fa-calendar-alt" style="color:#60a5fa;"></i> <span>Upcoming Family Events</span>
             <div class="gcal-view-switch" onclick="event.stopPropagation();" title="Switch calendar view">
                 <button type="button" class="gcal-view-switch-btn" data-gcal-view="grid" onclick="event.stopPropagation(); setGcalView('grid');" title="Time grid view">
                     <i class="fas fa-stream"></i>
@@ -4503,32 +4462,32 @@ function deleteReward(rewardId) {
 
 
     <section>
-        <h2 style="text-align:center; color:#fff; margin-bottom: 10px; margin-top: 0; font-size:2em; letter-spacing:1px; display:flex; align-items:center; justify-content:center; gap:12px;">
-            <i class="fas fa-house-chimney" style="color: #ffffff; font-size:1.2em;"></i>
+        <h2 style="text-align:center; color:var(--cr-text-primary); margin-bottom: 10px; margin-top: 0; font-size:2em; letter-spacing:1px; display:flex; align-items:center; justify-content:center; gap:12px;">
+            <i class="fas fa-house-chimney" style="color: var(--cr-text-primary); font-size:1.2em;"></i>
             Family Members Chores
         </h2>
         <div id="morning-greeting-bar" class="morning-greeting-bar"></div>
 <!-- Profile Badge Modal -->
 <div id="profile-modal-overlay" onclick="closeProfileModal()"
      style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh;
-            background:rgba(0,0,0,0.78); z-index:99990; justify-content:center;
+            background:var(--cr-modal-overlay); z-index:99990; justify-content:center;
             align-items:flex-start; overflow-y:auto; box-sizing:border-box; padding:20px;">
     <div onclick="event.stopPropagation()"
-         style="background:#1a1a2e; border-radius:20px; max-width:500px; width:100%;
+         style="background:var(--cr-modal-surface); border-radius:20px; max-width:500px; width:100%;
                 margin:auto; position:relative; box-shadow:0 8px 40px rgba(0,0,0,0.7);
                 animation:profileModalIn 0.3s cubic-bezier(.175,.885,.32,1.275);">
         <button onclick="closeProfileModal()"
-                style="position:absolute;top:12px;right:14px;background:rgba(255,255,255,0.12);
-                       border:none;color:#fff;font-size:1.5em;width:38px;height:38px;
+                style="position:absolute;top:12px;right:14px;background:var(--cr-subtle-panel);
+                       border:none;color:var(--cr-text-primary);font-size:1.5em;width:38px;height:38px;
                        border-radius:50%;cursor:pointer;z-index:1;line-height:1;
                        display:flex;align-items:center;justify-content:center;">×</button>
-        <div id="profile-modal-content" style="padding:28px 20px 36px;"></div>
+        <div id="profile-modal-content" style="padding:28px 20px 36px; color:var(--cr-text-primary);"></div>
     </div>
 </div>
 
-<div id="add-person-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
-  <div style="background:#464646; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
-    <h3>Add Family Member</h3>
+<div id="add-person-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:var(--cr-modal-surface); padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+    <h3 style="color:var(--cr-text-primary); margin:0 0 12px;">Add Family Member</h3>
     <input type="text" id="add-person-input" placeholder="Enter name" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:80%; margin-bottom:18px;">
     <div style="margin-top:10px; display:flex; gap:16px; justify-content:center;">
       <button class="confirm-btn" onclick="confirmAddPerson()" style="background:#2d2d2d; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Add</button>
@@ -4760,16 +4719,16 @@ function deleteReward(rewardId) {
                     <button class="completed-chores-toggle-btn" 
                             onclick="toggleCompletedChores(this)" 
                             aria-label="Show/Hide Completed Chores"
-                            style="background: none; border: none; cursor: pointer; font-size: 1.1em; color: #333; display: flex; align-items: center;">
+                            style="background: none; border: none; cursor: pointer; font-size: 1.1em; color: var(--text-color); display: flex; align-items: center;">
                         <i class="fas fa-chevron-down" style="transition: transform 0.2s;"></i>
                         <span style="margin-left: 6px;">Show Completed Chores ({{ completed_chores|length }})</span>
                     </button>
                     <div class="chores-list completed-chores-list" style="display: none;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h4 class="chores-completed-header" style="color: black; margin-top: 0;">Completed Chores:</h4>
+                            <h4 class="chores-completed-header" style="color: var(--text-color); margin-top: 0;">Completed Chores:</h4>
                             <button class="clear-all-completed-btn" style="background:#f44336; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:0.95em; cursor:pointer; margin-bottom:6px;" onclick="clearAllCompletedChores(this)"><i class='fas fa-trash'></i> Clear All</button>
                         </div>
-                        <div class="clear-all-hint" style="font-size:0.95em;color:#000000;margin-bottom:6px;">(all completed chores today)</div>
+                        <div class="clear-all-hint" style="font-size:0.95em;color:var(--cr-text-secondary);margin-bottom:6px;">(all completed chores today)</div>
                         {% for chore in completed_chores %}
                             <div class="chore completed" data-chore-id="{{ chore.id }}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04); opacity:0.72; padding-right:34px;">
                                 <button class="btn-delete-chore-sm" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
@@ -5467,13 +5426,13 @@ function updateStreakDisplay(column, streakCount) {
     </script>
 </section>
 <section class="completed-rewards collapsible-section collapsed" id="redeemed-section">
-    <h2 class="section-toggle" style="text-align: center; color: #a78bfa;">
+    <h2 class="section-title section-toggle">
         <i class="fas fa-trophy" style="color: #a78bfa;"></i> Redeemed Rewards
         <i class="fas fa-chevron-down section-chevron"></i>
     </h2>
     {% set redeemed_rewards = rewards | selectattr('completed', 'equalto', True) | list %}
     {% if redeemed_rewards | length == 0 %}
-    <p style="text-align: center; color: #c4c1c1; font-style: italic; margin-top: 10px;">
+    <p style="text-align: center; color: var(--cr-text-secondary); font-style: italic; margin-top: 10px;">
         This is where you redeemed rewards will be when you redeem them
     </p>
     {% endif %}
@@ -5585,7 +5544,7 @@ function updateStreakDisplay(column, streakCount) {
 </section>
 
 <!-- Organise Modal -->
-<div id="organise-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.75); z-index:9000; justify-content:center; align-items:center;">
+<div id="organise-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:9000; justify-content:center; align-items:center;">
     <div class="org-modal-box">
         <div class="org-modal-header">
             <span id="org-modal-title" style="font-weight:700; font-size:1.1em;">Add Item</span>
@@ -5691,7 +5650,7 @@ function updateStreakDisplay(column, streakCount) {
 </div>
 
 <!-- Vehicle Service History Modal -->
-<div id="vehicle-service-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.75); z-index:9100; justify-content:center; align-items:center;">
+<div id="vehicle-service-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:9100; justify-content:center; align-items:center;">
     <div class="org-modal-box">
         <div class="org-modal-header">
             <span id="svc-modal-title" style="font-weight:700; font-size:1.1em;">Add Service Record</span>
@@ -5884,6 +5843,7 @@ function updateMuteIcon() {
             updateMuteIcon();
         });
     }
+    if (typeof initThemeToggle === 'function') initThemeToggle('theme-toggle-btn');
 document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize audio first
@@ -7185,32 +7145,12 @@ function doRedeemReward(rewardId) {
 <script>
 // ── Side navigation ──────────────────────────────────────────────────────────
 (function() {
-    const nav = document.getElementById('side-nav');
-    const toggleBtn = document.getElementById('side-nav-toggle');
-    const COLLAPSED_KEY = 'sideNavCollapsed';
-
-    function setCollapsed(collapsed) {
-        nav.classList.toggle('side-nav-collapsed', collapsed);
-        document.body.classList.toggle('side-nav-body-collapsed', collapsed);
-        if (toggleBtn) {
-            toggleBtn.title = collapsed ? 'Open sidebar' : 'Close sidebar';
-            toggleBtn.querySelector('i').className = collapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
-        }
-        localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0');
-    }
-
-    // Restore state on load
-    setCollapsed(localStorage.getItem(COLLAPSED_KEY) === '1');
-
-    toggleBtn?.addEventListener('click', () => {
-        setCollapsed(!nav.classList.contains('side-nav-collapsed'));
-    });
-
-    // Section scroll buttons
+    // Section scroll buttons (now real links so they also work from other pages)
     document.querySelectorAll('#side-nav .side-nav-btn[data-target]').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
             const section = document.getElementById(btn.dataset.target);
             if (!section) return;
+            e.preventDefault();
             if (section.classList.contains('collapsed')) section.classList.remove('collapsed');
             const top = section.getBoundingClientRect().top + window.scrollY - 16;
             window.scrollTo({ top, behavior: 'smooth' });

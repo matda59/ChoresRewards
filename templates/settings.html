@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <title>Settings - ChoresAwards</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function () {
+            var t = localStorage.getItem('cr-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -275,12 +281,102 @@
         .avatar-upload-overlay { transition: opacity 0.3s ease, background 0.3s ease !important; }
         .avatar-upload-overlay:hover { opacity: 1 !important; background: rgba(0,0,0,0.8) !important; }
         .family-member-card:hover .avatar-upload-overlay { opacity: 0.7 !important; }
+
+        /* ── Light theme overrides ── */
+        [data-theme="light"] .chore-card {
+            background: rgba(15,23,42,0.035);
+            border-color: rgba(15,23,42,0.08);
+        }
+        [data-theme="light"] .chore-card:hover {
+            background: rgba(15,23,42,0.06);
+            border-color: rgba(15,23,42,0.14);
+        }
+        [data-theme="light"] .chore-title { color: var(--text-color); }
+        [data-theme="light"] .no-chores { color: #64748b; }
+        [data-theme="light"] .person-btn {
+            background: rgba(15,23,42,0.05);
+            border-color: rgba(15,23,42,0.14);
+            color: var(--text-color);
+        }
+        [data-theme="light"] .person-btn:hover { background: rgba(15,23,42,0.09); }
+        [data-theme="light"] .cancel-btn {
+            background: rgba(15,23,42,0.06);
+            color: var(--text-color);
+            border-color: rgba(15,23,42,0.14);
+        }
+        [data-theme="light"] .cancel-btn:hover { background: rgba(15,23,42,0.12); }
+        [data-theme="light"] .back-btn { color: rgba(15,23,42,0.65); }
+        [data-theme="light"] .back-btn:hover { background: rgba(15,23,42,0.07); color: var(--text-color); }
+        [data-theme="light"] .chore-title input, [data-theme="light"] .chore-points input {
+            background: rgba(15,23,42,0.05) !important;
+            border-color: rgba(15,23,42,0.15) !important;
+            color: var(--text-color) !important;
+        }
+        [data-theme="light"] .settings-field-label { color: rgba(15,23,42,0.55); }
+        [data-theme="light"] .reward-system-label {
+            border-color: rgba(15,23,42,0.15);
+            background: rgba(15,23,42,0.04);
+            color: rgba(15,23,42,0.6);
+        }
+        [data-theme="light"] .reward-system-label:hover { color: var(--text-color); }
+        [data-theme="light"] .family-member-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f4f7fc 100%) !important;
+            border-color: rgba(15,23,42,0.1) !important;
+            box-shadow: 0 8px 32px rgba(15,23,42,0.12) !important;
+        }
+        [data-theme="light"] .family-member-card .person-name { color: var(--text-color) !important; }
+        [data-theme="light"] .bonus-mode-label,
+        [data-theme="light"] .explanation-text { color: var(--text-color) !important; }
+
+        /* ── Broad-brush catch for one-off inline-styled text/backgrounds
+             throughout this page (description paragraphs, PIN inputs, Google
+             Calendar setup instructions, avatar/age inputs, edit-chore &
+             person modals). Matches the literal inline style values used
+             throughout this template so they don't need per-element edits. ── */
+        [data-theme="light"] [style*="color:rgba(255,255,255,0.6)"],
+        [data-theme="light"] [style*="color: rgba(255,255,255,0.6)"] { color: rgba(15,23,42,0.6) !important; }
+        [data-theme="light"] [style*="color:rgba(255,255,255,0.8)"],
+        [data-theme="light"] [style*="color: rgba(255,255,255,0.8)"] { color: rgba(15,23,42,0.8) !important; }
+        [data-theme="light"] [style*="color:rgba(255,255,255,0.75)"] { color: rgba(15,23,42,0.75) !important; }
+        [data-theme="light"] [style*="color:rgba(255,255,255,0.5)"] { color: rgba(15,23,42,0.5) !important; }
+        [data-theme="light"] [style*="color:rgba(255,255,255,0.45)"] { color: rgba(15,23,42,0.45) !important; }
+        [data-theme="light"] [style*="color:rgba(255,255,255,0.4)"] { color: rgba(15,23,42,0.4) !important; }
+        [data-theme="light"] [style*="color: white"],
+        [data-theme="light"] [style*="color:white"],
+        [data-theme="light"] [style*="color:#fff"],
+        [data-theme="light"] [style*="color: #fff"] { color: var(--text-color) !important; }
+        [data-theme="light"] [style*="background: rgba(255,255,255,0.04)"],
+        [data-theme="light"] [style*="background:rgba(255,255,255,0.04)"] { background: rgba(15,23,42,0.04) !important; }
+        [data-theme="light"] [style*="background: rgba(255,255,255,0.05)"],
+        [data-theme="light"] [style*="background:rgba(255,255,255,0.05)"] { background: rgba(15,23,42,0.05) !important; }
+        [data-theme="light"] [style*="background: rgba(255,255,255,0.06)"],
+        [data-theme="light"] [style*="background:rgba(255,255,255,0.06)"] { background: rgba(15,23,42,0.06) !important; }
+        [data-theme="light"] [style*="border:1px solid rgba(255,255,255,0.08)"],
+        [data-theme="light"] [style*="border: 1px solid rgba(255,255,255,0.08)"],
+        [data-theme="light"] [style*="border-top:1px solid rgba(255,255,255,0.08)"] { border-color: rgba(15,23,42,0.08) !important; }
+        [data-theme="light"] [style*="border:1px solid rgba(255,255,255,0.09)"] { border-color: rgba(15,23,42,0.09) !important; }
+        [data-theme="light"] [style*="border: 2px solid rgba(255,255,255,0.1)"],
+        [data-theme="light"] [style*="border:2px solid rgba(255,255,255,0.1)"] { border-color: rgba(15,23,42,0.15) !important; }
+        [data-theme="light"] [style*="border:2px solid rgba(99,102,241,0.3)"] { color: var(--text-color) !important; }
+        [data-theme="light"] [style*="background: #333"],
+        [data-theme="light"] [style*="background:#333"] { background: rgba(15,23,42,0.06) !important; color: var(--text-color) !important; }
+        [data-theme="light"] [style*="border: 1px solid #555"],
+        [data-theme="light"] [style*="border:1px solid #555"] { border-color: rgba(15,23,42,0.2) !important; }
+        [data-theme="light"] [style*="background-color: #222"],
+        [data-theme="light"] [style*="background: #222"] { background: #ffffff !important; border-color: rgba(15,23,42,0.15) !important; }
+        [data-theme="light"] [style*="background:#2d2d2d"] { background: #e2e8f0 !important; color: var(--text-color) !important; }
+        [data-theme="light"] [style*="background:#888"] { background: #94a3b8 !important; }
+        [data-theme="light"] [style*="background:#676665"] { background: #e2e8f0 !important; }
+        [data-theme="light"] [style*="color: #222"],
+        [data-theme="light"] [style*="color:#222"] { color: var(--text-color) !important; }
     </style>
 </head>
-<body data-theme="dark">
+<body>
+    {% include 'fragments/side_nav.html' %}
+    <script src="{{ url_for('static', filename='js/side_nav.js') }}"></script>
     <header>
-        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#141f33 0%,#1a2840 100%);padding:0.75rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.07);">
-            <h2 style="color: white; font-size:1.3rem; text-transform:none; letter-spacing:0; margin:0;">Chores and Rewards — Settings</h2>
+        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,var(--cr-header-bg-1) 0%,var(--cr-header-bg-2) 100%);padding:0.75rem 1.5rem;border-bottom:1px solid var(--cr-surface-border);">
+            <h2 style="color: var(--cr-text-primary); font-size:1.3rem; text-transform:none; letter-spacing:0; margin:0;">Chores and Rewards — Settings</h2>
         </div>
         <nav class="activity-page-nav">
             <a href="{{ url_for('routes.index') }}"><i class="fas fa-home"></i> Home</a>
@@ -1172,6 +1268,64 @@
                         <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="⭐">⭐</button>
                         <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🔥">🔥</button>
                         <button type="button" class="chore-emoji-opt edit-emoji-opt" data-emoji="🌟">🌟</button>
+                                            <!-- Household & Cleaning -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧼">🧼</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🪣">🪣</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🪥">🪥</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧻">🧻</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🛋️">🛋️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🪟">🪟</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧴">🧴</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧦">🧦</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="👟">👟</button>
+                    <!-- Yard, Garden & Tools -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="🪴">🪴</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🌻">🌻</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧹">🧹</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🔨">🔨</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🔧">🔧</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🪛">🪛</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="✂️">✂️</button>
+                    <!-- Kitchen, Cooking & Food -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="🍲">🍲</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🍞">🍞</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🍎">🍎</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🥛">🥛</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="☕">☕</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🍕">🍕</button>
+                    <!-- Pets & Animals -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="🦴">🦴</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🐟">🐟</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🦜">🦜</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🐹">🐹</button>
+                    <!-- School, Homework & Self-Care -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="✏️">✏️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="📝">📝</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🎨">🎨</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧘">🧘</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🛁">🛁</button>
+                    <!-- Activities & Fitness -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="🏃">🏃</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🚲">🚲</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="⚽">⚽</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🏀">🏀</button>
+                    <!-- Errands, Mail & Family Org -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="✉️">✉️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="📬">📬</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🛍️">🛍️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="💵">💵</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="📅">📅</button>
+                    <!-- Rewards, Badges & Status -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="🏆">🏆</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🥇">🥇</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🎯">🎯</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🎉">🎉</button>
+                    <!-- Night & Morning Routines -->
+                    <button type="button" class="chore-emoji-opt" data-emoji="⏰">⏰</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="☀️">☀️</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🌙">🌙</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧸">🧸</button>
+                    <button type="button" class="chore-emoji-opt" data-emoji="🧼">🧼</button>
                     </div>
                 </div>
                 <label style="margin-top:8px; display:block; color:#fff; font-weight:600;">Specific Day(s) of the Week:</label>
@@ -1641,5 +1795,23 @@ function setPersonPin(personId) {
     .catch(() => { if (window.showToast) showToast('Error setting PIN', 'error'); });
 }
 </script>
+<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+
+<!-- Adult PIN unlock overlay (used on every page) -->
+<div id="adult-pin-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
+    <div id="adult-pin-box" style="background:var(--cr-modal-surface); border-radius:16px; padding:32px 28px; min-width:300px; text-align:center; box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+        <div style="font-size:2.5em; margin-bottom:10px;">🔒</div>
+        <h3 style="color:var(--cr-text-primary); margin:0 0 6px; font-size:1.3em;">Adult Mode</h3>
+        <p style="color:var(--cr-text-secondary); margin:0 0 20px; font-size:0.9em;">Enter your 4-digit PIN</p>
+        <form id="adult-pin-form" autocomplete="off">
+            <input id="adult-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
+                   maxlength="4" placeholder="••••"
+                   style="width:120px; font-size:2em; text-align:center; letter-spacing:8px; padding:10px; border:2px solid var(--cr-subtle-panel-border); border-radius:10px; background:var(--cr-subtle-panel); color:var(--cr-text-primary); outline:none;">
+        </form>
+        <p id="adult-pin-error" style="color:#f87171; min-height:1.4em; margin-top:12px; font-size:0.9em;"></p>
+        <button onclick="document.getElementById('adult-pin-overlay').style.display='none'" style="margin-top:4px; background:transparent; border:none; color:var(--cr-text-secondary); font-size:0.85em; cursor:pointer;">Cancel</button>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/auth_profile.js') }}"></script>
 </body>
 </html>

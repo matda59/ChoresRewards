@@ -373,13 +373,85 @@
   .wz-modal p { color: rgba(255,255,255,0.6); margin: 0 0 1.5rem; font-size: 0.92rem; }
   .wz-modal-actions { display: flex; gap: 12px; justify-content: center; }
 
+  /* ── Light theme overrides ── */
+  [data-theme="light"] .wizard-header {
+    background: linear-gradient(135deg, var(--cr-header-bg-1) 0%, var(--cr-header-bg-2) 100%);
+    border-bottom-color: rgba(15,23,42,0.08);
+  }
+  [data-theme="light"] .wizard-header h2,
+  [data-theme="light"] .wizard-section-title,
+  [data-theme="light"] .existing-member-card .member-name,
+  [data-theme="light"] .avatar-upload-plus i,
+  [data-theme="light"] .wz-input,
+  [data-theme="light"] select.wz-input,
+  [data-theme="light"] select.wz-input option,
+  [data-theme="light"] .wz-submit-btn,
+  [data-theme="light"] .reward-system-label.selected {
+    color: var(--text-color);
+  }
+  [data-theme="light"] .wizard-section {
+    background: linear-gradient(135deg, #ffffff 0%, #f4f7fc 100%);
+    border-color: rgba(15,23,42,0.10);
+    color: var(--text-color);
+  }
+  [data-theme="light"] .wz-section-desc { color: rgba(15,23,42,0.55); }
+  [data-theme="light"] .wz-section-desc strong { color: rgba(15,23,42,0.8); }
+  [data-theme="light"] .wz-label { color: rgba(15,23,42,0.5); }
+  [data-theme="light"] .wz-input {
+    background: rgba(15,23,42,0.05);
+    border-color: rgba(15,23,42,0.15);
+  }
+  [data-theme="light"] .wz-input::placeholder { color: rgba(15,23,42,0.35); }
+  [data-theme="light"] .existing-member-card {
+    background: rgba(15,23,42,0.04);
+    border-color: rgba(15,23,42,0.08);
+  }
+  [data-theme="light"] .person-entry-row {
+    background: rgba(15,23,42,0.035);
+    border-color: rgba(15,23,42,0.08);
+  }
+  [data-theme="light"] .person-entry-row:hover { border-color: rgba(15,23,42,0.15); }
+  [data-theme="light"] .avatar-upload-circle img {
+    border-color: rgba(15,23,42,0.15);
+    background: #eef2f9;
+  }
+  [data-theme="light"] .avatar-upload-plus { border-color: #f4f7fc; }
+  [data-theme="light"] .avatar-col-label { color: rgba(15,23,42,0.5); }
+  [data-theme="light"] .wz-hint { color: rgba(15,23,42,0.42); }
+  [data-theme="light"] .remove-entry-btn { color: rgba(15,23,42,0.35); }
+  [data-theme="light"] .wz-add-btn {
+    background: rgba(15,23,42,0.05);
+    border-color: rgba(15,23,42,0.14);
+    color: rgba(15,23,42,0.75);
+  }
+  [data-theme="light"] .wz-add-btn:hover { background: rgba(15,23,42,0.1); }
+  [data-theme="light"] .reward-system-label {
+    border-color: rgba(15,23,42,0.15);
+    background: rgba(15,23,42,0.04);
+    color: rgba(15,23,42,0.6);
+  }
+  [data-theme="light"] .reward-system-label:hover { color: var(--text-color); }
+  [data-theme="light"] .bonus-mode-label,
+  [data-theme="light"] .wz-check-label { color: rgba(15,23,42,0.78); }
+  [data-theme="light"] select.wz-input {
+    background: rgba(15,23,42,0.05);
+  }
+  [data-theme="light"] select.wz-input option { background: #ffffff; }
+  [data-theme="light"] .wz-modal-overlay { background: rgba(15,23,42,0.45); }
+  [data-theme="light"] .wz-modal {
+    background: linear-gradient(135deg, #ffffff 0%, #f4f7fc 100%);
+    border-color: rgba(15,23,42,0.12);
+    color: var(--text-color);
+  }
+  [data-theme="light"] .wz-modal p { color: rgba(15,23,42,0.6); }
+
   @media (max-width: 640px) {
     .person-entry-row { flex-direction: column; }
     .existing-member-card { min-width: 120px; }
   }
 </style>
 
-<div data-theme="dark">
+<div>
   <header>
     <div class="wizard-header">
       <h2><i class="fas fa-magic"></i> Chores Rewards — Setup Wizard</h2>
@@ -775,41 +847,41 @@ document.addEventListener('click', function(e) {
   <div class="wizard-section" style="margin-top:1.5rem;">
     <h3 class="wizard-section-title"><i class="fas fa-th-large"></i> Main Features of ChoresRewards</h3>
     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1rem;">
-      <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:1.25rem;">
+      <div style="background:var(--cr-subtle-panel); border:1px solid var(--cr-surface-border); border-radius:10px; padding:1.25rem;">
         <div style="font-size:2rem; margin-bottom:0.5rem;">📊</div>
-        <div style="font-weight:600; color:#fff; margin-bottom:0.35rem;">Track Chores</div>
-        <div style="color:rgba(255,255,255,0.55); font-size:0.88rem;">Assign and track chores for each family member with due dates and completion status.</div>
+        <div style="font-weight:600; color:var(--text-color); margin-bottom:0.35rem;">Track Chores</div>
+        <div style="color:var(--cr-text-secondary); font-size:0.88rem;">Assign and track chores for each family member with due dates and completion status.</div>
       </div>
-      <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:1.25rem;">
+      <div style="background:var(--cr-subtle-panel); border:1px solid var(--cr-surface-border); border-radius:10px; padding:1.25rem;">
         <div style="font-size:2rem; margin-bottom:0.5rem;">🏆</div>
-        <div style="font-weight:600; color:#fff; margin-bottom:0.35rem;">Reward System</div>
-        <div style="color:rgba(255,255,255,0.55); font-size:0.88rem;">Set up custom rewards that family members can earn by completing their chores.</div>
+        <div style="font-weight:600; color:var(--text-color); margin-bottom:0.35rem;">Reward System</div>
+        <div style="color:var(--cr-text-secondary); font-size:0.88rem;">Set up custom rewards that family members can earn by completing their chores.</div>
       </div>
-      <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:1.25rem;">
+      <div style="background:var(--cr-subtle-panel); border:1px solid var(--cr-surface-border); border-radius:10px; padding:1.25rem;">
         <div style="font-size:2rem; margin-bottom:0.5rem;">👨‍👩‍👧‍👦</div>
-        <div style="font-weight:600; color:#fff; margin-bottom:0.35rem;">Family Management</div>
-        <div style="color:rgba(255,255,255,0.55); font-size:0.88rem;">Manage multiple family members with different roles and permissions.</div>
+        <div style="font-weight:600; color:var(--text-color); margin-bottom:0.35rem;">Family Management</div>
+        <div style="color:var(--cr-text-secondary); font-size:0.88rem;">Manage multiple family members with different roles and permissions.</div>
       </div>
-      <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:1.25rem;">
+      <div style="background:var(--cr-subtle-panel); border:1px solid var(--cr-surface-border); border-radius:10px; padding:1.25rem;">
         <div style="font-size:2rem; margin-bottom:0.5rem;">📱</div>
-        <div style="font-weight:600; color:#fff; margin-bottom:0.35rem;">Mobile Friendly</div>
-        <div style="color:rgba(255,255,255,0.55); font-size:0.88rem;">Access your family's chore system from any device, anywhere.</div>
+        <div style="font-weight:600; color:var(--text-color); margin-bottom:0.35rem;">Mobile Friendly</div>
+        <div style="color:var(--cr-text-secondary); font-size:0.88rem;">Access your family's chore system from any device, anywhere.</div>
       </div>
-      <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:1.25rem;">
+      <div style="background:var(--cr-subtle-panel); border:1px solid var(--cr-surface-border); border-radius:10px; padding:1.25rem;">
         <div style="font-size:2rem; margin-bottom:0.5rem;">📅</div>
-        <div style="font-weight:600; color:#fff; margin-bottom:0.35rem;">Scheduling</div>
-        <div style="color:rgba(255,255,255,0.55); font-size:0.88rem;">Schedule recurring chores and set custom frequencies for each task.</div>
+        <div style="font-weight:600; color:var(--text-color); margin-bottom:0.35rem;">Scheduling</div>
+        <div style="color:var(--cr-text-secondary); font-size:0.88rem;">Schedule recurring chores and set custom frequencies for each task.</div>
       </div>
-      <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:1.25rem;">
+      <div style="background:var(--cr-subtle-panel); border:1px solid var(--cr-surface-border); border-radius:10px; padding:1.25rem;">
         <div style="font-size:2rem; margin-bottom:0.5rem;">📈</div>
-        <div style="font-weight:600; color:#fff; margin-bottom:0.35rem;">Progress Reports</div>
-        <div style="color:rgba(255,255,255,0.55); font-size:0.88rem;">View detailed reports on chore completion and reward progress.</div>
+        <div style="font-weight:600; color:var(--text-color); margin-bottom:0.35rem;">Progress Reports</div>
+        <div style="color:var(--cr-text-secondary); font-size:0.88rem;">View detailed reports on chore completion and reward progress.</div>
       </div>
     </div>
   </div>
 
   </div><!-- /.wizard-wrap -->
-</div><!-- /data-theme -->
+</div>
 
 <script>
 function addPerson() {

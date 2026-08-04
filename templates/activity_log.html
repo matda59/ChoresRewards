@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <title>Activity Log - ChoresAwards</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function () {
+            var t = localStorage.getItem('cr-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -12,12 +18,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: linear-gradient(135deg, #141f33 0%, #1a2840 100%);
+            background: linear-gradient(135deg, var(--cr-header-bg-1) 0%, var(--cr-header-bg-2) 100%);
             padding: 0.75rem 1.5rem;
             border-radius: 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.07);
+            border-bottom: 1px solid var(--cr-surface-border);
             margin-bottom: 1.2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 20px var(--cr-shadow);
         }
         /* ── Charts ── */
         .charts-section {
@@ -28,11 +34,11 @@
             justify-content: center;
         }
         .chart-container {
-            background: linear-gradient(135deg, #1a2436 0%, #1e2d42 100%);
-            border: 1px solid rgba(255,255,255,0.10);
+            background: linear-gradient(135deg, var(--cr-surface-1) 0%, var(--cr-surface-2) 100%);
+            border: 1px solid var(--cr-surface-border);
             border-radius: 14px;
             padding: 1.5em;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 20px var(--cr-shadow);
             min-width: 320px;
             max-width: 420px;
             flex: 1 1 320px;
@@ -41,7 +47,7 @@
             align-items: center;
         }
         .chart-title {
-            color: rgba(255,255,255,0.9);
+            color: var(--cr-text-primary);
             font-size: 1rem;
             font-weight: 600;
             margin-bottom: 1em;
@@ -56,7 +62,7 @@
         }
         /* ── Placeholder when no data ── */
         .placeholder {
-            color: rgba(255,255,255,0.4);
+            color: var(--cr-text-secondary);
             font-size: 0.95em;
             text-align: center;
             margin: 2em 0;
@@ -69,13 +75,23 @@
         [data-theme="dark"] .activity-meta,
         [data-theme="dark"] .activity-date,
         [data-theme="dark"] .activity-user { color: #ccc !important; }
+        [data-theme="light"] .stat-number { color: #059669 !important; }
+        [data-theme="light"] .stat-label  { color: rgba(15,23,42,0.7) !important; }
+        [data-theme="light"] .activity-log-subtitle { color: rgba(15,23,42,0.65) !important; }
+        [data-theme="light"] .activity-description  { color: var(--text-color) !important; }
+        [data-theme="light"] .activity-meta,
+        [data-theme="light"] .activity-date,
+        [data-theme="light"] .activity-user { color: #555 !important; }
     </style>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
 </head>
-<body data-theme="dark">
+<body>
+    {% include 'fragments/side_nav.html' %}
+    <script src="{{ url_for('static', filename='js/side_nav.js') }}"></script>
     <header>
         <div class="header-content">
             <h2 style="margin:0; font-size:1.3rem; text-transform:none; letter-spacing:0;"><i class="fas fa-history" style="color:#4CAF50;margin-right:0.5em;"></i>Chores and Rewards — Activity Log</h2>
@@ -272,5 +288,22 @@
         updateChartsForTheme('dark');
     });
     </script>
+
+    <!-- Adult PIN unlock overlay (used on every page) -->
+    <div id="adult-pin-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
+        <div id="adult-pin-box" style="background:var(--cr-modal-surface); border-radius:16px; padding:32px 28px; min-width:300px; text-align:center; box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+            <div style="font-size:2.5em; margin-bottom:10px;">🔒</div>
+            <h3 style="color:var(--cr-text-primary); margin:0 0 6px; font-size:1.3em;">Adult Mode</h3>
+            <p style="color:var(--cr-text-secondary); margin:0 0 20px; font-size:0.9em;">Enter your 4-digit PIN</p>
+            <form id="adult-pin-form" autocomplete="off">
+                <input id="adult-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
+                       maxlength="4" placeholder="••••"
+                       style="width:120px; font-size:2em; text-align:center; letter-spacing:8px; padding:10px; border:2px solid var(--cr-subtle-panel-border); border-radius:10px; background:var(--cr-subtle-panel); color:var(--cr-text-primary); outline:none;">
+            </form>
+            <p id="adult-pin-error" style="color:#f87171; min-height:1.4em; margin-top:12px; font-size:0.9em;"></p>
+            <button onclick="document.getElementById('adult-pin-overlay').style.display='none'" style="margin-top:4px; background:transparent; border:none; color:var(--cr-text-secondary); font-size:0.85em; cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/auth_profile.js') }}"></script>
 </body>
 </html>
