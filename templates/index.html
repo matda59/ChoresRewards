@@ -21,7 +21,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260531n">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260804b">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -815,47 +815,52 @@ window.addEventListener('DOMContentLoaded', function() {
 </div>
 <!-- All site content is wrapped in the site-content container -->
 <div id="site-content" style="display:none;">
-    <header>
-<div class="header-content" style="display:flex; align-items:center; justify-content:space-between; background:linear-gradient(135deg,#141f33 0%,#1a2840 100%); padding:0.75rem 1.5rem; border-radius:14px; border-bottom:1px solid rgba(255,255,255,0.07); margin-bottom:1.2rem; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+    <header class="dashboard-header-sticky">
+<div class="header-content" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; row-gap:0.6rem; background:linear-gradient(135deg,#141f33 0%,#1a2840 100%); padding:0.75rem 1.5rem; border-radius:14px 14px 0 0; border-bottom:1px solid rgba(255,255,255,0.07); box-shadow:0 4px 20px rgba(0,0,0,0.3);">
     <div style="display:flex; align-items:center;">
         <img src="{{ url_for('static', filename='images/mascot-transp.png') }}" 
              alt="Chores Reward Icon" 
              style="height:70px; width:70px; margin-right:10px;">
         <h2 style="color: white; margin:0; font-size:1.4rem; text-transform:none; letter-spacing:0;">Chores and Rewards</h2>
     </div>
-    <!-- Weather Widget -->
-    <div id="weather-widget" title="Click for 7-day forecast" style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:8px 14px;color:white;cursor:pointer;flex-shrink:0;transition:background 0.15s;">
-        <i id="weather-icon" class="fas fa-sun" style="font-size:1.6em;color:#fbbf24;"></i>
-        <div style="line-height:1.2;">
-            <div id="weather-temp" style="font-size:1.15em;font-weight:700;">--°C</div>
-            <div id="weather-desc" style="font-size:0.68em;opacity:0.65;white-space:nowrap;">Locating…</div>
-        </div>
+    <!-- Clock Widget -->
+    <div id="clock-widget" style="display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;flex-shrink:0;line-height:1.05;padding:0 8px;">
+        <div id="clock-time" style="font-size:2.6em;font-weight:800;white-space:nowrap;letter-spacing:0.01em;">--:-- --</div>
+        <div id="clock-date" style="font-size:1.05em;opacity:0.75;white-space:nowrap;font-weight:600;">Loading…</div>
     </div>
+    <!-- Weather Widget -->
+    <div id="weather-widget" style="display:flex;align-items:center;gap:14px;color:white;flex-shrink:0;padding:0 6px;">
+        <i id="weather-icon" class="fas fa-sun" style="font-size:2.9em;color:#fbbf24;flex-shrink:0;"></i>
+        <div style="line-height:1.1;">
+            <div style="display:flex;align-items:baseline;gap:12px;">
+                <span id="weather-temp" style="font-size:2.3em;font-weight:800;white-space:nowrap;">--°</span>
+                <span id="weather-hilo" style="font-size:1.05em;opacity:0.8;font-weight:600;white-space:nowrap;">H:--° L:--°</span>
+            </div>
+            <div id="weather-desc" style="font-size:1.05em;opacity:0.8;white-space:nowrap;font-weight:600;">Locating…</div>
+        </div>
+        <button id="weather-expand-btn" title="Show 7-day forecast" aria-expanded="false" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:1.15em;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.15s;">
+            <i class="fas fa-chevron-down" id="weather-expand-icon" style="transition:transform 0.25s;"></i>
+        </button>
+    </div>
+    <!-- Activity Log / Settings / Admin lock — kept in the same frozen header bar -->
+    <nav class="header-nav-actions">
+        <a href="{{ url_for('routes.activity_log') }}"><i class="fas fa-history"></i> Activity Log</a>
+        <a href="{{ url_for('routes.settings') }}" class="admin-only flex-admin-only"><i class="fas fa-cog"></i> Settings</a>
+        <button id="adult-lock-btn" class="locked" title="Tap to unlock adult mode">
+            <i class="fas fa-lock"></i>
+        </button>
+    </nav>
     <button class="mute-toggle" id="mute-toggle" title="Mute All Sounds" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:10px;border-radius:50%;cursor:pointer;font-size:1.2em;">
         <i class="fas fa-volume-up" id="mute-icon"></i>
     </button>
 </div>
-
-<!-- 7-Day Forecast Modal -->
-<div id="weather-forecast-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
-    <div style="background:#1a2438; border:1px solid rgba(255,255,255,0.12); border-radius:16px; padding:24px; max-width:640px; width:92%; box-shadow:0 12px 48px rgba(0,0,0,0.5);">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-            <h3 id="weather-forecast-title" style="color:#fff; margin:0; font-size:1.15em;"><i class="fas fa-cloud-sun" style="margin-right:8px;color:#fbbf24;"></i>7-Day Forecast</h3>
-            <button onclick="document.getElementById('weather-forecast-modal').style.display='none';" style="background:transparent;border:none;color:#94a3b8;font-size:1.3em;cursor:pointer;line-height:1;">&times;</button>
-        </div>
-        <div id="weather-forecast-days" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(78px, 1fr)); gap:10px;">
-            <div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:20px;">Loading forecast…</div>
-        </div>
+<!-- 7-Day Forecast Panel — expands directly under the weather widget, inside the frozen header -->
+<div id="weather-forecast-panel" style="max-height:0; overflow:hidden; transition:max-height 0.35s ease; background:linear-gradient(135deg,#101c30 0%,#16233a 100%); border-radius:0 0 14px 14px; margin-bottom:1.2rem;">
+    <div id="weather-forecast-days" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(90px, 1fr)); gap:12px; padding:16px 22px;">
+        <div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:20px;">Loading forecast…</div>
     </div>
 </div>
-    <!-- Navigation -->
-<nav class="activity-page-nav">
-    <a href="{{ url_for('routes.activity_log') }}"><i class="fas fa-history"></i> Activity Log</a>
-    <a href="{{ url_for('routes.settings') }}" class="admin-only flex-admin-only"><i class="fas fa-cog"></i> Settings</a>
-    <button id="adult-lock-btn" class="locked" title="Tap to unlock adult mode" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:7px 14px;border-radius:20px;cursor:pointer;font-size:0.9em;display:inline-flex;align-items:center;gap:6px;">
-        <i class="fas fa-lock"></i>
-    </button>
-</nav>
+</header>
 
     <!-- Adult PIN overlay for index page -->
     <div id="adult-pin-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.82); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
@@ -7248,17 +7253,39 @@ function doRedeemReward(rewardId) {
 <div style="position:fixed; bottom:6px; right:10px; font-size:0.7em; color:rgba(255,255,255,0.25); pointer-events:none; z-index:1;">v2026.05.31-g</div>
 
 <script>
+// ── Clock Widget ───────────────────────────────────────────────────────────────
+(function () {
+    const timeEl = document.getElementById('clock-time');
+    const dateEl = document.getElementById('clock-date');
+    const tz = (window.APP_TIMEZONE && window.APP_TIMEZONE !== 'UTC')
+        ? window.APP_TIMEZONE
+        : Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    function updateClock() {
+        const now = new Date();
+        timeEl.textContent = now.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
+        dateEl.textContent = now.toLocaleDateString('en-US', { timeZone: tz, month: 'long', day: 'numeric' });
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+})();
+</script>
+
+<script>
 // ── Weather Widget ─────────────────────────────────────────────────────────────
 (function () {
-    const iconEl   = document.getElementById('weather-icon');
-    const tempEl   = document.getElementById('weather-temp');
-    const descEl   = document.getElementById('weather-desc');
-    const widgetEl = document.getElementById('weather-widget');
-    const modalEl  = document.getElementById('weather-forecast-modal');
-    const daysEl   = document.getElementById('weather-forecast-days');
-    const titleEl  = document.getElementById('weather-forecast-title');
+    const iconEl    = document.getElementById('weather-icon');
+    const tempEl    = document.getElementById('weather-temp');
+    const hiloEl    = document.getElementById('weather-hilo');
+    const descEl    = document.getElementById('weather-desc');
+    const expandBtn = document.getElementById('weather-expand-btn');
+    const expandIcon= document.getElementById('weather-expand-icon');
+    const panelEl   = document.getElementById('weather-forecast-panel');
+    const daysEl    = document.getElementById('weather-forecast-days');
 
-    let cachedLat = null, cachedLon = null, cachedTz = null, cachedCity = '';
+    let cachedDaily = null;
+    let expanded = false;
 
     // WMO weather-code → icon / colour / label
     function weatherInfo(code) {
@@ -7275,9 +7302,39 @@ function doRedeemReward(rewardId) {
         return { icon: 'fa-cloud', color: '#94a3b8', desc: 'Unknown' };
     }
 
+    function renderForecastDays() {
+        if (!cachedDaily) return;
+        const { time, weathercode, temperature_2m_max, temperature_2m_min } = cachedDaily;
+        daysEl.innerHTML = time.map((dateStr, i) => {
+            const d = new Date(dateStr + 'T00:00:00');
+            const dayLabel = i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' });
+            const info = weatherInfo(weathercode[i]);
+            const max = Math.round(temperature_2m_max[i]);
+            const min = Math.round(temperature_2m_min[i]);
+            return `<div style="text-align:center;">
+                <div style="color:#cbd5e1;font-size:0.9em;font-weight:700;margin-bottom:8px;">${dayLabel}</div>
+                <i class="fas ${info.icon}" style="font-size:2em;color:${info.color};"></i>
+                <div style="color:#fff;font-size:1.05em;font-weight:700;margin-top:8px;">${max}\u00b0</div>
+                <div style="color:#94a3b8;font-size:0.9em;">${min}\u00b0</div>
+            </div>`;
+        }).join('');
+    }
+
+    function setExpanded(state) {
+        expanded = state;
+        expandBtn.setAttribute('aria-expanded', String(expanded));
+        expandIcon.style.transform = expanded ? 'rotate(180deg)' : 'rotate(0deg)';
+        if (expanded) {
+            renderForecastDays();
+            panelEl.style.maxHeight = panelEl.scrollHeight + 'px';
+        } else {
+            panelEl.style.maxHeight = '0';
+        }
+    }
+
     async function fetchWeather(lat, lon, tz) {
         try {
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode&temperature_unit=celsius&timezone=${encodeURIComponent(tz)}`;
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&forecast_days=7&temperature_unit=celsius&timezone=${encodeURIComponent(tz)}`;
             const res = await fetch(url);
             if (!res.ok) throw new Error('weather error');
             const data = await res.json();
@@ -7285,40 +7342,17 @@ function doRedeemReward(rewardId) {
             const info = weatherInfo(data.current.weathercode);
             iconEl.className = `fas ${info.icon}`;
             iconEl.style.color = info.color;
-            tempEl.textContent = `${temp}\u00b0C`;
+            tempEl.textContent = `${temp}\u00b0`;
             descEl.textContent = info.desc;
-            widgetEl.title = `${info.desc} \u2014 ${temp}\u00b0C (click for 7-day forecast)`;
+            cachedDaily = data.daily;
+            if (cachedDaily && cachedDaily.temperature_2m_max && cachedDaily.temperature_2m_max.length) {
+                const max = Math.round(cachedDaily.temperature_2m_max[0]);
+                const min = Math.round(cachedDaily.temperature_2m_min[0]);
+                hiloEl.textContent = `H:${max}\u00b0 L:${min}\u00b0`;
+            }
+            if (expanded) setExpanded(true); // refresh panel content + re-measure height
         } catch (e) {
             descEl.textContent = 'Unavailable';
-        }
-    }
-
-    async function showForecast() {
-        if (cachedLat === null) return;
-        modalEl.style.display = 'flex';
-        titleEl.innerHTML = `<i class="fas fa-cloud-sun" style="margin-right:8px;color:#fbbf24;"></i>7-Day Forecast${cachedCity ? ' \u2014 ' + cachedCity : ''}`;
-        daysEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:20px;">Loading forecast\u2026</div>';
-        try {
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${cachedLat}&longitude=${cachedLon}&daily=weathercode,temperature_2m_max,temperature_2m_min&temperature_unit=celsius&timezone=${encodeURIComponent(cachedTz)}`;
-            const res = await fetch(url);
-            if (!res.ok) throw new Error('forecast error');
-            const data = await res.json();
-            const { time, weathercode, temperature_2m_max, temperature_2m_min } = data.daily;
-            daysEl.innerHTML = time.map((dateStr, i) => {
-                const d = new Date(dateStr + 'T00:00:00');
-                const dayLabel = i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' });
-                const info = weatherInfo(weathercode[i]);
-                const max = Math.round(temperature_2m_max[i]);
-                const min = Math.round(temperature_2m_min[i]);
-                return `<div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:12px 8px;text-align:center;">
-                    <div style="color:#cbd5e1;font-size:0.78em;font-weight:700;margin-bottom:6px;">${dayLabel}</div>
-                    <i class="fas ${info.icon}" style="font-size:1.6em;color:${info.color};"></i>
-                    <div style="color:#fff;font-size:0.85em;font-weight:700;margin-top:6px;">${max}\u00b0</div>
-                    <div style="color:#94a3b8;font-size:0.78em;">${min}\u00b0</div>
-                </div>`;
-            }).join('');
-        } catch (e) {
-            daysEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#f87171;padding:20px;">Forecast unavailable</div>';
         }
     }
 
@@ -7340,10 +7374,6 @@ function doRedeemReward(rewardId) {
             const geoData = await geoRes.json();
             if (!geoData.results || !geoData.results.length) throw new Error('not found');
             const { latitude, longitude } = geoData.results[0];
-            cachedLat = latitude;
-            cachedLon = longitude;
-            cachedTz = tz;
-            cachedCity = city;
             await fetchWeather(latitude, longitude, tz);
             // Auto-refresh every 30 minutes
             setInterval(() => fetchWeather(latitude, longitude, tz), 30 * 60 * 1000);
@@ -7352,10 +7382,7 @@ function doRedeemReward(rewardId) {
         }
     }
 
-    widgetEl.addEventListener('click', showForecast);
-    widgetEl.addEventListener('mouseenter', () => { widgetEl.style.background = 'rgba(255,255,255,0.15)'; });
-    widgetEl.addEventListener('mouseleave', () => { widgetEl.style.background = 'rgba(255,255,255,0.08)'; });
-    modalEl.addEventListener('click', (e) => { if (e.target === modalEl) modalEl.style.display = 'none'; });
+    expandBtn.addEventListener('click', () => setExpanded(!expanded));
 
     initWeather();
 })();

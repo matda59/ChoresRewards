@@ -1001,6 +1001,45 @@
     font-size: 0.95em;
 }
 
+/* ── Dashboard header (index page): frozen at top while scrolling ── */
+.dashboard-header-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 500;
+    background: #0f172a;
+}
+
+#weather-expand-btn:hover {
+    background: rgba(255,255,255,0.22) !important;
+}
+
+/* Activity Log / Settings / Admin lock, grouped inside the frozen header bar */
+.header-nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.header-nav-actions a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255,255,255,0.75);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.08);
+    border: 1.5px solid rgba(255,255,255,0.18);
+    white-space: nowrap;
+    transition: background 0.2s, color 0.2s;
+}
+.header-nav-actions a:hover {
+    background: rgba(76,175,80,0.22);
+    color: #fff;
+}
+
 /* ── Shared page nav bar (index, settings, activity_log) ── */
 .activity-page-nav {
     margin: 0 0 1.5rem 0;
