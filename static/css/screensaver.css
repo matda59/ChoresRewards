@@ -1,0 +1,230 @@
+/* ── Screensaver / Photo Slideshow overlay ──────────────────────────────── */
+#cr-screensaver-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    background: #000;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 0.9s ease;
+}
+#cr-screensaver-overlay.cr-ss-visible {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+}
+
+.cr-ss-layer {
+    position: absolute;
+    inset: 0;
+    background-position: center center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity 1.2s ease;
+    will-change: opacity, transform;
+}
+.cr-ss-layer.cr-ss-active {
+    opacity: 1;
+}
+
+/* Ken Burns slow zoom/pan */
+.cr-ss-layer.cr-ss-kenburns.cr-ss-active {
+    animation: cr-ss-kenburns linear;
+    animation-fill-mode: forwards;
+}
+@keyframes cr-ss-kenburns {
+    from { transform: scale(1) translate(0, 0); }
+    to   { transform: scale(1.12) translate(-1.5%, -1.5%); }
+}
+
+/* Slide transition: incoming layer slides in from the right */
+.cr-ss-layer.cr-ss-slide { transition: opacity 0.6s ease, transform 1.1s ease; transform: translateX(4%); }
+.cr-ss-layer.cr-ss-slide.cr-ss-active { transform: translateX(0); }
+
+/* Fallback ambient gradient when no photos are uploaded */
+.cr-ss-fallback {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, #0f172a, #1e293b, #312e81, #0f172a);
+    background-size: 400% 400%;
+    animation: cr-ss-gradient 18s ease infinite;
+}
+@keyframes cr-ss-gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.cr-ss-vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
+}
+
+.cr-ss-overlay-info {
+    position: absolute;
+    left: 0; right: 0; bottom: 6vh;
+    text-align: center;
+    color: #fff;
+    text-shadow: 0 2px 18px rgba(0,0,0,0.65);
+    pointer-events: none;
+}
+.cr-ss-clock {
+    font-size: clamp(2.6rem, 8vw, 5.5rem);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1;
+}
+.cr-ss-date {
+    margin-top: 0.4rem;
+    font-size: clamp(1rem, 2.4vw, 1.4rem);
+    font-weight: 500;
+    opacity: 0.9;
+}
+.cr-ss-chores {
+    margin-top: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    font-size: clamp(0.9rem, 2vw, 1.15rem);
+    font-weight: 600;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 0.5em 1.1em;
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+}
+
+/* ── Per-person chore breakdown + upcoming events ── */
+.cr-ss-info-panel {
+    margin-top: 1.4rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1rem;
+    max-width: 92vw;
+    margin-left: auto;
+    margin-right: auto;
+    pointer-events: none;
+}
+.cr-ss-people {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+    max-width: 62vw;
+}
+.cr-ss-person-card {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-align: left;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 14px;
+    padding: 0.55em 0.9em;
+    backdrop-filter: blur(6px);
+    min-width: 160px;
+}
+.cr-ss-person-avatar {
+    width: 42px; height: 42px; border-radius: 50%; object-fit: cover;
+    border: 2px solid #fff; flex-shrink: 0;
+}
+.cr-ss-person-name {
+    font-size: clamp(0.85rem, 1.6vw, 1rem);
+    font-weight: 700;
+    margin-bottom: 0.15em;
+}
+.cr-ss-person-chores {
+    list-style: none;
+    margin: 0; padding: 0;
+    font-size: clamp(0.72rem, 1.3vw, 0.88rem);
+    font-weight: 500;
+    opacity: 0.9;
+    max-width: 220px;
+}
+.cr-ss-person-chores li {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cr-ss-person-chores li::before { content: "• "; }
+.cr-ss-person-done {
+    font-size: clamp(0.72rem, 1.3vw, 0.88rem);
+    font-weight: 600;
+    opacity: 0.85;
+    color: #86efac;
+}
+.cr-ss-person-done i { margin-right: 0.3em; }
+
+.cr-ss-events {
+    text-align: left;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 14px;
+    padding: 0.6em 1em;
+    backdrop-filter: blur(6px);
+    min-width: 200px;
+    max-width: 26vw;
+}
+.cr-ss-events-title {
+    font-size: clamp(0.75rem, 1.4vw, 0.9rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.85;
+    margin-bottom: 0.35em;
+}
+.cr-ss-events-title i { margin-right: 0.35em; }
+.cr-ss-events ul {
+    list-style: none;
+    margin: 0; padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3em;
+}
+.cr-ss-events li {
+    display: flex;
+    gap: 0.5em;
+    font-size: clamp(0.72rem, 1.3vw, 0.88rem);
+    font-weight: 500;
+}
+.cr-ss-event-when {
+    opacity: 0.75;
+    flex-shrink: 0;
+}
+.cr-ss-event-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+    .cr-ss-info-panel { flex-direction: column; align-items: center; }
+    .cr-ss-people, .cr-ss-events { max-width: 90vw; }
+}
+
+
+.cr-ss-hint {
+    position: absolute;
+    top: 5vh; left: 0; right: 0;
+    text-align: center;
+    color: rgba(255,255,255,0.55);
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 1.5s ease 3s;
+}
+#cr-screensaver-overlay.cr-ss-visible .cr-ss-hint {
+    opacity: 1;
+}
+
+@media (max-width: 640px) {
+    .cr-ss-overlay-info { bottom: 8vh; }
+}

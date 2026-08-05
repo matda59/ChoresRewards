@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Screensaver Settings - ChoresAwards</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function () {
+            var t = localStorage.getItem('cr-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ── Layout ── */
+        .settings-layout {
+            display: flex;
+            max-width: 1100px;
+            margin: 2rem auto;
+            background: linear-gradient(135deg, #141f33 0%, #1a2840 100%);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 16px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+            color: #fff;
+        }
+        .settings-nav {
+            width: 220px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px 0 0 16px;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            border-right: 1px solid rgba(255,255,255,0.07);
+        }
+        .settings-nav a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 0.97rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.7em;
+            padding: 0.7em 1em;
+            border-radius: 10px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .settings-nav a.active, .settings-nav a:hover {
+            background: rgba(76,175,80,0.18);
+            color: #4CAF50;
+        }
+        .settings-nav a.active { background: rgba(76,175,80,0.25); font-weight: 700; }
+        .settings-content {
+            flex: 1;
+            padding: 2rem 2.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.9rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+        }
+        .section-title > i { color: #4CAF50; }
+        .settings-section {
+            background: linear-gradient(135deg, #1a2436 0%, #1e2d42 100%);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 14px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 14px rgba(0,0,0,0.2);
+            color: #fff;
+        }
+        .settings-field-label {
+            display: block;
+            font-size: 0.78rem; font-weight: 700;
+            letter-spacing: 0.06em; text-transform: uppercase;
+            color: rgba(255,255,255,0.5); margin-bottom: 0.45rem;
+        }
+        .settings-field-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.1rem;
+        }
+        .save-btn {
+            padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer;
+            font-size: 0.9rem; font-weight: 700; background: #4CAF50; color: #fff;
+            box-shadow: 0 2px 8px rgba(76,175,80,0.3); transition: all 0.2s;
+        }
+        .save-btn:hover { background: #45a049; box-shadow: 0 3px 14px rgba(76,175,80,0.45); }
+        .btn-secondary-action {
+            padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600;
+            background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15);
+            transition: all 0.2s;
+        }
+        .btn-secondary-action:hover { background: rgba(255,255,255,0.15); }
+
+        /* ── Toggle switch ── */
+        .ss-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+        .ss-switch { position: relative; display: inline-block; width: 52px; height: 28px; flex-shrink: 0; }
+        .ss-switch input { opacity: 0; width: 0; height: 0; }
+        .ss-switch-slider {
+            position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.15);
+            border-radius: 999px; transition: 0.2s;
+        }
+        .ss-switch-slider:before {
+            content: ""; position: absolute; height: 22px; width: 22px; left: 3px; bottom: 3px;
+            background: #fff; border-radius: 50%; transition: 0.2s;
+        }
+        .ss-switch input:checked + .ss-switch-slider { background: #4CAF50; }
+        .ss-switch input:checked + .ss-switch-slider:before { transform: translateX(24px); }
+
+        /* ── Photo grid ── */
+        .ss-upload-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
+        .ss-photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.75rem;
+        }
+        .ss-photo-card {
+            position: relative; border-radius: 10px; overflow: hidden; aspect-ratio: 1 / 1;
+            border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04);
+        }
+        .ss-photo-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .ss-photo-remove {
+            position: absolute; top: 5px; right: 5px; width: 26px; height: 26px; border-radius: 50%;
+            background: rgba(0,0,0,0.6); color: #fff; border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+        .ss-photo-remove:hover { background: #ef4444; }
+        .ss-empty-msg { color: rgba(255,255,255,0.5); padding: 1rem 0; }
+        .ss-photo-count { color: rgba(255,255,255,0.55); font-size: 0.85rem; }
+        .ss-field-hint { color: rgba(255,255,255,0.55); font-size: 0.85rem; }
+        .notify-checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            margin: 0.6rem 0 1.1rem;
+        }
+        .notify-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: rgba(255,255,255,0.85);
+            font-size: 0.97rem;
+            cursor: pointer;
+        }
+        .notify-checkbox-label input[type="checkbox"] {
+            accent-color: #4CAF50;
+            width: 17px; height: 17px;
+            min-width: 17px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 900px) {
+            .settings-layout { flex-direction: column; }
+            .settings-nav { width: 100%; border-radius: 16px 16px 0 0; flex-direction: row; flex-wrap: wrap; gap: 0.4rem; padding: 1rem; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); }
+            .settings-content { padding: 1.5rem 1rem; }
+        }
+
+        [data-theme="light"] .settings-field-label { color: rgba(15,23,42,0.55); }
+        [data-theme="light"] .notify-checkbox-label { color: rgba(15,23,42,0.85); }
+        [data-theme="light"] .btn-secondary-action { background: rgba(33,150,243,0.12); color: #1565c0; border-color: rgba(33,150,243,0.3); }
+        [data-theme="light"] .btn-secondary-action:hover { background: rgba(33,150,243,0.22); }
+        [data-theme="light"] .ss-empty-msg { color: rgba(15,23,42,0.5); }
+        [data-theme="light"] .ss-photo-count { color: rgba(15,23,42,0.55); }
+        [data-theme="light"] .ss-field-hint { color: rgba(15,23,42,0.6); }
+        [data-theme="light"] .ss-switch-slider { background: rgba(15,23,42,0.15); }
+    </style>
+</head>
+<body>
+    {% include 'fragments/side_nav.html' %}
+    <script src="{{ url_for('static', filename='js/side_nav.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/screensaver.js') }}"></script>
+    <header>
+        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,var(--cr-header-bg-1) 0%,var(--cr-header-bg-2) 100%);padding:0.75rem 1.5rem;border-bottom:1px solid var(--cr-surface-border);">
+            <h2 style="color: var(--cr-text-primary);">Chores and Rewards - Settings</h2>
+        </div>
+        <nav class="settings-topnav">
+            <a href="/" class="topnav-link">Home</a>
+            <a href="/activity_log" class="topnav-link">Activity Log</a>
+        </nav>
+        <style>
+        .settings-topnav {
+            margin: 0 0 28px 0; display: flex; justify-content: flex-start; gap: 12px;
+            border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 16px;
+        }
+        .topnav-link {
+            color: #fff; padding: 8px 16px; text-decoration: none; font-size: 1em; font-weight: 500;
+            transition: all 0.3s ease; border-radius: 4px; position: relative;
+        }
+        .topnav-link:hover { color: #4CAF50; background: rgba(76, 175, 80, 0.1); }
+        </style>
+    </header>
+    <main>
+        <div class="settings-layout">
+            <nav class="settings-nav">
+                <a href="{{ url_for('routes.settings') }}"{% if request.endpoint == 'routes.settings' %} class="active"{% endif %}><i class="fas fa-cog"></i> General Settings</a>
+                <a href="{{ url_for('routes.settings_audio') }}"{% if request.endpoint == 'routes.settings_audio' %} class="active"{% endif %}><i class="fas fa-volume-up"></i> Audio Settings</a>
+                <a href="{{ url_for('routes.settings_notification') }}"{% if request.endpoint == 'routes.settings_notification' %} class="active"{% endif %}><i class="fas fa-bell"></i> Notification Settings</a>
+                <a href="{{ url_for('routes.settings_quiz') }}"{% if request.endpoint == 'routes.settings_quiz' %} class="active"{% endif %}><i class="fas fa-question-circle"></i> Quiz Questions</a>
+                <a href="{{ url_for('routes.settings_screensaver') }}"{% if request.endpoint == 'routes.settings_screensaver' %} class="active"{% endif %}><i class="fas fa-images"></i> Screensaver</a>
+            </nav>
+            <div class="settings-content">
+                <h3 class="section-title"><i class="fas fa-images"></i> Screensaver / Photo Slideshow</h3>
+
+                <!-- Behavior settings -->
+                <section class="settings-section" id="screensaver-behavior-section">
+                    <h4 class="section-title" style="font-size:1rem;"><i class="fas fa-sliders-h"></i> Behavior</h4>
+                    <form method="POST" action="{{ url_for('routes.settings_screensaver') }}" id="screensaver-form" style="display:flex;flex-direction:column;gap:1.1rem;">
+                        <div class="ss-toggle-row">
+                            <div>
+                                <label class="settings-field-label" style="margin-bottom:0.15rem;">Enable Screensaver</label>
+                                <div class="ss-field-hint">Launch a full-screen photo slideshow after a period of inactivity.</div>
+                            </div>
+                            <label class="ss-switch">
+                                <input type="checkbox" name="screensaver_enabled" {% if screensaver.screensaver_enabled == 'true' %}checked{% endif %}>
+                                <span class="ss-switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="settings-field-row">
+                            <div>
+                                <label class="settings-field-label" for="screensaver_idle_timeout">Idle Timeout</label>
+                                <select id="screensaver_idle_timeout" name="screensaver_idle_timeout" class="modern-input" style="width:100%;">
+                                    <option value="60" {% if screensaver.screensaver_idle_timeout == '60' %}selected{% endif %}>1 minute</option>
+                                    <option value="180" {% if screensaver.screensaver_idle_timeout == '180' %}selected{% endif %}>3 minutes</option>
+                                    <option value="300" {% if screensaver.screensaver_idle_timeout == '300' %}selected{% endif %}>5 minutes</option>
+                                    <option value="600" {% if screensaver.screensaver_idle_timeout == '600' %}selected{% endif %}>10 minutes</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="settings-field-label" for="screensaver_slide_duration">Slide Duration</label>
+                                <select id="screensaver_slide_duration" name="screensaver_slide_duration" class="modern-input" style="width:100%;">
+                                    <option value="5" {% if screensaver.screensaver_slide_duration == '5' %}selected{% endif %}>5 seconds</option>
+                                    <option value="8" {% if screensaver.screensaver_slide_duration == '8' %}selected{% endif %}>8 seconds</option>
+                                    <option value="10" {% if screensaver.screensaver_slide_duration == '10' %}selected{% endif %}>10 seconds</option>
+                                    <option value="15" {% if screensaver.screensaver_slide_duration == '15' %}selected{% endif %}>15 seconds</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="settings-field-label" for="screensaver_transition">Transition Effect</label>
+                                <select id="screensaver_transition" name="screensaver_transition" class="modern-input" style="width:100%;">
+                                    <option value="fade" {% if screensaver.screensaver_transition == 'fade' %}selected{% endif %}>Fade</option>
+                                    <option value="crossfade" {% if screensaver.screensaver_transition == 'crossfade' %}selected{% endif %}>Crossfade</option>
+                                    <option value="slide" {% if screensaver.screensaver_transition == 'slide' %}selected{% endif %}>Slide</option>
+                                    <option value="kenburns" {% if screensaver.screensaver_transition == 'kenburns' %}selected{% endif %}>Zoom (Ken Burns)</option>
+                                    <option value="none" {% if screensaver.screensaver_transition == 'none' %}selected{% endif %}>None</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="settings-field-label" for="screensaver_order">Display Order</label>
+                                <select id="screensaver_order" name="screensaver_order" class="modern-input" style="width:100%;">
+                                    <option value="shuffle" {% if screensaver.screensaver_order == 'shuffle' %}selected{% endif %}>Shuffle / Random</option>
+                                    <option value="sequential" {% if screensaver.screensaver_order == 'sequential' %}selected{% endif %}>Sequential</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <hr style="margin:0.25rem 0;border:none;border-top:1px solid var(--cr-surface-border);">
+
+                        <div>
+                            <label class="settings-field-label">Overlay Options</label>
+                            <div class="notify-checkbox-group">
+                                <label class="notify-checkbox-label">
+                                    <input type="checkbox" name="screensaver_overlay_clock" {% if screensaver.screensaver_overlay_clock == 'true' %}checked{% endif %}> Show clock &amp; date
+                                </label>
+                                <label class="notify-checkbox-label">
+                                    <input type="checkbox" name="screensaver_overlay_chores" {% if screensaver.screensaver_overlay_chores == 'true' %}checked{% endif %}> Show today's chore summary
+                                </label>
+                            </div>
+                        </div>
+
+                        <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+                            <button type="submit" class="save-btn">Save Screensaver Settings</button>
+                            <button type="button" class="btn-secondary-action" id="ss-preview-btn"><i class="fas fa-eye" style="margin-right:6px;"></i>Preview Now</button>
+                        </div>
+                    </form>
+                    {% if error %}
+                        <div style="margin-top:1rem;color:#ef9a9a;font-weight:600;background:rgba(244,67,54,0.1);border:1px solid rgba(244,67,54,0.25);border-radius:8px;padding:0.6rem 1rem;">{{ error }}</div>
+                    {% elif success %}
+                        <div style="margin-top:1rem;color:#81c784;font-weight:600;background:rgba(76,175,80,0.1);border:1px solid rgba(76,175,80,0.25);border-radius:8px;padding:0.6rem 1rem;">{{ success }}</div>
+                    {% endif %}
+                </section>
+
+                <!-- Photo management -->
+                <section class="settings-section" id="screensaver-photos-section">
+                    <h4 class="section-title" style="font-size:1rem;"><i class="fas fa-photo-video"></i> Photos</h4>
+                    <p class="ss-field-hint" style="margin-top:0;">Upload photos to display during the screensaver. If no photos are uploaded, a subtle animated gradient is shown instead.</p>
+                    <div class="ss-upload-row">
+                        <input type="file" id="ss-photo-input" accept="image/png,image/jpeg,image/gif,image/webp" multiple style="color:#fff;">
+                        <button type="button" class="save-btn" id="ss-upload-btn"><i class="fas fa-upload" style="margin-right:6px;"></i>Upload</button>
+                        <button type="button" class="btn-secondary-action" id="ss-clear-btn"><i class="fas fa-trash" style="margin-right:6px;"></i>Clear All</button>
+                        <span class="ss-photo-count" id="ss-photo-count"></span>
+                    </div>
+                    <div class="ss-photo-grid" id="ss-photo-grid"></div>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script>
+    (function () {
+        const grid = document.getElementById('ss-photo-grid');
+        const countEl = document.getElementById('ss-photo-count');
+        let photoUrls = {{ photo_urls | tojson }};
+
+        function renderGrid() {
+            grid.innerHTML = '';
+            countEl.textContent = photoUrls.length ? `${photoUrls.length} photo(s)` : '';
+            if (!photoUrls.length) {
+                grid.innerHTML = '<div class="ss-empty-msg">No photos uploaded yet.</div>';
+                return;
+            }
+            photoUrls.forEach(url => {
+                const card = document.createElement('div');
+                card.className = 'ss-photo-card';
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = '';
+                const rm = document.createElement('button');
+                rm.type = 'button';
+                rm.className = 'ss-photo-remove';
+                rm.innerHTML = '<i class="fas fa-times"></i>';
+                rm.title = 'Delete photo';
+                rm.addEventListener('click', () => deletePhoto(url));
+                card.appendChild(img);
+                card.appendChild(rm);
+                grid.appendChild(card);
+            });
+        }
+
+        function filenameFromUrl(url) {
+            return url.split('/').pop();
+        }
+
+        function deletePhoto(url) {
+            fetch('/api/screensaver/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: filenameFromUrl(url) })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    photoUrls = photoUrls.filter(u => u !== url);
+                    renderGrid();
+                } else {
+                    alert(data.error || 'Failed to delete photo.');
+                }
+            })
+            .catch(() => alert('Failed to delete photo.'));
+        }
+
+        document.getElementById('ss-upload-btn').addEventListener('click', () => {
+            const input = document.getElementById('ss-photo-input');
+            if (!input.files || !input.files.length) { input.click(); return; }
+            const fd = new FormData();
+            Array.from(input.files).forEach(f => fd.append('photos', f));
+            fetch('/api/screensaver/upload', { method: 'POST', body: fd })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        photoUrls = data.photos;
+                        renderGrid();
+                        input.value = '';
+                    } else {
+                        alert(data.error || 'Upload failed.');
+                    }
+                })
+                .catch(() => alert('Upload failed.'));
+        });
+
+        document.getElementById('ss-clear-btn').addEventListener('click', () => {
+            if (!photoUrls.length) return;
+            if (!confirm('Delete all screensaver photos? This cannot be undone.')) return;
+            fetch('/api/screensaver/clear', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) { photoUrls = []; renderGrid(); }
+                    else { alert(data.error || 'Failed to clear photos.'); }
+                })
+                .catch(() => alert('Failed to clear photos.'));
+        });
+
+        document.getElementById('ss-preview-btn').addEventListener('click', () => {
+            if (window.ChoresScreensaver) {
+                window.ChoresScreensaver.preview();
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = "{{ url_for('static', filename='js/screensaver.js') }}";
+            script.onload = () => window.ChoresScreensaver && window.ChoresScreensaver.preview();
+            document.body.appendChild(script);
+        });
+
+        renderGrid();
+    })();
+    </script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+
+    <!-- Adult PIN unlock overlay (used on every page) -->
+    <div id="adult-pin-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
+        <div id="adult-pin-box" style="background:var(--cr-modal-surface); border-radius:16px; padding:32px 28px; min-width:300px; text-align:center; box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+            <div style="font-size:2.5em; margin-bottom:10px;">🔒</div>
+            <h3 style="color:var(--cr-text-primary); margin:0 0 6px; font-size:1.3em;">Adult Mode</h3>
+            <p style="color:var(--cr-text-secondary); margin:0 0 20px; font-size:0.9em;">Enter your 4-digit PIN</p>
+            <form id="adult-pin-form" autocomplete="off">
+                <input id="adult-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
+                       maxlength="4" placeholder="••••"
+                       style="width:120px; font-size:2em; text-align:center; letter-spacing:8px; padding:10px; border:2px solid var(--cr-subtle-panel-border); border-radius:10px; background:var(--cr-subtle-panel); color:var(--cr-text-primary); outline:none;">
+            </form>
+            <p id="adult-pin-error" style="color:#f87171; min-height:1.4em; margin-top:12px; font-size:0.9em;"></p>
+            <button onclick="document.getElementById('adult-pin-overlay').style.display='none'" style="margin-top:4px; background:transparent; border:none; color:var(--cr-text-secondary); font-size:0.85em; cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/auth_profile.js') }}"></script>
+</body>
+</html>

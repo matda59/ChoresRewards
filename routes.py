@@ -910,6 +910,215 @@ def settings_quiz():
         success=success,
     )
 
+# ── Screensaver / Photo Slideshow ──────────────────────────────────────────────
+SCREENSAVER_UPLOAD_SUBDIR = 'screensaver'
+SCREENSAVER_ALLOWED_EXTS = ('.jpg', '.jpeg', '.png', '.gif', '.webp')
+SCREENSAVER_TRANSITIONS = ('fade', 'crossfade', 'slide', 'kenburns', 'none')
+SCREENSAVER_ORDERS = ('sequential', 'shuffle')
+SCREENSAVER_DEFAULTS = {
+    'screensaver_enabled': 'false',
+    'screensaver_idle_timeout': '180',
+    'screensaver_slide_duration': '8',
+    'screensaver_transition': 'kenburns',
+    'screensaver_order': 'shuffle',
+    'screensaver_overlay_clock': 'true',
+    'screensaver_overlay_chores': 'false',
+}
+
+
+def _screensaver_upload_folder():
+    folder = os.path.join(current_app.root_path, 'static', 'uploads', SCREENSAVER_UPLOAD_SUBDIR)
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def _get_screensaver_photos():
+    try:
+        photos = _json.loads(AppSetting.get('screensaver_photos_json', '[]'))
+    except Exception:
+        photos = []
+    return photos if isinstance(photos, list) else []
+
+
+def _save_screensaver_photos(photos):
+    AppSetting.set('screensaver_photos_json', _json.dumps(photos))
+
+
+def _get_screensaver_settings():
+    return {key: AppSetting.get(key, default) for key, default in SCREENSAVER_DEFAULTS.items()}
+
+
+def _screensaver_photo_urls(photos):
+    return [
+        url_for('static', filename=f"uploads/{SCREENSAVER_UPLOAD_SUBDIR}/{p['filename']}")
+        for p in photos if p.get('filename')
+    ]
+
+
+@routes_bp.route('/settings/screensaver', methods=['GET', 'POST'])
+def settings_screensaver():
+    """Render and save the screensaver / photo slideshow settings."""
+    if not session.get('adult_mode', False) and not session.get('authenticated', False):
+        return redirect(url_for('routes.index'))
+    error = None
+    success = None
+    if request.method == 'POST':
+        try:
+            idle_timeout = request.form.get('screensaver_idle_timeout', '180')
+            slide_duration = request.form.get('screensaver_slide_duration', '8')
+            transition = request.form.get('screensaver_transition', 'kenburns')
+            order = request.form.get('screensaver_order', 'shuffle')
+            AppSetting.set('screensaver_enabled', 'true' if request.form.get('screensaver_enabled') else 'false')
+            AppSetting.set('screensaver_idle_timeout', idle_timeout if idle_timeout.isdigit() else '180')
+            AppSetting.set('screensaver_slide_duration', slide_duration if slide_duration.isdigit() else '8')
+            AppSetting.set('screensaver_transition', transition if transition in SCREENSAVER_TRANSITIONS else 'kenburns')
+            AppSetting.set('screensaver_order', order if order in SCREENSAVER_ORDERS else 'shuffle')
+            AppSetting.set('screensaver_overlay_clock', 'true' if request.form.get('screensaver_overlay_clock') else 'false')
+            AppSetting.set('screensaver_overlay_chores', 'true' if request.form.get('screensaver_overlay_chores') else 'false')
+            log_activity('settings_updated', 'Screensaver settings were updated')
+            success = 'Screensaver settings saved.'
+        except Exception as e:
+            error = f'Could not save screensaver settings: {e}'
+    return render_template(
+        'settings_screensaver.html',
+        screensaver=_get_screensaver_settings(),
+        photos=_get_screensaver_photos(),
+        photo_urls=_screensaver_photo_urls(_get_screensaver_photos()),
+        error=error,
+        success=success,
+    )
+
+
+@routes_bp.route('/api/screensaver/config', methods=['GET'])
+def api_screensaver_config():
+    """Public (session-only) config endpoint polled by the screensaver overlay on every page."""
+    settings = _get_screensaver_settings()
+    photos = _get_screensaver_photos()
+    return jsonify({
+        'success': True,
+        'enabled': settings['screensaver_enabled'] == 'true',
+        'idle_timeout': int(settings['screensaver_idle_timeout']),
+        'slide_duration': int(settings['screensaver_slide_duration']),
+        'transition': settings['screensaver_transition'],
+        'order': settings['screensaver_order'],
+        'overlay_clock': settings['screensaver_overlay_clock'] == 'true',
+        'overlay_chores': settings['screensaver_overlay_chores'] == 'true',
+        'photos': _screensaver_photo_urls(photos),
+    })
+
+
+@routes_bp.route('/api/screensaver/chore_summary', methods=['GET'])
+def api_screensaver_chore_summary():
+    """Per-person remaining-chore breakdown plus the next few upcoming calendar events, for the screensaver overlay."""
+    today = date.today()
+    family = Person.query.order_by(Person.order, Person.id).all()
+    chores_today = Chore.query.filter(
+        Chore.deleted == False,
+        ((Chore.is_daily == False) | (Chore.due_date <= today))
+    ).all()
+
+    people = []
+    for person in family:
+        person_chores = [
+            c for c in chores_today
+            if c.assigned_to_id == person.id or (c.assigned_to and c.assigned_to == person.name)
+        ]
+        remaining_chores = [c for c in person_chores if not c.completed]
+        remaining_chores.sort(key=lambda c: (c.due_date is None, c.due_date or today))
+        avatar_url = url_for('static', filename=('uploads/' + person.avatar) if person.avatar else 'default_avatar.png')
+        people.append({
+            'name': person.name,
+            'avatar': avatar_url,
+            'color': person.color,
+            'total': len(person_chores),
+            'completed': len(person_chores) - len(remaining_chores),
+            'remaining': len(remaining_chores),
+            'chores': [c.title for c in remaining_chores[:6]],
+        })
+
+    events = []
+    try:
+        timezone_name = AppSetting.get('timezone', 'UTC')
+        all_events, _ = fetch_google_calendar_events(timezone_name)
+        events = all_events[:3]
+    except Exception:
+        events = []
+
+    return jsonify({'success': True, 'people': people, 'events': events})
+
+
+@routes_bp.route('/api/screensaver/upload', methods=['POST'])
+def api_screensaver_upload():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    files = [f for f in request.files.getlist('photos') if f and f.filename]
+    if not files:
+        single = request.files.get('photo')
+        if single and single.filename:
+            files = [single]
+    if not files:
+        return jsonify({'success': False, 'error': 'No files provided'}), 400
+    upload_folder = _screensaver_upload_folder()
+    photos = _get_screensaver_photos()
+    added = 0
+    for file in files:
+        ext = os.path.splitext(secure_filename(file.filename))[1].lower()
+        if ext not in SCREENSAVER_ALLOWED_EXTS:
+            continue
+        unique_filename = f"ss_{uuid.uuid4().hex[:12]}{ext}"
+        file.save(os.path.join(upload_folder, unique_filename))
+        photos.append({'filename': unique_filename, 'uploaded_at': datetime.utcnow().isoformat()})
+        added += 1
+    if not added:
+        return jsonify({'success': False, 'error': 'No valid image files were uploaded (jpg, png, gif, webp only)'}), 400
+    _save_screensaver_photos(photos)
+    log_activity('settings_updated', f'{added} screensaver photo(s) uploaded')
+    return jsonify({'success': True, 'photos': _screensaver_photo_urls(photos), 'added': added})
+
+
+@routes_bp.route('/api/screensaver/delete', methods=['POST'])
+def api_screensaver_delete():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    data = request.get_json(silent=True) or {}
+    filename = secure_filename(data.get('filename', ''))
+    if not filename:
+        return jsonify({'success': False, 'error': 'filename required'}), 400
+    photos = _get_screensaver_photos()
+    remaining = [p for p in photos if p.get('filename') != filename]
+    if len(remaining) == len(photos):
+        return jsonify({'success': False, 'error': 'Photo not found'}), 404
+    _save_screensaver_photos(remaining)
+    path = os.path.join(_screensaver_upload_folder(), filename)
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    return jsonify({'success': True, 'photos': _screensaver_photo_urls(remaining)})
+
+
+@routes_bp.route('/api/screensaver/clear', methods=['POST'])
+def api_screensaver_clear():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    upload_folder = _screensaver_upload_folder()
+    for p in _get_screensaver_photos():
+        filename = p.get('filename', '')
+        path = os.path.join(upload_folder, filename)
+        if filename and os.path.exists(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+    _save_screensaver_photos([])
+    log_activity('settings_updated', 'All screensaver photos were cleared')
+    return jsonify({'success': True, 'photos': []})
+
+
 # API endpoint to list all image files in static/images (for the quiz editor)
 @routes_bp.route('/api/images', methods=['GET'])
 def list_images():

@@ -127,6 +127,7 @@
 <body>
     {% include 'fragments/side_nav.html' %}
     <script src="{{ url_for('static', filename='js/side_nav.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/screensaver.js') }}"></script>
     <header>
         <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,var(--cr-header-bg-1) 0%,var(--cr-header-bg-2) 100%);padding:0.75rem 1.5rem;border-bottom:1px solid var(--cr-surface-border);">
             <h2 style="color: var(--cr-text-primary);">Chores and Rewards - Settings</h2>
@@ -167,6 +168,7 @@
                 <a href="{{ url_for('routes.settings_audio') }}"{% if request.endpoint == 'routes.settings_audio' %} class="active"{% endif %}><i class="fas fa-volume-up"></i> Audio Settings</a>
                 <a href="{{ url_for('routes.settings_notification') }}"{% if request.endpoint == 'routes.settings_notification' %} class="active"{% endif %}><i class="fas fa-bell"></i> Notification Settings</a>
                 <a href="{{ url_for('routes.settings_quiz') }}"{% if request.endpoint == 'routes.settings_quiz' %} class="active"{% endif %}><i class="fas fa-question-circle"></i> Quiz Questions</a>
+                <a href="{{ url_for('routes.settings_screensaver') }}"{% if request.endpoint == 'routes.settings_screensaver' %} class="active"{% endif %}><i class="fas fa-images"></i> Screensaver</a>
             </nav>
             <div class="settings-content">
                 <h3 class="section-title"><i class="fas fa-bell"></i> Notification Settings</h3>
