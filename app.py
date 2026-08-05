@@ -8,6 +8,13 @@ app.secret_key = '22342342356655676787899787654323456789876543212345678901234567
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'  # Add this line
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB cap so oversized uploads get a clean error instead of a dropped connection
+
+from flask import jsonify as _jsonify
+
+@app.errorhandler(413)
+def _handle_too_large(e):
+    return _jsonify({'success': False, 'error': 'Upload too large. Please upload fewer/smaller files at once.'}), 413
 
 db.init_app(app)  # Initialize db with the app
 

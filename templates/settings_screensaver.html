@@ -360,21 +360,43 @@
         document.getElementById('ss-upload-btn').addEventListener('click', () => {
             const input = document.getElementById('ss-photo-input');
             if (!input.files || !input.files.length) { input.click(); return; }
-            const fd = new FormData();
-            Array.from(input.files).forEach(f => fd.append('photos', f));
-            fetch('/api/screensaver/upload', { method: 'POST', body: fd })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        photoUrls = data.photos;
-                        renderGrid();
-                        input.value = '';
-                    } else {
-                        alert(data.error || 'Upload failed.');
-                    }
-                })
-                .catch(() => alert('Upload failed.'));
+            uploadPhotosSequentially(Array.from(input.files), input);
         });
+
+        // Upload one photo per request (rather than one big multi-file request) so large
+        // batches from a phone don't hit reverse-proxy body-size/timeout limits and get
+        // reset mid-upload (manifests in the browser as net::ERR_HTTP2_PROTOCOL_ERROR).
+        function uploadPhotosSequentially(files, input) {
+            const btn = document.getElementById('ss-upload-btn');
+            btn.disabled = true;
+            let done = 0, failed = 0;
+            const total = files.length;
+            const updateProgress = () => {
+                btn.innerHTML = `<i class="fas fa-upload" style="margin-right:6px;"></i>Uploading ${done + failed}/${total}…`;
+            };
+            updateProgress();
+
+            function uploadNext(i) {
+                if (i >= files.length) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-upload" style="margin-right:6px;"></i>Upload';
+                    input.value = '';
+                    if (failed) alert(`${failed} of ${total} photo(s) failed to upload.`);
+                    return;
+                }
+                const fd = new FormData();
+                fd.append('photos', files[i]);
+                fetch('/api/screensaver/upload', { method: 'POST', body: fd })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) { photoUrls = data.photos; renderGrid(); done++; }
+                        else { failed++; }
+                    })
+                    .catch(() => { failed++; })
+                    .finally(() => { updateProgress(); uploadNext(i + 1); });
+            }
+            uploadNext(0);
+        }
 
         document.getElementById('ss-clear-btn').addEventListener('click', () => {
             if (!photoUrls.length) return;

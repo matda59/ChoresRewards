@@ -13,4 +13,6 @@ with app.app_context():
 echo "Database setup complete."
 
 echo "Starting Gunicorn..."
-exec gunicorn -w 4 -b 0.0.0.0:3000 app:app
+# --timeout raised so large/slow photo uploads aren't killed mid-request (default 30s is too short)
+# --worker-tmp-dir /dev/shm avoids disk-backed heartbeat file issues on some hosts
+exec gunicorn -w 4 -b 0.0.0.0:3000 --timeout 180 --worker-tmp-dir /dev/shm app:app
