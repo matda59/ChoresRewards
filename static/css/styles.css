@@ -1299,6 +1299,7 @@
     --cr-header-control-bg: rgba(15,23,42,0.06);
     --cr-header-control-bg-hover: rgba(15,23,42,0.12);
     --cr-header-control-border: rgba(15,23,42,0.14);
+    --org-green: #15803d;
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -6923,7 +6924,8 @@ html.adult-mode .admin-only[data-display="inline-flex"] {
 }
 
 .notes-col-rename-btn,
-.notes-col-delete-btn {
+.notes-col-delete-btn,
+.notes-col-collapse-btn {
     border: none;
     background: transparent;
     cursor: pointer;
@@ -6939,6 +6941,17 @@ html.adult-mode .admin-only[data-display="inline-flex"] {
 .notes-col-rename-btn:hover { color: #93c5fd; background: rgba(147,197,253,0.12); }
 .notes-col-delete-btn { color: rgba(255,255,255,0.28); }
 .notes-col-delete-btn:hover { color: #f87171; background: rgba(248,113,113,0.12); }
+.notes-col-collapse-btn { color: rgba(255,255,255,0.35); }
+.notes-col-collapse-btn i { transition: transform 0.2s; display: inline-block; }
+.notes-col-collapse-btn:hover { color: #fde68a; background: rgba(251,191,36,0.12); }
+
+.notes-kanban-col.notes-col-collapsed .notes-list,
+.notes-kanban-col.notes-col-collapsed .notes-add-row {
+    display: none;
+}
+.notes-kanban-col.notes-col-collapsed .notes-col-collapse-btn i {
+    transform: rotate(180deg);
+}
 
 /* Note list */
 .notes-list {
@@ -7423,7 +7436,7 @@ html.adult-mode .admin-only[data-display="inline-flex"] {
 }
 
 .org-svc-date, .org-svc-odometer, .org-svc-provider { color: #94a3b8; }
-.org-svc-cost { color: #86efac; font-weight: 600; }
+.org-svc-cost { color: var(--org-green, #86efac); font-weight: 600; }
 
 .org-svc-notes {
     color: #94a3b8;
@@ -7508,7 +7521,7 @@ html.adult-mode .admin-only[data-display="inline-flex"] {
 }
 .org-days-label.org-status-overdue { background: rgba(239,68,68,0.18); color: #fca5a5; }
 .org-days-label.org-status-soon    { background: rgba(245,158,11,0.18); color: #fde68a; }
-.org-days-label.org-status-ok      { background: rgba(34,197,94,0.15); color: #86efac; }
+.org-days-label.org-status-ok      { background: rgba(34,197,94,0.15); color: var(--org-green, #86efac); }
 
 .org-card-footer {
     display: flex;
@@ -7520,7 +7533,7 @@ html.adult-mode .admin-only[data-display="inline-flex"] {
 
 .org-paid-badge {
     background: rgba(34,197,94,0.18);
-    color: #86efac;
+    color: var(--org-green, #86efac);
     font-size: 0.78em;
     font-weight: 700;
     padding: 2px 8px;
@@ -7565,7 +7578,7 @@ html.adult-mode .admin-only[data-display="inline-flex"] {
 }
 .org-btn-edit        { background: rgba(99,102,241,0.2); color: #a5b4fc; }
 .org-btn-edit:hover  { background: rgba(99,102,241,0.4); }
-.org-btn-toggle-paid        { background: rgba(34,197,94,0.15); color: #86efac; }
+.org-btn-toggle-paid        { background: rgba(34,197,94,0.15); color: var(--org-green, #86efac); }
 .org-btn-toggle-paid:hover  { background: rgba(34,197,94,0.3); }
 .org-btn-delete       { background: rgba(239,68,68,0.15); color: #fca5a5; }
 .org-btn-delete:hover { background: rgba(239,68,68,0.3); }
@@ -8187,4 +8200,53 @@ body.side-nav-body-collapsed { padding-left: 8px; }
 }
 [data-theme="light"] .org-quick-item:hover {
     color: var(--text-color);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   LIGHT THEME OVERRIDES — Notes (Kanban) section.
+   Built with hardcoded white/light-grey tints meant for a dark card,
+   so labels, drag handles, add-note inputs, and the deleted-notes
+   panel become very low-contrast in light mode. Re-point them here.
+   ══════════════════════════════════════════════════════════════════ */
+[data-theme="light"] .notes-kanban-col {
+    background: rgba(15,23,42,0.04);
+    border-color: rgba(15,23,42,0.09);
+}
+[data-theme="light"] .notes-col-header {
+    background: rgba(15,23,42,0.035);
+    color: #475569;
+}
+[data-theme="light"] .notes-col-drag-handle {
+    color: rgba(15,23,42,0.35);
+}
+[data-theme="light"] .notes-col-drag-handle:hover {
+    background: rgba(15,23,42,0.08);
+    color: rgba(15,23,42,0.7);
+}
+[data-theme="light"] .notes-col-rename-btn,
+[data-theme="light"] .notes-col-collapse-btn {
+    color: #64748b;
+}
+[data-theme="light"] .notes-col-delete-btn {
+    color: #94a3b8;
+}
+[data-theme="light"] .notes-add-row {
+    border-top-color: rgba(15,23,42,0.08);
+}
+[data-theme="light"] .notes-add-input {
+    background: rgba(15,23,42,0.04);
+    border-color: rgba(15,23,42,0.14);
+    color: var(--text-color);
+}
+[data-theme="light"] .notes-add-input::placeholder {
+    color: rgba(15,23,42,0.4);
+}
+[data-theme="light"] .notes-deleted-wrap {
+    border-top-color: rgba(15,23,42,0.14);
+}
+[data-theme="light"] .notes-deleted-toggle {
+    color: #475569;
+}
+[data-theme="light"] .notes-deleted-empty {
+    color: #64748b;
 }

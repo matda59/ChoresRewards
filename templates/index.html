@@ -786,16 +786,18 @@ window.addEventListener('DOMContentLoaded', function() {
         <div id="clock-date" style="font-size:1.05em;opacity:0.75;white-space:nowrap;font-weight:600;">Loading…</div>
     </div>
     <!-- Weather Widget -->
-    <div id="weather-widget" style="display:flex;align-items:center;gap:14px;color:var(--cr-text-primary);flex-shrink:0;padding:0 6px;">
-        <i id="weather-icon" class="fas fa-sun" style="font-size:2.9em;color:#fbbf24;flex-shrink:0;"></i>
-        <div style="line-height:1.1;">
-            <div style="display:flex;align-items:baseline;gap:12px;">
-                <span id="weather-temp" style="font-size:2.3em;font-weight:800;white-space:nowrap;">--°</span>
-                <span id="weather-hilo" style="font-size:1.05em;opacity:0.8;font-weight:600;white-space:nowrap;">H:--° L:--°</span>
+    <div id="weather-widget" style="display:flex;flex-direction:column;align-items:center;color:var(--cr-text-primary);flex-shrink:0;padding:0 6px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+            <i id="weather-icon" class="fas fa-sun" style="font-size:2.9em;color:#fbbf24;flex-shrink:0;"></i>
+            <div style="line-height:1.1;">
+                <div style="display:flex;align-items:baseline;gap:12px;">
+                    <span id="weather-temp" style="font-size:2.3em;font-weight:800;white-space:nowrap;">--°</span>
+                    <span id="weather-hilo" style="font-size:1.05em;opacity:0.8;font-weight:600;white-space:nowrap;">H:--° L:--°</span>
+                </div>
+                <div id="weather-desc" style="font-size:1.05em;opacity:0.8;white-space:nowrap;font-weight:600;">Locating…</div>
             </div>
-            <div id="weather-desc" style="font-size:1.05em;opacity:0.8;white-space:nowrap;font-weight:600;">Locating…</div>
         </div>
-        <button id="weather-expand-btn" title="Show 7-day forecast" aria-expanded="false" style="background:var(--cr-header-control-bg);border:1px solid var(--cr-header-control-border);color:var(--cr-text-primary);width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:1.15em;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.15s;">
+        <button id="weather-expand-btn" title="Show 7-day forecast" aria-expanded="false" style="background:none;border:none;color:var(--cr-text-secondary);cursor:pointer;font-size:0.9em;padding:2px 0 0;margin:0;line-height:1;opacity:0.55;display:flex;align-items:center;justify-content:center;transition:opacity 0.15s;">
             <i class="fas fa-chevron-down" id="weather-expand-icon" style="transition:transform 0.25s;"></i>
         </button>
     </div>
@@ -916,6 +918,16 @@ window.addEventListener('DOMContentLoaded', function() {
         let dragSrcListId  = null;
         let saveDebounce   = null;
 
+        // ── Column collapse state (persisted locally, not synced to server) ──
+        const COL_COLLAPSE_KEY = 'notes_collapsed_columns';
+        function loadCollapsedCols() {
+            try { return new Set(JSON.parse(localStorage.getItem(COL_COLLAPSE_KEY) || '[]')); } catch { return new Set(); }
+        }
+        function saveCollapsedCols(set) {
+            try { localStorage.setItem(COL_COLLAPSE_KEY, JSON.stringify([...set])); } catch {}
+        }
+        const collapsedCols = loadCollapsedCols();
+
         // ── Save ──────────────────────────────────────────────────────────
         function scheduleSave() {
             clearTimeout(saveDebounce);
@@ -993,7 +1005,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
         function buildColumn(col) {
             const el = document.createElement('div');
-            el.className = 'notes-kanban-col';
+            el.className = 'notes-kanban-col' + (collapsedCols.has(col.id) ? ' notes-col-collapsed' : '');
             el.dataset.colId = col.id;
             el.draggable = true;
 
@@ -1049,12 +1061,18 @@ window.addEventListener('DOMContentLoaded', function() {
                 <span class="notes-col-drag-handle" title="Hold and drag to reorder lists" draggable="true"><i class="fas fa-grip-vertical"></i></span>
                 <span class="notes-col-dot" style="background:${col.color}"></span>
                 <span class="notes-col-title" title="Click to rename">${escHtml(col.title)}</span>
+                <button class="notes-col-collapse-btn" title="Minimize list"><i class="fas fa-chevron-up"></i></button>
                 <button class="notes-col-rename-btn" title="Rename list"><i class="fas fa-pencil-alt"></i></button>
                 <button class="notes-col-delete-btn" title="Delete list"><i class="fas fa-times"></i></button>
             `;
             header.querySelector('.notes-col-title').addEventListener('dblclick', () => startRenameCol(col.id));
             header.querySelector('.notes-col-rename-btn').addEventListener('click', () => startRenameCol(col.id));
             header.querySelector('.notes-col-delete-btn').addEventListener('click', () => deleteColumn(col.id));
+            header.querySelector('.notes-col-collapse-btn').addEventListener('click', () => {
+                const collapsed = el.classList.toggle('notes-col-collapsed');
+                if (collapsed) collapsedCols.add(col.id); else collapsedCols.delete(col.id);
+                saveCollapsedCols(collapsedCols);
+            });
 
             // Notes list
             const list = document.createElement('div');
@@ -7352,6 +7370,8 @@ function doRedeemReward(rewardId) {
     }
 
     expandBtn.addEventListener('click', () => setExpanded(!expanded));
+    expandBtn.addEventListener('mouseenter', () => { expandBtn.style.opacity = '1'; });
+    expandBtn.addEventListener('mouseleave', () => { expandBtn.style.opacity = '0.55'; });
 
     initWeather();
 })();
