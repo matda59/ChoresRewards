@@ -816,7 +816,7 @@ window.addEventListener('DOMContentLoaded', function() {
 </div>
 <!-- 7-Day Forecast Panel — expands directly under the weather widget, inside the frozen header -->
 <div id="weather-forecast-panel" style="max-height:0; overflow:hidden; transition:max-height 0.35s ease; background:linear-gradient(135deg, var(--cr-header-bg-1) 0%, var(--cr-header-bg-2) 100%); border-radius:0 0 14px 14px; margin-bottom:1.2rem;">
-    <div id="weather-forecast-days" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(90px, 1fr)); gap:12px; padding:16px 22px;">
+    <div id="weather-forecast-days" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(115px, 1fr)); gap:12px; padding:16px 22px;">
         <div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:20px;">Loading forecast…</div>
     </div>
 </div>
@@ -7226,6 +7226,7 @@ function doRedeemReward(rewardId) {
     const daysEl    = document.getElementById('weather-forecast-days');
 
     let cachedDaily = null;
+    let cachedHourly = null;
     let expanded = false;
 
     // WMO weather-code → icon / colour / label
@@ -7243,6 +7244,31 @@ function doRedeemReward(rewardId) {
         return { icon: 'fa-cloud', color: '#94a3b8', desc: 'Unknown' };
     }
 
+    // Builds a short human sentence for a day (e.g. "Cloudy, late showers.") from the
+    // hourly codes/precip-probability that fall on that date, since Open-Meteo has no text summary.
+    function daySummary(dateStr, code) {
+        const info = weatherInfo(code);
+        if (!cachedHourly || !cachedHourly.time) return info.desc + '.';
+        const hours = [];
+        cachedHourly.time.forEach((t, i) => {
+            if (t.startsWith(dateStr)) {
+                hours.push({
+                    hour: Number(t.slice(11, 13)),
+                    code: cachedHourly.weathercode[i],
+                    precip: (cachedHourly.precipitation_probability && cachedHourly.precipitation_probability[i]) || 0
+                });
+            }
+        });
+        if (!hours.length) return info.desc + '.';
+        const isWet = h => h.code >= 51 || h.precip >= 50;
+        const wetHours = hours.filter(isWet);
+        if (!wetHours.length) return info.desc + '.';
+        if (wetHours.length / hours.length >= 0.7) return `${info.desc}, showers most of the day.`;
+        const firstHour = wetHours[0].hour;
+        const timing = firstHour < 11 ? 'morning showers' : firstHour < 16 ? 'afternoon showers' : 'late showers';
+        return `${info.desc}, ${timing}.`;
+    }
+
     function renderForecastDays() {
         if (!cachedDaily) return;
         const { time, weathercode, temperature_2m_max, temperature_2m_min } = cachedDaily;
@@ -7253,10 +7279,11 @@ function doRedeemReward(rewardId) {
             const max = Math.round(temperature_2m_max[i]);
             const min = Math.round(temperature_2m_min[i]);
             return `<div style="text-align:center;">
-                <div style="color:#cbd5e1;font-size:0.9em;font-weight:700;margin-bottom:8px;">${dayLabel}</div>
+                <div style="color:var(--cr-text-primary);font-size:0.9em;font-weight:700;margin-bottom:8px;">${dayLabel}</div>
                 <i class="fas ${info.icon}" style="font-size:2em;color:${info.color};"></i>
-                <div style="color:#fff;font-size:1.05em;font-weight:700;margin-top:8px;">${max}\u00b0</div>
-                <div style="color:#94a3b8;font-size:0.9em;">${min}\u00b0</div>
+                <div style="color:var(--cr-text-primary);font-size:1.05em;font-weight:700;margin-top:8px;">${max}\u00b0</div>
+                <div style="color:var(--cr-text-secondary);font-size:0.9em;">${min}\u00b0</div>
+                <div style="color:var(--cr-text-secondary);font-size:0.78em;margin-top:6px;line-height:1.25;">${daySummary(dateStr, weathercode[i])}</div>
             </div>`;
         }).join('');
     }
@@ -7275,7 +7302,7 @@ function doRedeemReward(rewardId) {
 
     async function fetchWeather(lat, lon, tz) {
         try {
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&forecast_days=7&temperature_unit=celsius&timezone=${encodeURIComponent(tz)}`;
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&hourly=weathercode,precipitation_probability&forecast_days=7&temperature_unit=celsius&timezone=${encodeURIComponent(tz)}`;
             const res = await fetch(url);
             if (!res.ok) throw new Error('weather error');
             const data = await res.json();
@@ -7286,6 +7313,7 @@ function doRedeemReward(rewardId) {
             tempEl.textContent = `${temp}\u00b0`;
             descEl.textContent = info.desc;
             cachedDaily = data.daily;
+            cachedHourly = data.hourly;
             if (cachedDaily && cachedDaily.temperature_2m_max && cachedDaily.temperature_2m_max.length) {
                 const max = Math.round(cachedDaily.temperature_2m_max[0]);
                 const min = Math.round(cachedDaily.temperature_2m_min[0]);
