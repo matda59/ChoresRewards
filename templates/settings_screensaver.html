@@ -293,9 +293,11 @@
                 <section class="settings-section" id="screensaver-photos-section">
                     <h4 class="section-title" style="font-size:1rem;"><i class="fas fa-photo-video"></i> Photos</h4>
                     <p class="ss-field-hint" style="margin-top:0;">Upload photos to display during the screensaver. If no photos are uploaded, a subtle animated gradient is shown instead.</p>
+                    <p class="ss-field-hint" style="margin-top:0;">Copied files straight into the <code>uploads/screensaver</code> folder (e.g. via FTP)? Click "Scan Folder" to pick them up.</p>
                     <div class="ss-upload-row">
                         <input type="file" id="ss-photo-input" accept="image/png,image/jpeg,image/gif,image/webp" multiple style="color:#fff;">
                         <button type="button" class="save-btn" id="ss-upload-btn"><i class="fas fa-upload" style="margin-right:6px;"></i>Upload</button>
+                        <button type="button" class="btn-secondary-action" id="ss-rescan-btn"><i class="fas fa-magnifying-glass" style="margin-right:6px;"></i>Scan Folder</button>
                         <button type="button" class="btn-secondary-action" id="ss-clear-btn"><i class="fas fa-trash" style="margin-right:6px;"></i>Clear All</button>
                         <span class="ss-photo-count" id="ss-photo-count"></span>
                     </div>
@@ -397,6 +399,24 @@
             }
             uploadNext(0);
         }
+
+        document.getElementById('ss-rescan-btn').addEventListener('click', () => {
+            const btn = document.getElementById('ss-rescan-btn');
+            btn.disabled = true;
+            fetch('/api/screensaver/rescan', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        photoUrls = data.photos;
+                        renderGrid();
+                        alert(data.added ? `Found ${data.added} new photo(s).` : 'No new photos found in the folder.');
+                    } else {
+                        alert(data.error || 'Failed to scan folder.');
+                    }
+                })
+                .catch(() => alert('Failed to scan folder.'))
+                .finally(() => { btn.disabled = false; });
+        });
 
         document.getElementById('ss-clear-btn').addEventListener('click', () => {
             if (!photoUrls.length) return;

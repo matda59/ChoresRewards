@@ -1100,6 +1100,30 @@ def api_screensaver_delete():
     return jsonify({'success': True, 'photos': _screensaver_photo_urls(remaining)})
 
 
+@routes_bp.route('/api/screensaver/rescan', methods=['POST'])
+def api_screensaver_rescan():
+    """Pick up image files that were dropped directly into the screensaver upload
+    folder (e.g. via FTP/file manager) instead of through the upload endpoint,
+    so they show up in the slideshow without needing a uuid-prefixed filename."""
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    upload_folder = _screensaver_upload_folder()
+    photos = _get_screensaver_photos()
+    known_filenames = {p.get('filename') for p in photos}
+    added = 0
+    for filename in sorted(os.listdir(upload_folder)):
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in SCREENSAVER_ALLOWED_EXTS or filename in known_filenames:
+            continue
+        photos.append({'filename': filename, 'uploaded_at': datetime.utcnow().isoformat()})
+        added += 1
+    if added:
+        _save_screensaver_photos(photos)
+        log_activity('settings_updated', f'{added} screensaver photo(s) found by folder scan')
+    return jsonify({'success': True, 'photos': _screensaver_photo_urls(photos), 'added': added})
+
+
 @routes_bp.route('/api/screensaver/clear', methods=['POST'])
 def api_screensaver_clear():
     _guard = _adult_required()
