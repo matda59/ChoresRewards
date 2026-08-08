@@ -856,6 +856,400 @@ window.addEventListener('DOMContentLoaded', function() {
   </div>
 </div>
 
+    <!-- Dashboard Section (landing overview — not collapsible, always the first thing shown) -->
+    <section class="rewards-section dashboard-section" id="dashboard-section">
+        <h2 class="section-title">
+            <i class="fas fa-gauge-high" style="color:#38bdf8;"></i> <span>Today at a Glance</span>
+        </h2>
+        <div class="dashboard-grid">
+            <!-- Today's Tasks -->
+            <div class="dashboard-card" onclick="goToSection('kanban')">
+                <h3 class="dashboard-card-title"><i class="fas fa-list-check" style="color:#4ade80;"></i> Today's Tasks</h3>
+                {% for person in family | sort(attribute='order') %}
+                    {% set person_chores = chores | selectattr("assigned_to_id", "equalto", person.id) | list %}
+                    {% set incomplete = person_chores | rejectattr("completed") | list %}
+                    {% set today_incomplete = [] %}
+                    {% for c in incomplete %}
+                        {% if not c.days_of_week or c.days_of_week.strip() == '' %}
+                            {% set _ = today_incomplete.append(c) %}
+                        {% else %}
+                            {% set c_days = c.days_of_week.split(',') | map('trim') | map('lower') | list %}
+                            {% if current_date.strftime('%A').lower() in c_days %}
+                                {% set _ = today_incomplete.append(c) %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                    <div class="dash-person-row">
+                        <img class="dash-person-avatar" src="{{ url_for('static', filename=('uploads/' + person.avatar) if person.avatar else 'default_avatar.png') }}" alt="{{ person.name }}">
+                        <div class="dash-person-info">
+                            <div class="dash-person-name">{{ person.name }}</div>
+                            <div class="dash-person-chores">
+                                {% if today_incomplete %}
+                                    {{ today_incomplete[:2] | map(attribute='title') | join(', ') }}{% if today_incomplete|length > 2 %} +{{ today_incomplete|length - 2 }} more{% endif %}
+                                {% else %}
+                                    All done today! 🎉
+                                {% endif %}
+                            </div>
+                        </div>
+                        <span class="dash-person-badge{% if not today_incomplete %} dash-all-done{% endif %}">
+                            {% if today_incomplete %}{{ today_incomplete|length }} left{% else %}<i class="fas fa-check"></i>{% endif %}
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Meals Today -->
+            {% set dash_plan_today = meal_planner_plan.get(current_date.isoformat(), {}) %}
+            {% set dash_lunch = dash_plan_today.get('lunch', '') | trim %}
+            {% set dash_dinner = dash_plan_today.get('dinner', '') | trim %}
+            <div class="dashboard-card" onclick="goToSection('meal-planner-section')">
+                <h3 class="dashboard-card-title"><i class="fas fa-utensils" style="color:#fb923c;"></i> Meals Today</h3>
+                {% if dash_lunch %}
+                <div class="dash-meal-row"><span class="dash-meal-label">Lunch</span><span>{{ dash_lunch }}</span></div>
+                {% endif %}
+                {% if dash_dinner %}
+                <div class="dash-meal-row"><span class="dash-meal-label">Dinner</span><span>{{ dash_dinner }}</span></div>
+                {% endif %}
+                {% if not dash_lunch and not dash_dinner %}
+                <p class="dash-empty-hint">No meals planned for today yet.</p>
+                {% endif %}
+            </div>
+
+            <!-- Upcoming Events -->
+            {% if google_calendar_feature_enabled and google_calendar_enabled %}
+            <div class="dashboard-card" onclick="goToSection('events-section')">
+                <h3 class="dashboard-card-title"><i class="fas fa-calendar-alt" style="color:#60a5fa;"></i> Upcoming Events</h3>
+                {% if google_calendar_events | length == 0 %}
+                <p class="dash-empty-hint">No upcoming events.</p>
+                {% else %}
+                    {% for event in google_calendar_events[:4] %}
+                    <div class="dash-event-row">
+                        <span class="dash-event-time">{{ event.weekday_short }} {{ event.start_time_display }}</span>
+                        <span>{{ event.title }}</span>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Top Rewards -->
+            {% set dash_top_rewards = (rewards | selectattr('completed', 'equalto', False) | list) | sort(attribute='points_required', reverse=True) %}
+            <div class="dashboard-card" onclick="goToSection('rewards-section')">
+                <h3 class="dashboard-card-title"><i class="fas fa-trophy" style="color:#a78bfa;"></i> Top Rewards</h3>
+                {% if dash_top_rewards | length == 0 %}
+                <p class="dash-empty-hint">No rewards yet.</p>
+                {% else %}
+                    {% for reward in dash_top_rewards[:4] %}
+                    <div class="dash-reward-row">
+                        {% if reward.image_url %}
+                        <img class="dash-reward-thumb" src="{{ reward.image_url }}" alt="">
+                        {% else %}
+                        <span class="dash-reward-thumb" style="display:flex;align-items:center;justify-content:center;"><i class="fas fa-gift" style="color:#a78bfa;"></i></span>
+                        {% endif %}
+                        <span>{{ reward.title }}</span>
+                        <span class="dash-reward-points">
+                            {% if reward_system == 'cash' %}${{ '%.2f' % reward.points_required }}{% else %}{{ reward.points_required }} pts{% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- Family Photos slideshow -->
+            <div class="dashboard-card dashboard-card-photos">
+                <h3 class="dashboard-card-title"><i class="fas fa-images" style="color:#f472b6;"></i> Family Photos</h3>
+                <div class="dash-photo-slideshow" id="dash-photo-slideshow">
+                    <p class="dash-empty-hint" id="dash-photo-empty">No photos yet — add some in Settings &rarr; Screensaver.</p>
+                </div>
+            </div>
+
+            <!-- Sticky Notes -->
+            <div class="dashboard-card dashboard-card-notes dashboard-card-photos">
+                <h3 class="dashboard-card-title">
+                    <i class="fas fa-note-sticky" style="color:#fbbf24;"></i> Sticky Notes
+                    <button type="button" class="dash-note-add-btn" id="dash-note-add-btn" title="Add note"><i class="fas fa-plus"></i></button>
+                </h3>
+                <div class="dash-notes-grid" id="dash-notes-grid"></div>
+            </div>
+        </div>
+    </section>
+
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 4px;
+        }
+        .dashboard-card {
+            background: var(--cr-subtle-panel);
+            border: 1px solid var(--cr-subtle-panel-border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .dashboard-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px var(--cr-shadow); }
+        .dashboard-card-photos { cursor: default; }
+        .dashboard-card-photos:hover { transform: none; box-shadow: none; }
+        .dashboard-card-title {
+            margin: 0 0 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--cr-text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dash-person-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--cr-subtle-panel-border);
+        }
+        .dash-person-row:last-child { border-bottom: none; }
+        .dash-person-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        .dash-person-info { flex: 1; min-width: 0; }
+        .dash-person-name { font-weight: 700; color: var(--cr-text-primary); font-size: 0.9em; }
+        .dash-person-chores { font-size: 0.78em; color: var(--cr-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .dash-person-badge { font-size: 0.75em; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: rgba(99,102,241,0.15); color: #818cf8; flex-shrink: 0; }
+        .dash-person-badge.dash-all-done { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .dash-meal-row, .dash-event-row, .dash-reward-row {
+            display: flex; align-items: center; gap: 10px; padding: 6px 0;
+            border-bottom: 1px solid var(--cr-subtle-panel-border);
+            font-size: 0.85em; color: var(--cr-text-primary);
+        }
+        .dash-meal-row:last-child, .dash-event-row:last-child, .dash-reward-row:last-child { border-bottom: none; }
+        .dash-meal-label, .dash-event-time { flex-shrink: 0; font-weight: 700; color: var(--cr-text-secondary); font-size: 0.85em; min-width: 52px; }
+        .dash-empty-hint { color: var(--cr-text-secondary); font-size: 0.85em; font-style: italic; }
+        .dash-reward-thumb { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--cr-subtle-panel-border); }
+        .dash-reward-points { margin-left: auto; font-weight: 700; color: #fbbf24; font-size: 0.85em; white-space: nowrap; }
+        .dash-photo-slideshow {
+            position: relative;
+            width: 100%;
+            min-height: 120px;
+            aspect-ratio: 16 / 9;
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--cr-subtle-panel-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            text-align: center;
+        }
+        .dash-photo-slideshow img {
+            position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+            opacity: 0; transition: opacity 1s ease;
+        }
+        .dash-photo-slideshow img.dash-photo-active { opacity: 1; }
+
+        .dash-note-add-btn {
+            margin-left: auto;
+            background: var(--cr-subtle-panel-border);
+            border: none;
+            color: var(--cr-text-primary);
+            width: 24px;
+            height: 24px;
+            min-height: 0;
+            padding: 0;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.7em;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dash-note-add-btn:hover { opacity: 0.85; }
+        .dash-notes-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .dash-sticky-note {
+            width: 110px;
+            min-height: 110px;
+            padding: 8px;
+            border-radius: 3px;
+            box-shadow: 2px 3px 8px rgba(0,0,0,0.25);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            position: relative;
+            transform: rotate(var(--tilt, -1deg));
+            transition: transform 0.15s;
+        }
+        .dash-sticky-note:hover { transform: rotate(0deg) scale(1.03); z-index: 1; }
+        .dash-note-text {
+            flex: 1;
+            resize: none;
+            border: none;
+            background: transparent;
+            font-size: 0.8em;
+            font-family: inherit;
+            color: #1e293b;
+            outline: none;
+            min-height: 60px;
+            padding: 0;
+            margin: 0;
+            box-shadow: none;
+        }
+        .dash-note-text:focus {
+            outline: none;
+            border: none;
+            box-shadow: none;
+        }
+        .dash-note-del {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            width: 18px;
+            height: 18px;
+            min-height: 0;
+            padding: 0;
+            margin: 0;
+            line-height: 1;
+            background: rgba(255,255,255,0.55);
+            border: none;
+            border-radius: 50%;
+            font-size: 0.6em;
+            color: rgba(30,41,59,0.6);
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dash-sticky-note:hover .dash-note-del { opacity: 1; }
+        .dash-note-colors { display: flex; gap: 4px; }
+        .dash-note-color-dot {
+            width: 12px; height: 12px; border-radius: 50%;
+            cursor: pointer; border: 1px solid rgba(0,0,0,0.15);
+        }
+    </style>
+
+    <script>
+        function goToSection(target) {
+            const btn = document.querySelector('#side-nav .side-nav-btn[data-target="' + target + '"]');
+            if (btn) btn.click();
+        }
+        // Lightweight photo slideshow — reuses the same photo pool as the screensaver.
+        (() => {
+            const wrap = document.getElementById('dash-photo-slideshow');
+            if (!wrap) return;
+            fetch('/api/screensaver/config').then(r => r.json()).then(cfg => {
+                const photos = (cfg && cfg.photos) || [];
+                if (!photos.length) return;
+                const emptyMsg = document.getElementById('dash-photo-empty');
+                if (emptyMsg) emptyMsg.remove();
+                const imgs = photos.slice(0, 12).map((src, i) => {
+                    const img = document.createElement('img');
+                    img.src = src;
+                    img.alt = '';
+                    img.loading = 'lazy';
+                    if (i === 0) img.classList.add('dash-photo-active');
+                    wrap.appendChild(img);
+                    return img;
+                });
+                if (imgs.length < 2) return;
+                let idx = 0;
+                setInterval(() => {
+                    imgs[idx].classList.remove('dash-photo-active');
+                    idx = (idx + 1) % imgs.length;
+                    imgs[idx].classList.add('dash-photo-active');
+                }, 6000);
+            }).catch(() => {});
+        })();
+        // Sticky notes — quick post-it style notes on the dashboard.
+        (() => {
+            const grid = document.getElementById('dash-notes-grid');
+            const addBtn = document.getElementById('dash-note-add-btn');
+            if (!grid || !addBtn) return;
+            const COLORS = ['#fef08a', '#fecaca', '#bbf7d0', '#bfdbfe', '#e9d5ff', '#fed7aa'];
+            let notes = [];
+            let saveTimer = null;
+            function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 700); }
+
+            async function load() {
+                try {
+                    const res = await fetch('/api/dashboard_notes');
+                    const data = await res.json();
+                    if (data.success) { notes = data.notes || []; render(); }
+                } catch (e) {}
+            }
+
+            async function save() {
+                try {
+                    await fetch('/api/dashboard_notes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ notes })
+                    });
+                } catch (e) {}
+            }
+
+            function render() {
+                grid.innerHTML = '';
+                if (!notes.length) {
+                    grid.innerHTML = '<p class="dash-empty-hint">No notes yet — tap + to add one.</p>';
+                    return;
+                }
+                notes.forEach(note => {
+                    const card = document.createElement('div');
+                    card.className = 'dash-sticky-note';
+                    card.style.background = note.color || COLORS[0];
+                    card.style.setProperty('--tilt', ((note.id.charCodeAt(0) % 7) - 3) + 'deg');
+
+                    const delBtn = document.createElement('button');
+                    delBtn.type = 'button';
+                    delBtn.className = 'dash-note-del';
+                    delBtn.innerHTML = '&#x2715;';
+                    delBtn.title = 'Delete note';
+                    delBtn.addEventListener('click', () => {
+                        notes = notes.filter(n => n.id !== note.id);
+                        render();
+                        scheduleSave();
+                    });
+                    card.appendChild(delBtn);
+
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'dash-note-text';
+                    textarea.value = note.text || '';
+                    textarea.maxLength = 500;
+                    textarea.placeholder = 'Write a note…';
+                    textarea.addEventListener('input', () => { note.text = textarea.value; scheduleSave(); });
+                    card.appendChild(textarea);
+
+                    const colorRow = document.createElement('div');
+                    colorRow.className = 'dash-note-colors';
+                    COLORS.forEach(c => {
+                        const dot = document.createElement('span');
+                        dot.className = 'dash-note-color-dot';
+                        dot.style.background = c;
+                        dot.title = 'Set note colour';
+                        dot.addEventListener('click', () => { note.color = c; card.style.background = c; scheduleSave(); });
+                        colorRow.appendChild(dot);
+                    });
+                    card.appendChild(colorRow);
+
+                    grid.appendChild(card);
+                });
+            }
+
+            addBtn.addEventListener('click', () => {
+                notes.push({ id: 'note-' + Date.now() + '-' + Math.floor(Math.random() * 1000), text: '', color: COLORS[Math.floor(Math.random() * COLORS.length)] });
+                render();
+                scheduleSave();
+                grid.querySelector('.dash-sticky-note:last-child textarea')?.focus();
+            });
+
+            load();
+        })();
+    </script>
+
     <!-- Notes Kanban Section -->
     <section class="notes-kanban-section collapsible-section collapsed" id="notes-kanban-section">
         <h2 class="section-title section-toggle">

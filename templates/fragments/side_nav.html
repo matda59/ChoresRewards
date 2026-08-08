@@ -5,6 +5,9 @@
 </button>
 
 <nav id="side-nav" aria-label="Section navigation">
+    <a class="side-nav-btn" data-target="dashboard-section" href="{{ url_for('routes.index') }}#dashboard-section" title="Dashboard">
+        <i class="fas fa-gauge-high"></i>
+    </a>
     <div class="side-nav-divider" style="margin-top:8px;"></div>
 
     <a class="side-nav-btn" data-target="notes-kanban-section" href="{{ url_for('routes.index') }}#notes-kanban-section" title="Notes">

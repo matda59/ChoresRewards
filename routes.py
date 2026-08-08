@@ -1856,6 +1856,48 @@ def api_text_pads():
         return jsonify({'success': False, 'error': str(exc)}), 400
 
 
+DASHBOARD_NOTE_COLORS = ('#fef08a', '#fecaca', '#bbf7d0', '#bfdbfe', '#e9d5ff', '#fed7aa')
+
+
+@routes_bp.route('/api/dashboard_notes', methods=['GET', 'POST'])
+def api_dashboard_notes():
+    """Small post-it style notes shown on the dashboard landing section."""
+    try:
+        if request.method == 'GET':
+            try:
+                notes = _json.loads(AppSetting.get('dashboard_notes_json', '[]'))
+            except Exception:
+                notes = []
+            if not isinstance(notes, list):
+                notes = []
+            return jsonify({'success': True, 'notes': notes})
+
+        data = request.get_json() or {}
+        notes = data.get('notes', [])
+        if not isinstance(notes, list):
+            notes = []
+
+        clean_notes = []
+        seen_ids = set()
+        for note in notes:
+            if not isinstance(note, dict):
+                continue
+            note_id = str(note.get('id', '')).strip()[:80]
+            if not note_id or note_id in seen_ids:
+                continue
+            text = str(note.get('text', '')).strip()[:500]
+            color = str(note.get('color', '')).strip()
+            if color not in DASHBOARD_NOTE_COLORS:
+                color = DASHBOARD_NOTE_COLORS[0]
+            clean_notes.append({'id': note_id, 'text': text, 'color': color})
+            seen_ids.add(note_id)
+
+        AppSetting.set('dashboard_notes_json', _json.dumps(clean_notes))
+        return jsonify({'success': True, 'notes': clean_notes})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
 @routes_bp.route('/api/shopping_stores', methods=['GET', 'POST'])
 def api_shopping_stores():
     try:
