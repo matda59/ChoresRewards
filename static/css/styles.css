@@ -1028,6 +1028,88 @@
     background: var(--cr-header-bg-1);
 }
 
+/* Manual minimize toggle — mobile only (see media query below) */
+#header-collapse-toggle {
+    display: none;
+}
+
+/* ── Compact header on mobile phones — the header uses large inline
+   font-sizes/paddings tuned for the kiosk tablet display, so !important
+   is needed here to win over those inline styles on small screens. ── */
+@media (max-width: 600px) {
+    .dashboard-header-sticky .header-content {
+        padding: 0.5rem 0.75rem !important;
+        row-gap: 0.35rem !important;
+    }
+    .dashboard-header-sticky .header-content > div:first-child img {
+        height: 38px !important;
+        width: 38px !important;
+        margin-right: 8px !important;
+    }
+    .dashboard-header-sticky .header-content > div:first-child h2 {
+        font-size: 1rem !important;
+    }
+    #clock-widget { padding: 0 4px !important; }
+    #clock-widget #clock-time { font-size: 1.5em !important; }
+    #clock-widget #clock-date { font-size: 0.75em !important; }
+    #weather-widget { padding: 0 4px !important; }
+    #weather-widget #weather-icon { font-size: 1.7em !important; }
+    #weather-widget #weather-temp { font-size: 1.35em !important; }
+    #weather-widget #weather-hilo,
+    #weather-widget #weather-desc { font-size: 0.72em !important; }
+    .header-nav-actions a {
+        font-size: 0.78em !important;
+        padding: 5px 10px !important;
+    }
+    #theme-toggle-btn,
+    #adult-lock-btn {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 0.85rem !important;
+    }
+    .mute-toggle {
+        padding: 7px !important;
+        font-size: 1em !important;
+    }
+
+    #header-collapse-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--cr-header-control-bg);
+        border: 1.5px solid var(--cr-header-control-border);
+        color: var(--cr-text-secondary);
+        cursor: pointer;
+        flex-shrink: 0;
+        margin-left: auto;
+        font-size: 0.85rem;
+        padding: 0;
+    }
+
+    /* Minimized state: collapse down to just the title bar + toggle */
+    .dashboard-header-sticky.header-minimized #clock-widget,
+    .dashboard-header-sticky.header-minimized #weather-widget,
+    .dashboard-header-sticky.header-minimized .header-nav-actions,
+    .dashboard-header-sticky.header-minimized .mute-toggle,
+    .dashboard-header-sticky.header-minimized #weather-forecast-panel {
+        display: none !important;
+    }
+    .dashboard-header-sticky.header-minimized .header-content {
+        padding: 0.3rem 0.75rem !important;
+    }
+    .dashboard-header-sticky.header-minimized .header-content > div:first-child img {
+        height: 26px !important;
+        width: 26px !important;
+        margin-right: 6px !important;
+    }
+    .dashboard-header-sticky.header-minimized .header-content > div:first-child h2 {
+        font-size: 0.85rem !important;
+    }
+}
+
 #weather-expand-btn:hover {
     background: var(--cr-header-control-bg-hover) !important;
 }
