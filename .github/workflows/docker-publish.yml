@@ -32,6 +32,8 @@ jobs:
           context: .
           file: ./dockerfile
           push: true
+          provenance: false
+          sbom: false
           tags: |
             ghcr.io/matda59/choresrewards:latest
             ghcr.io/matda59/choresrewards:nightly
