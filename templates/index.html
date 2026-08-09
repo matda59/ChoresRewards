@@ -986,14 +986,16 @@ window.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
 
-            <!-- Sticky Notes -->
-            <div class="dashboard-card dashboard-card-notes dashboard-card-photos">
-                <h3 class="dashboard-card-title">
-                    <i class="fas fa-note-sticky" style="color:#fbbf24;"></i> Sticky Notes
-                    <button type="button" class="dash-note-add-btn" id="dash-note-add-btn" title="Add note"><i class="fas fa-plus"></i></button>
-                </h3>
-                <div class="dash-notes-grid" id="dash-notes-grid"></div>
-            </div>
+        </div>
+
+        <!-- Sticky Notes — its own resizable full-width panel -->
+        <div class="dashboard-card dashboard-card-photos dashboard-card-notes" id="dashboard-notes-panel">
+            <h3 class="dashboard-card-title">
+                <i class="fas fa-note-sticky" style="color:#fbbf24;"></i> Sticky Notes
+                <button type="button" class="dash-note-add-btn" id="dash-note-add-btn" title="Add note"><i class="fas fa-plus"></i></button>
+            </h3>
+            <div class="dash-notes-grid" id="dash-notes-grid"></div>
+            <div class="dash-notes-resize-hint"><i class="fas fa-up-down-left-right"></i></div>
         </div>
     </section>
 
@@ -1151,6 +1153,36 @@ window.addEventListener('DOMContentLoaded', function() {
         .dash-note-color-dot {
             width: 12px; height: 12px; border-radius: 50%;
             cursor: pointer; border: 1px solid rgba(0,0,0,0.15);
+        }
+
+        /* Sticky Notes panel — full-width, resizable rectangle */
+        .dashboard-card-notes {
+            position: relative;
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            height: 260px;
+            min-height: 160px;
+            max-height: 80vh;
+            resize: vertical;
+            overflow: auto;
+        }
+        .dashboard-card-notes .dash-notes-grid {
+            flex: 1;
+            align-content: flex-start;
+            overflow-y: auto;
+        }
+        .dash-notes-resize-hint {
+            position: absolute;
+            right: 4px;
+            bottom: 2px;
+            font-size: 0.65em;
+            color: var(--cr-text-secondary);
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        @media (min-width: 600px) and (max-width: 1024px) {
+            .dashboard-card-notes { height: 320px; min-height: 220px; }
         }
     </style>
 
