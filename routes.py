@@ -1903,6 +1903,12 @@ def api_dashboard_notes():
                 cleaned['width'] = width
             if height is not None:
                 cleaned['height'] = height
+            
+            text_size = str(note.get('text_size', 'md')).strip().lower()
+            if text_size not in ('sm', 'md', 'lg'):
+                text_size = 'md'
+            cleaned['text_size'] = text_size
+
             clean_notes.append(cleaned)
             seen_ids.add(note_id)
 

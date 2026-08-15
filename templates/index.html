@@ -1137,6 +1137,9 @@ window.addEventListener('DOMContentLoaded', function() {
             box-shadow: none;
             overflow: auto;
         }
+        .dash-note-text.size-sm { font-size: 1.1rem; }
+        .dash-note-text.size-md { font-size: 1.45rem; }
+        .dash-note-text.size-lg { font-size: 2.2rem; }
         .dash-note-text:focus {
             outline: none;
             border: none;
@@ -1170,11 +1173,29 @@ window.addEventListener('DOMContentLoaded', function() {
             z-index: 1;
         }
         .dash-sticky-note:hover .dash-note-del { opacity: 1; }
-        .dash-note-colors { display: flex; gap: 6px; flex-shrink: 0; padding-right: 22px; }
+        .dash-note-colors { display: flex; gap: 6px; flex-shrink: 0; padding-right: 22px; align-items: center; }
         .dash-note-color-dot {
             width: 16px; height: 16px; border-radius: 50%;
             cursor: pointer; border: 1px solid rgba(0,0,0,0.15);
         }
+        .dash-note-size-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.15);
+            background: rgba(255,255,255,0.4);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85em;
+            font-weight: bold;
+            color: rgba(30,41,59,0.8);
+            margin-left: auto;
+            transition: background 0.15s;
+            padding: 0;
+        }
+        .dash-note-size-btn:hover { background: rgba(255,255,255,0.8); }
         .dash-note-resize {
             position: absolute;
             right: 0;
@@ -1332,7 +1353,7 @@ window.addEventListener('DOMContentLoaded', function() {
                     card.appendChild(delBtn);
 
                     const textarea = document.createElement('textarea');
-                    textarea.className = 'dash-note-text';
+                    textarea.className = 'dash-note-text size-' + (note.text_size || 'md');
                     textarea.value = note.text || '';
                     textarea.maxLength = 500;
                     textarea.placeholder = 'Write a note…';
@@ -1349,6 +1370,22 @@ window.addEventListener('DOMContentLoaded', function() {
                         dot.addEventListener('click', () => { note.color = c; card.style.background = c; scheduleSave(); });
                         colorRow.appendChild(dot);
                     });
+                    
+                    const sizeBtn = document.createElement('button');
+                    sizeBtn.type = 'button';
+                    sizeBtn.className = 'dash-note-size-btn';
+                    sizeBtn.title = 'Change text size';
+                    sizeBtn.innerHTML = 'aA';
+                    sizeBtn.addEventListener('click', () => {
+                        const sizes = ['sm', 'md', 'lg'];
+                        let idx = sizes.indexOf(note.text_size || 'md');
+                        idx = (idx + 1) % sizes.length;
+                        note.text_size = sizes[idx];
+                        textarea.className = 'dash-note-text size-' + note.text_size;
+                        scheduleSave();
+                    });
+                    colorRow.appendChild(sizeBtn);
+                    
                     card.appendChild(colorRow);
 
                     const resizeHandle = document.createElement('div');
@@ -1395,7 +1432,8 @@ window.addEventListener('DOMContentLoaded', function() {
                     text: '',
                     color: COLORS[Math.floor(Math.random() * COLORS.length)],
                     width: NOTE_DEF_W,
-                    height: NOTE_DEF_H
+                    height: NOTE_DEF_H,
+                    text_size: 'md'
                 });
                 render();
                 scheduleSave();
