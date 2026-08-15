@@ -123,13 +123,12 @@
             border-radius: 25px;
             font-size: 1.2em;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+            transition: transform 0.15s, background 0.15s;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         .celebration-close:hover {
             background: #ff5252;
             transform: translateY(-2px);
-            box-shadow: 0 7px 20px rgba(255, 107, 107, 0.6);
         }
         /* Confetti Animation */
         .confetti {
@@ -384,7 +383,7 @@
     font-size: 1.15em;
     font-weight: 800;
     cursor: pointer;
-    box-shadow: 0 4px 18px rgba(76,175,80,0.45);
+    border: 1px solid rgba(76,175,80,0.45);
     transition: background 0.2s, transform 0.15s;
 }
 .challenge-did-it-btn:hover { background: #45a049; transform: translateY(-2px); }
@@ -420,7 +419,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
 <!-- Edit Reward Modal -->
 <div id="edit-reward-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:9999; justify-content:center; align-items:center;">
-    <div style="background:var(--cr-modal-surface); padding:28px 24px; border-radius:18px; min-width:320px; max-width:480px; width:90vw; box-shadow:0 4px 32px rgba(0,0,0,0.7); display:flex; flex-direction:column; gap:14px;">
+    <div style="background:var(--cr-modal-surface); padding:28px 24px; border-radius:18px; min-width:320px; max-width:480px; width:90vw; border:1px solid var(--cr-surface-border); display:flex; flex-direction:column; gap:14px;">
         <h3 style="color:var(--cr-text-primary); margin:0 0 4px; font-size:1.2rem;"><i class="fas fa-edit" style="color:#a78bfa;"></i> Edit Reward</h3>
 
         <label style="color:var(--cr-text-secondary); font-size:0.8rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">Title</label>
@@ -773,7 +772,7 @@ window.addEventListener('DOMContentLoaded', function() {
 <!-- All site content is wrapped in the site-content container -->
 <div id="site-content" style="display:none;">
     <header class="dashboard-header-sticky">
-<div class="header-content" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; row-gap:0.6rem; background:linear-gradient(135deg, var(--cr-header-bg-1) 0%, var(--cr-header-bg-2) 100%); padding:0.75rem 1.5rem; border-radius:14px 14px 0 0; border-bottom:1px solid var(--cr-surface-border); box-shadow:0 4px 20px var(--cr-shadow);">
+<div class="header-content" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; row-gap:0.6rem; background:linear-gradient(135deg, var(--cr-header-bg-1) 0%, var(--cr-header-bg-2) 100%); padding:0.75rem 1.5rem; border-radius:14px 14px 0 0; border-bottom:1px solid var(--cr-surface-border);">
     <div style="display:flex; align-items:center;">
         <img src="{{ url_for('static', filename='images/mascot-transp.png') }}" 
              alt="Chores Reward Icon" 
@@ -1012,11 +1011,12 @@ window.addEventListener('DOMContentLoaded', function() {
             border-radius: 14px;
             padding: 14px 16px;
             cursor: pointer;
-            transition: transform 0.15s, box-shadow 0.15s;
+            transition: transform 0.15s;
+            will-change: transform;
         }
-        .dashboard-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px var(--cr-shadow); }
+        .dashboard-card:hover { transform: translateY(-2px); }
         .dashboard-card-photos { cursor: default; }
-        .dashboard-card-photos:hover { transform: none; box-shadow: none; }
+        .dashboard-card-photos:hover { transform: none; }
         .dashboard-card-title {
             margin: 0 0 10px;
             font-size: 1rem;
@@ -1110,9 +1110,10 @@ window.addEventListener('DOMContentLoaded', function() {
             overflow: hidden;
             box-sizing: border-box;
             transform: rotate(var(--tilt, -1deg));
-            transition: transform 0.15s, box-shadow 0.15s;
+            transition: transform 0.15s;
+            will-change: transform;
         }
-        .dash-sticky-note:hover { transform: rotate(0deg); z-index: 1; box-shadow: 3px 6px 14px rgba(0,0,0,0.32); }
+        .dash-sticky-note:hover { transform: rotate(0deg); z-index: 1; }
         .dash-sticky-note.dash-sticky-note-resizing {
             transform: none;
             z-index: 3;
@@ -2212,7 +2213,6 @@ window.addEventListener('DOMContentLoaded', function() {
     overflow: hidden;
     margin-bottom: 6px;
     position: relative;
-    backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
