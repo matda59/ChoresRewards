@@ -49,13 +49,6 @@
     position: absolute;
     inset: 0;
     background: linear-gradient(120deg, #0f172a, #1e293b, #312e81, #0f172a);
-    background-size: 400% 400%;
-    animation: cr-ss-gradient 18s ease infinite;
-}
-@keyframes cr-ss-gradient {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
 }
 
 .cr-ss-vignette {
@@ -92,11 +85,10 @@
     gap: 0.5em;
     font-size: clamp(0.9rem, 2vw, 1.15rem);
     font-weight: 600;
-    background: rgba(255,255,255,0.12);
+    background: rgba(0,0,0,0.4);
     border: 1px solid rgba(255,255,255,0.2);
     padding: 0.5em 1.1em;
     border-radius: 999px;
-    backdrop-filter: blur(6px);
 }
 
 /* ── Per-person chore breakdown + upcoming events ── */
@@ -124,11 +116,10 @@
     align-items: center;
     gap: 0.6rem;
     text-align: left;
-    background: rgba(255,255,255,0.10);
+    background: rgba(0,0,0,0.4);
     border: 1px solid rgba(255,255,255,0.18);
     border-radius: 14px;
     padding: 0.55em 0.9em;
-    backdrop-filter: blur(6px);
     min-width: 160px;
 }
 .cr-ss-person-avatar {
@@ -164,11 +155,10 @@
 
 .cr-ss-events {
     text-align: left;
-    background: rgba(255,255,255,0.10);
+    background: rgba(0,0,0,0.4);
     border: 1px solid rgba(255,255,255,0.18);
     border-radius: 14px;
     padding: 0.6em 1em;
-    backdrop-filter: blur(6px);
     min-width: 200px;
     max-width: 26vw;
 }

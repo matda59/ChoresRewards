@@ -195,21 +195,26 @@
         const outgoing = layerEls[activeLayerIdx];
         const transition = (config && config.transition) || 'kenburns';
 
-        incoming.style.backgroundImage = `url("${url}")`;
-        incoming.className = 'cr-ss-layer';
-        if (transition === 'kenburns') {
-            incoming.classList.add('cr-ss-kenburns');
-            incoming.style.animationDuration = `${Math.max(config.slide_duration + 1, 4)}s`;
-        } else if (transition === 'slide') {
-            incoming.classList.add('cr-ss-slide');
-        } else if (transition === 'none') {
-            incoming.style.transition = 'none';
-        }
-        // Force reflow so the transition/animation restarts cleanly
-        void incoming.offsetWidth;
-        incoming.classList.add('cr-ss-active');
-        if (outgoing) outgoing.classList.remove('cr-ss-active', 'cr-ss-kenburns', 'cr-ss-slide');
-        activeLayerIdx = nextLayerIdx;
+        // Preload the image before starting the transition to prevent choppy loading
+        const img = new Image();
+        img.onload = () => {
+            incoming.style.backgroundImage = `url("${url}")`;
+            incoming.className = 'cr-ss-layer';
+            if (transition === 'kenburns') {
+                incoming.classList.add('cr-ss-kenburns');
+                incoming.style.animationDuration = `${Math.max(config.slide_duration + 1, 4)}s`;
+            } else if (transition === 'slide') {
+                incoming.classList.add('cr-ss-slide');
+            } else if (transition === 'none') {
+                incoming.style.transition = 'none';
+            }
+            // Force reflow so the transition/animation restarts cleanly
+            void incoming.offsetWidth;
+            incoming.classList.add('cr-ss-active');
+            if (outgoing) outgoing.classList.remove('cr-ss-active', 'cr-ss-kenburns', 'cr-ss-slide');
+            activeLayerIdx = nextLayerIdx;
+        };
+        img.src = url;
     }
 
     function startSlideshow() {

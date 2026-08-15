@@ -1067,6 +1067,7 @@ window.addEventListener('DOMContentLoaded', function() {
         .dash-photo-slideshow img {
             position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
             opacity: 0; transition: opacity 1s ease;
+            will-change: opacity;
         }
         .dash-photo-slideshow img.dash-photo-active { opacity: 1; }
 
@@ -1270,21 +1271,38 @@ window.addEventListener('DOMContentLoaded', function() {
                 if (!photos.length) return;
                 const emptyMsg = document.getElementById('dash-photo-empty');
                 if (emptyMsg) emptyMsg.remove();
-                const imgs = photos.slice(0, 12).map((src, i) => {
-                    const img = document.createElement('img');
-                    img.src = src;
-                    img.alt = '';
-                    img.loading = 'lazy';
-                    if (i === 0) img.classList.add('dash-photo-active');
-                    wrap.appendChild(img);
-                    return img;
-                });
-                if (imgs.length < 2) return;
-                let idx = 0;
+                
+                // Use only 2 image elements to save RAM on low-end devices
+                const img1 = document.createElement('img');
+                const img2 = document.createElement('img');
+                img1.alt = ''; img2.alt = '';
+                img1.className = 'dash-photo-active';
+                img2.className = '';
+                
+                img1.src = photos[0];
+                wrap.appendChild(img1);
+                wrap.appendChild(img2);
+                
+                if (photos.length < 2) return;
+                
+                let currentIdx = 0;
+                let activeImg = img1;
+                let nextImg = img2;
+                
                 setInterval(() => {
-                    imgs[idx].classList.remove('dash-photo-active');
-                    idx = (idx + 1) % imgs.length;
-                    imgs[idx].classList.add('dash-photo-active');
+                    currentIdx = (currentIdx + 1) % photos.length;
+                    nextImg.src = photos[currentIdx];
+                    
+                    // Wait for the next image to load before crossfading
+                    nextImg.onload = () => {
+                        nextImg.classList.add('dash-photo-active');
+                        activeImg.classList.remove('dash-photo-active');
+                        
+                        // Swap references
+                        const temp = activeImg;
+                        activeImg = nextImg;
+                        nextImg = temp;
+                    };
                 }, 6000);
             }).catch(() => {});
         })();
