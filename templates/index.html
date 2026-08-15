@@ -1091,47 +1091,67 @@ window.addEventListener('DOMContentLoaded', function() {
         .dash-notes-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 14px;
         }
         .dash-sticky-note {
-            width: 110px;
-            min-height: 110px;
-            padding: 8px;
-            border-radius: 3px;
+            width: 240px;
+            height: 200px;
+            min-width: 160px;
+            min-height: 140px;
+            max-width: min(640px, 100%);
+            max-height: 560px;
+            padding: 14px 16px 12px;
+            border-radius: 4px;
             box-shadow: 2px 3px 8px rgba(0,0,0,0.25);
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
             position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
             transform: rotate(var(--tilt, -1deg));
-            transition: transform 0.15s;
+            transition: transform 0.15s, box-shadow 0.15s;
         }
-        .dash-sticky-note:hover { transform: rotate(0deg) scale(1.03); z-index: 1; }
+        .dash-sticky-note:hover { transform: rotate(0deg); z-index: 1; box-shadow: 3px 6px 14px rgba(0,0,0,0.32); }
+        .dash-sticky-note.dash-sticky-note-resizing {
+            transform: none;
+            z-index: 3;
+            transition: none;
+            user-select: none;
+        }
         .dash-note-text {
             flex: 1;
             resize: none;
             border: none;
             background: transparent;
-            font-size: 0.8em;
+            font-size: 1.45rem;
+            font-weight: 600;
+            line-height: 1.3;
             font-family: inherit;
             color: #1e293b;
             outline: none;
-            min-height: 60px;
-            padding: 0;
+            min-height: 0;
+            width: 100%;
+            padding: 0 22px 0 0;
             margin: 0;
             box-shadow: none;
+            overflow: auto;
         }
         .dash-note-text:focus {
             outline: none;
             border: none;
             box-shadow: none;
         }
+        .dash-note-text::placeholder {
+            font-weight: 500;
+            color: rgba(30,41,59,0.4);
+        }
         .dash-note-del {
             position: absolute;
-            top: 2px;
-            right: 4px;
-            width: 18px;
-            height: 18px;
+            top: 6px;
+            right: 6px;
+            width: 26px;
+            height: 26px;
             min-height: 0;
             padding: 0;
             margin: 0;
@@ -1139,7 +1159,7 @@ window.addEventListener('DOMContentLoaded', function() {
             background: rgba(255,255,255,0.55);
             border: none;
             border-radius: 50%;
-            font-size: 0.6em;
+            font-size: 0.8em;
             color: rgba(30,41,59,0.6);
             cursor: pointer;
             opacity: 0;
@@ -1147,12 +1167,40 @@ window.addEventListener('DOMContentLoaded', function() {
             display: flex;
             align-items: center;
             justify-content: center;
+            z-index: 1;
         }
         .dash-sticky-note:hover .dash-note-del { opacity: 1; }
-        .dash-note-colors { display: flex; gap: 4px; }
+        .dash-note-colors { display: flex; gap: 6px; flex-shrink: 0; padding-right: 22px; }
         .dash-note-color-dot {
-            width: 12px; height: 12px; border-radius: 50%;
+            width: 16px; height: 16px; border-radius: 50%;
             cursor: pointer; border: 1px solid rgba(0,0,0,0.15);
+        }
+        .dash-note-resize {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 22px;
+            height: 22px;
+            cursor: nwse-resize;
+            touch-action: none;
+            z-index: 1;
+        }
+        .dash-note-resize::before,
+        .dash-note-resize::after {
+            content: '';
+            position: absolute;
+            right: 4px;
+            bottom: 4px;
+            border-right: 2px solid rgba(30,41,59,0.4);
+            border-bottom: 2px solid rgba(30,41,59,0.4);
+        }
+        .dash-note-resize::before { width: 10px; height: 10px; }
+        .dash-note-resize::after { width: 5px; height: 5px; }
+        .dash-note-resize:hover::before,
+        .dash-note-resize:hover::after,
+        .dash-sticky-note-resizing .dash-note-resize::before,
+        .dash-sticky-note-resizing .dash-note-resize::after {
+            border-color: rgba(30,41,59,0.75);
         }
 
         /* Sticky Notes panel — full-width, resizable rectangle */
@@ -1161,8 +1209,8 @@ window.addEventListener('DOMContentLoaded', function() {
             margin-top: 16px;
             display: flex;
             flex-direction: column;
-            height: 260px;
-            min-height: 160px;
+            height: 380px;
+            min-height: 220px;
             max-height: 80vh;
             resize: vertical;
             overflow: auto;
@@ -1182,7 +1230,7 @@ window.addEventListener('DOMContentLoaded', function() {
             pointer-events: none;
         }
         @media (min-width: 600px) and (max-width: 1024px) {
-            .dashboard-card-notes { height: 320px; min-height: 220px; }
+            .dashboard-card-notes { height: 440px; min-height: 280px; }
         }
     </style>
 
@@ -1224,9 +1272,16 @@ window.addEventListener('DOMContentLoaded', function() {
             const addBtn = document.getElementById('dash-note-add-btn');
             if (!grid || !addBtn) return;
             const COLORS = ['#fef08a', '#fecaca', '#bbf7d0', '#bfdbfe', '#e9d5ff', '#fed7aa'];
+            const NOTE_MIN_W = 160, NOTE_MAX_W = 640, NOTE_DEF_W = 240;
+            const NOTE_MIN_H = 140, NOTE_MAX_H = 560, NOTE_DEF_H = 200;
             let notes = [];
             let saveTimer = null;
             function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 700); }
+            function clampNoteSize(value, lo, hi, fallback) {
+                const n = parseInt(value, 10);
+                if (!Number.isFinite(n)) return fallback;
+                return Math.min(hi, Math.max(lo, n));
+            }
 
             async function load() {
                 try {
@@ -1257,6 +1312,12 @@ window.addEventListener('DOMContentLoaded', function() {
                     card.className = 'dash-sticky-note';
                     card.style.background = note.color || COLORS[0];
                     card.style.setProperty('--tilt', ((note.id.charCodeAt(0) % 7) - 3) + 'deg');
+                    const w = clampNoteSize(note.width, NOTE_MIN_W, NOTE_MAX_W, NOTE_DEF_W);
+                    const h = clampNoteSize(note.height, NOTE_MIN_H, NOTE_MAX_H, NOTE_DEF_H);
+                    card.style.width = w + 'px';
+                    card.style.height = h + 'px';
+                    note.width = w;
+                    note.height = h;
 
                     const delBtn = document.createElement('button');
                     delBtn.type = 'button';
@@ -1290,12 +1351,52 @@ window.addEventListener('DOMContentLoaded', function() {
                     });
                     card.appendChild(colorRow);
 
+                    const resizeHandle = document.createElement('div');
+                    resizeHandle.className = 'dash-note-resize';
+                    resizeHandle.title = 'Drag to resize';
+                    resizeHandle.innerHTML = '';
+                    resizeHandle.addEventListener('pointerdown', e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        resizeHandle.setPointerCapture(e.pointerId);
+                        card.classList.add('dash-sticky-note-resizing');
+                        const startX = e.clientX;
+                        const startY = e.clientY;
+                        const startW = card.offsetWidth;
+                        const startH = card.offsetHeight;
+                        const onMove = ev => {
+                            const nextW = clampNoteSize(startW + ev.clientX - startX, NOTE_MIN_W, NOTE_MAX_W, startW);
+                            const nextH = clampNoteSize(startH + ev.clientY - startY, NOTE_MIN_H, NOTE_MAX_H, startH);
+                            card.style.width = nextW + 'px';
+                            card.style.height = nextH + 'px';
+                            note.width = nextW;
+                            note.height = nextH;
+                        };
+                        const onUp = () => {
+                            resizeHandle.removeEventListener('pointermove', onMove);
+                            resizeHandle.removeEventListener('pointerup', onUp);
+                            resizeHandle.removeEventListener('pointercancel', onUp);
+                            card.classList.remove('dash-sticky-note-resizing');
+                            scheduleSave();
+                        };
+                        resizeHandle.addEventListener('pointermove', onMove);
+                        resizeHandle.addEventListener('pointerup', onUp);
+                        resizeHandle.addEventListener('pointercancel', onUp);
+                    });
+                    card.appendChild(resizeHandle);
+
                     grid.appendChild(card);
                 });
             }
 
             addBtn.addEventListener('click', () => {
-                notes.push({ id: 'note-' + Date.now() + '-' + Math.floor(Math.random() * 1000), text: '', color: COLORS[Math.floor(Math.random() * COLORS.length)] });
+                notes.push({
+                    id: 'note-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+                    text: '',
+                    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+                    width: NOTE_DEF_W,
+                    height: NOTE_DEF_H
+                });
                 render();
                 scheduleSave();
                 grid.querySelector('.dash-sticky-note:last-child textarea')?.focus();

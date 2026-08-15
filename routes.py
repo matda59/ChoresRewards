@@ -1877,6 +1877,13 @@ def api_dashboard_notes():
         if not isinstance(notes, list):
             notes = []
 
+        def _clamp_note_dim(value, lo, hi):
+            try:
+                n = int(value)
+            except (TypeError, ValueError):
+                return None
+            return max(lo, min(hi, n))
+
         clean_notes = []
         seen_ids = set()
         for note in notes:
@@ -1889,7 +1896,14 @@ def api_dashboard_notes():
             color = str(note.get('color', '')).strip()
             if color not in DASHBOARD_NOTE_COLORS:
                 color = DASHBOARD_NOTE_COLORS[0]
-            clean_notes.append({'id': note_id, 'text': text, 'color': color})
+            cleaned = {'id': note_id, 'text': text, 'color': color}
+            width = _clamp_note_dim(note.get('width'), 160, 640)
+            height = _clamp_note_dim(note.get('height'), 140, 560)
+            if width is not None:
+                cleaned['width'] = width
+            if height is not None:
+                cleaned['height'] = height
+            clean_notes.append(cleaned)
             seen_ids.add(note_id)
 
         AppSetting.set('dashboard_notes_json', _json.dumps(clean_notes))
