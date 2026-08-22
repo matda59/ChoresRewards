@@ -117,11 +117,47 @@
 
         /* ── Photo grid ── */
         .ss-upload-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
+        .custom-file-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5em;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.15);
+            transition: all 0.2s;
+        }
+        .custom-file-label:hover { background: rgba(255,255,255,0.15); }
+        .ss-file-name { color: #81c784; font-size: 0.9rem; }
+        .ss-gallery-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 0.75rem;
+            padding: 0.65rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.12);
+            transition: background 0.2s;
+        }
+        .ss-gallery-toggle:hover { background: rgba(255,255,255,0.12); }
+        .ss-gallery-toggle .ss-gallery-chevron { transition: transform 0.2s; }
+        .ss-gallery-toggle[aria-expanded="true"] .ss-gallery-chevron { transform: rotate(90deg); }
         .ss-photo-grid {
-            display: grid;
+            display: none;
             grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
             gap: 0.75rem;
         }
+        .ss-photo-grid.is-open { display: grid; }
         .ss-photo-card {
             position: relative; border-radius: 10px; overflow: hidden; aspect-ratio: 1 / 1;
             border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04);
@@ -172,6 +208,15 @@
         [data-theme="light"] .ss-photo-count { color: rgba(15,23,42,0.55); }
         [data-theme="light"] .ss-field-hint { color: rgba(15,23,42,0.6); }
         [data-theme="light"] .ss-switch-slider { background: rgba(15,23,42,0.15); }
+        [data-theme="light"] .custom-file-label {
+            background: rgba(33,150,243,0.12); color: #1565c0; border-color: rgba(33,150,243,0.3);
+        }
+        [data-theme="light"] .custom-file-label:hover { background: rgba(33,150,243,0.22); }
+        [data-theme="light"] .ss-file-name { color: #2e7d32; }
+        [data-theme="light"] .ss-gallery-toggle {
+            background: rgba(33,150,243,0.08); color: #1565c0; border-color: rgba(33,150,243,0.25);
+        }
+        [data-theme="light"] .ss-gallery-toggle:hover { background: rgba(33,150,243,0.16); }
     </style>
 </head>
 <body>
@@ -295,12 +340,22 @@
                     <p class="ss-field-hint" style="margin-top:0;">Upload photos to display during the screensaver. If no photos are uploaded, a subtle animated gradient is shown instead.</p>
                     <p class="ss-field-hint" style="margin-top:0;">Copied files straight into the <code>uploads/screensaver</code> folder (e.g. via FTP)? Click "Scan Folder" to pick them up.</p>
                     <div class="ss-upload-row">
-                        <input type="file" id="ss-photo-input" accept="image/png,image/jpeg,image/gif,image/webp" multiple style="color:#fff;">
+                        <label for="ss-photo-input" class="custom-file-label">
+                            <i class="fas fa-folder-open"></i> Choose Files
+                        </label>
+                        <input type="file" id="ss-photo-input" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+                        <span class="ss-file-name" id="ss-file-selected-name"></span>
                         <button type="button" class="save-btn" id="ss-upload-btn"><i class="fas fa-upload" style="margin-right:6px;"></i>Upload</button>
                         <button type="button" class="btn-secondary-action" id="ss-rescan-btn"><i class="fas fa-magnifying-glass" style="margin-right:6px;"></i>Scan Folder</button>
                         <button type="button" class="btn-secondary-action" id="ss-clear-btn"><i class="fas fa-trash" style="margin-right:6px;"></i>Clear All</button>
-                        <span class="ss-photo-count" id="ss-photo-count"></span>
                     </div>
+                    <button type="button" class="ss-gallery-toggle" id="ss-gallery-toggle" aria-expanded="false" aria-controls="ss-photo-grid">
+                        <span>
+                            <i class="fas fa-chevron-right ss-gallery-chevron" aria-hidden="true"></i>
+                            <span id="ss-gallery-label">Show photos</span> (<span id="ss-photo-count">0</span>)
+                        </span>
+                        <span class="ss-field-hint" id="ss-gallery-hint">Hidden until you open this — keeps the page fast</span>
+                    </button>
                     <div class="ss-photo-grid" id="ss-photo-grid"></div>
                 </section>
             </div>
@@ -310,11 +365,33 @@
     (function () {
         const grid = document.getElementById('ss-photo-grid');
         const countEl = document.getElementById('ss-photo-count');
+        const labelEl = document.getElementById('ss-gallery-label');
+        const toggleBtn = document.getElementById('ss-gallery-toggle');
+        const fileInput = document.getElementById('ss-photo-input');
+        const fileNameEl = document.getElementById('ss-file-selected-name');
         let photoUrls = {{ photo_urls | tojson }};
+        let galleryOpen = false;
+
+        function updateCount() {
+            countEl.textContent = String(photoUrls.length);
+            labelEl.textContent = galleryOpen ? 'Hide photos' : 'Show photos';
+            const hint = document.getElementById('ss-gallery-hint');
+            if (hint) hint.style.display = galleryOpen ? 'none' : '';
+        }
+
+        function clearGrid() {
+            grid.innerHTML = '';
+            grid.classList.remove('is-open');
+        }
 
         function renderGrid() {
+            updateCount();
+            if (!galleryOpen) {
+                clearGrid();
+                return;
+            }
+            grid.classList.add('is-open');
             grid.innerHTML = '';
-            countEl.textContent = photoUrls.length ? `${photoUrls.length} photo(s)` : '';
             if (!photoUrls.length) {
                 grid.innerHTML = '<div class="ss-empty-msg">No photos uploaded yet.</div>';
                 return;
@@ -323,6 +400,8 @@
                 const card = document.createElement('div');
                 card.className = 'ss-photo-card';
                 const img = document.createElement('img');
+                img.loading = 'lazy';
+                img.decoding = 'async';
                 img.src = url;
                 img.alt = '';
                 const rm = document.createElement('button');
@@ -336,6 +415,20 @@
                 grid.appendChild(card);
             });
         }
+
+        function setGalleryOpen(open) {
+            galleryOpen = open;
+            toggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            renderGrid();
+        }
+
+        toggleBtn.addEventListener('click', () => setGalleryOpen(!galleryOpen));
+
+        fileInput.addEventListener('change', () => {
+            const n = fileInput.files ? fileInput.files.length : 0;
+            if (!n) { fileNameEl.textContent = ''; return; }
+            fileNameEl.textContent = n === 1 ? fileInput.files[0].name : `${n} files selected`;
+        });
 
         function filenameFromUrl(url) {
             return url.split('/').pop();
@@ -383,6 +476,7 @@
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-upload" style="margin-right:6px;"></i>Upload';
                     input.value = '';
+                    fileNameEl.textContent = '';
                     if (failed) alert(`${failed} of ${total} photo(s) failed to upload.`);
                     return;
                 }
@@ -441,7 +535,7 @@
             document.body.appendChild(script);
         });
 
-        renderGrid();
+        updateCount();
     })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
