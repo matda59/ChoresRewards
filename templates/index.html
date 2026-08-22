@@ -977,8 +977,8 @@ window.addEventListener('DOMContentLoaded', function() {
                 {% endif %}
             </div>
 
-            <!-- Family Photos slideshow -->
-            <div class="dashboard-card dashboard-card-photos">
+            <!-- Family Photos slideshow — tap to start the full-screen screensaver -->
+            <div class="dashboard-card dashboard-card-photos" id="dash-photos-card" title="Tap to start slideshow">
                 <h3 class="dashboard-card-title"><i class="fas fa-images" style="color:#f472b6;"></i> Family Photos</h3>
                 <div class="dash-photo-slideshow" id="dash-photo-slideshow">
                     <p class="dash-empty-hint" id="dash-photo-empty">No photos yet — add some in Settings &rarr; Screensaver.</p>
@@ -1017,6 +1017,8 @@ window.addEventListener('DOMContentLoaded', function() {
         .dashboard-card:hover { transform: translateY(-2px); }
         .dashboard-card-photos { cursor: default; }
         .dashboard-card-photos:hover { transform: none; }
+        .dashboard-card-photos:not(.dashboard-card-notes) { cursor: pointer; }
+        .dashboard-card-photos:not(.dashboard-card-notes):hover { transform: translateY(-2px); }
         .dashboard-card-title {
             margin: 0 0 10px;
             font-size: 1rem;
@@ -1265,6 +1267,22 @@ window.addEventListener('DOMContentLoaded', function() {
         // Lightweight photo slideshow — reuses the same photo pool as the screensaver.
         (() => {
             const wrap = document.getElementById('dash-photo-slideshow');
+            const card = document.getElementById('dash-photos-card');
+            function launchScreensaver(e) {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                if (window.ChoresScreensaver && typeof window.ChoresScreensaver.preview === 'function') {
+                    window.ChoresScreensaver.preview();
+                }
+            }
+            if (card) {
+                card.addEventListener('click', launchScreensaver);
+                card.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { launchScreensaver(e); }
+                });
+                if (!card.hasAttribute('tabindex')) card.setAttribute('tabindex', '0');
+                card.setAttribute('role', 'button');
+                card.setAttribute('aria-label', 'Start family photo slideshow');
+            }
             if (!wrap) return;
             fetch('/api/screensaver/config').then(r => r.json()).then(cfg => {
                 const photos = (cfg && cfg.photos) || [];
