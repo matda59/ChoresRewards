@@ -822,7 +822,13 @@ window.addEventListener('DOMContentLoaded', function() {
 <!-- 7-Day Forecast Panel — expands directly under the weather widget, inside the frozen header -->
 <div id="weather-forecast-panel" style="max-height:0; overflow:hidden; transition:max-height 0.35s ease; background:linear-gradient(135deg, var(--cr-header-bg-1) 0%, var(--cr-header-bg-2) 100%); border-radius:0 0 14px 14px; margin-bottom:1.2rem;">
     <div id="weather-forecast-days" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(115px, 1fr)); gap:12px; padding:16px 22px;">
-        <div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:20px;">Loading forecast…</div>
+        {% for _ in range(7) %}
+        <div class="skeleton skeleton-forecast-card" style="background:rgba(255,255,255,0.06);">
+            <div class="skeleton skeleton-text short" style="height:12px; margin-bottom:8px;"></div>
+            <div class="skeleton" style="width:36px; height:36px; border-radius:50%; margin:4px 0;"></div>
+            <div class="skeleton skeleton-text medium" style="height:14px; margin-top:6px;"></div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 </header>
@@ -870,7 +876,7 @@ window.addEventListener('DOMContentLoaded', function() {
 <div id="edit-name-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:9999; justify-content:center; align-items:center;">
   <div style="background:var(--cr-modal-surface); padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
     <h3 style="color:var(--cr-text-primary); margin:0 0 12px;">Edit Name</h3>
-    <input type="text" id="edit-name-input" placeholder="Enter new name" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:80%; margin-bottom:18px;">
+    <input type="text" id="edit-name-input" placeholder="Enter new name" style="padding:8px; border-radius:6px; border:1px solid var(--cr-subtle-panel-border); background:var(--cr-subtle-panel); color:var(--cr-text-primary); width:80%; margin-bottom:18px; outline:none;">
     <div style="margin-top:10px; display:flex; gap:16px; justify-content:center;">
       <button class="confirm-btn" onclick="confirmEditName()" style="background:#2d2d2d; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Confirm</button>
       <button class="cancel-btn" onclick="closeEditNameModal()" style="background:#888; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Cancel</button>
@@ -883,6 +889,20 @@ window.addEventListener('DOMContentLoaded', function() {
         <h2 class="section-title">
             <i class="fas fa-gauge-high" style="color:#38bdf8;"></i> <span>Today at a Glance</span>
         </h2>
+
+        <!-- Urgent Renewal Banner / Dashboard Ticker (dynamically shown if rego, insurance or bill is due in <= 7 days or overdue) -->
+        <div id="urgent-renewal-banner" class="urgent-renewal-banner" onclick="goToSection('organise-section')">
+            <i class="fas fa-triangle-exclamation urgent-renewal-icon"></i>
+            <div class="urgent-renewal-content">
+                <div class="urgent-renewal-title">
+                    <span id="urgent-renewal-heading">⚠️ Urgent Reminder</span>
+                    <span id="urgent-renewal-badge" class="urgent-renewal-badge">Due Soon</span>
+                </div>
+                <div id="urgent-renewal-desc" class="urgent-renewal-desc"></div>
+            </div>
+            <i class="fas fa-arrow-right" style="font-size:0.9em; opacity:0.7; margin-left:auto;"></i>
+        </div>
+
         <div class="dashboard-grid">
             <!-- Today's Tasks -->
             <div class="dashboard-card" onclick="goToSection('kanban')">
@@ -2855,10 +2875,10 @@ window.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 
 <!-- Unified Modal -->
-<div id="unified-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
-  <div style="background:#fff; padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
+<div id="unified-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:var(--cr-modal-surface); padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
     <div id="unified-modal-icon" style="font-size:2.5em; margin-bottom:10px;"></div>
-    <div id="unified-modal-message" style="font-size:1.15em; margin-bottom:22px; color:#222;"></div>
+    <div id="unified-modal-message" style="font-size:1.15em; margin-bottom:22px; color:var(--cr-text-primary);"></div>
     <div id="unified-modal-buttons" style="display:flex; gap:16px; justify-content:center;"></div>
   </div>
 </div>
@@ -5131,7 +5151,7 @@ function deleteReward(rewardId) {
 <div id="add-person-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:9999; justify-content:center; align-items:center;">
   <div style="background:var(--cr-modal-surface); padding:32px 24px; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.18); min-width:320px; text-align:center;">
     <h3 style="color:var(--cr-text-primary); margin:0 0 12px;">Add Family Member</h3>
-    <input type="text" id="add-person-input" placeholder="Enter name" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:80%; margin-bottom:18px;">
+    <input type="text" id="add-person-input" placeholder="Enter name" style="padding:8px; border-radius:6px; border:1px solid var(--cr-subtle-panel-border); background:var(--cr-subtle-panel); color:var(--cr-text-primary); width:80%; margin-bottom:18px; outline:none;">
     <div style="margin-top:10px; display:flex; gap:16px; justify-content:center;">
       <button class="confirm-btn" onclick="confirmAddPerson()" style="background:#2d2d2d; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Add</button>
       <button class="cancel-btn" onclick="closeAddPersonModal()" style="background:#888; color:#fff; border:none; padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Cancel</button>
@@ -6227,7 +6247,7 @@ function updateStreakDisplay(column, streakCount) {
                 <button type="button" id="org-emoji-btn" class="org-emoji-btn" title="Pick an emoji">
                     <span id="org-emoji-display">☺</span>
                 </button>
-                <span style="color:#94a3b8; font-size:0.85em; margin-left:6px;">Click to choose</span>
+                <span style="color:var(--cr-text-secondary); font-size:0.85em; margin-left:6px;">Click to choose</span>
                 <button type="button" id="org-emoji-clear" class="org-emoji-clear-btn">× Clear</button>
                 <div id="org-emoji-popup" class="org-emoji-popup" style="display:none;"></div>
             </div>
@@ -6273,7 +6293,7 @@ function updateStreakDisplay(column, streakCount) {
                     <i class="fas fa-camera"></i> Choose Photo
                     <input id="org-input-photo" type="file" accept="image/jpeg,image/png,image/webp" style="display:none;">
                 </label>
-                <span style="color:#64748b; font-size:0.8em; margin-left:8px;">JPG, PNG or WebP · max 5 MB</span>
+                <span style="color:var(--cr-text-secondary); font-size:0.8em; margin-left:8px;">JPG, PNG or WebP · max 5 MB</span>
             </div>
 
             <label class="org-label" style="margin-top:10px;">Notes</label>
@@ -6730,6 +6750,11 @@ function injectNewChoreCard(resp, formData) {
 
 // Complete chore function with slot machine and sparkle animation
 function completeChore(choreId) {
+    const choreElem = document.querySelector(`.chore[data-chore-id="${choreId}"]`);
+    const choreElemClone = choreElem ? choreElem.cloneNode(true) : null;
+    const parentList = choreElem ? choreElem.parentElement : null;
+    const column = choreElem ? choreElem.closest('.column') : null;
+
     fetch("{{ url_for('routes.complete_chore') }}", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -6739,11 +6764,9 @@ function completeChore(choreId) {
     .then(data => {
         if (data.success) {
             // Sparkle animation and achievement sound
-            const choreElem = document.querySelector(`.chore[data-chore-id="${choreId}"]`);
             if (choreElem) {
                 // Update points immediately in the UI using backend value if available
-                const column = choreElem.closest('.column');
-                const pointsDisplay = column.querySelector('.points-display');
+                const pointsDisplay = column ? column.querySelector('.points-display') : null;
                 if (pointsDisplay && data.new_points !== undefined) {
                     const pointsValue = pointsDisplay.querySelector('.chore-points-value');
                     if (pointsValue) {
@@ -6753,8 +6776,29 @@ function completeChore(choreId) {
                 triggerSparkleAnimation(choreElem);
                 playAchievementSound();
             }
-            // Show toast notification
-            if (window.showToast) showToast('Chore completed!', 'success');
+
+            // Show toast notification with 5-second Undo action
+            const choreTitle = data.chore_title || 'Chore';
+            if (window.showToast) {
+                if (data.overdue) {
+                    showToast({
+                        message: `"${choreTitle}" was overdue. No points awarded.`,
+                        type: 'warning',
+                        duration: 5000,
+                        actionText: 'Undo',
+                        onAction: () => undoChoreCompletion(choreId, choreElemClone, parentList, column)
+                    });
+                } else {
+                    showToast({
+                        message: `"${choreTitle}" marked done.`,
+                        type: 'success',
+                        duration: 5000,
+                        actionText: 'Undo',
+                        onAction: () => undoChoreCompletion(choreId, choreElemClone, parentList, column)
+                    });
+                }
+            }
+
             // Badge notifications
             if (data.new_badges && data.new_badges.length > 0) {
                 data.new_badges.forEach((badge, i) => {
@@ -6769,24 +6813,25 @@ function completeChore(choreId) {
             // Remove the completed chore from the DOM after animation
             setTimeout(() => {
                 if (choreElem) {
-                    const column = choreElem.closest('.column');
-                    const personName = column.getAttribute('data-person');
-                    const avatarImg = column.querySelector('.avatar');
+                    const personName = column ? column.getAttribute('data-person') : '';
+                    const avatarImg = column ? column.querySelector('.avatar') : null;
                     const avatarUrl = avatarImg ? avatarImg.src : '';
                     // Get person ID from the person-name element
-                    const personNameElem = column.querySelector('.person-name');
+                    const personNameElem = column ? column.querySelector('.person-name') : null;
                     const personId = personNameElem ? personNameElem.getAttribute('data-person-id') : null;
                     choreElem.remove();
                     // Check if there are any incomplete chores left
-                    const incompleteChores = column.querySelectorAll('.incomplete-chores-list .chore');
-                    if (incompleteChores.length === 0) {
-                        // Show celebration overlay immediately when last chore completed
-                        document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
-                        document.getElementById('celebration-avatar').src = avatarUrl;
-                        document.getElementById('celebration-overlay').style.display = 'flex';
-                        playCelebrationSound();
-                        // Then show bonus animation and awarding
-                        showCelebrationWithBonus(personName, avatarUrl, personId);
+                    if (column) {
+                        const incompleteChores = column.querySelectorAll('.incomplete-chores-list .chore');
+                        if (incompleteChores.length === 0 && personName) {
+                            // Show celebration overlay immediately when last chore completed
+                            document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+                            document.getElementById('celebration-avatar').src = avatarUrl;
+                            document.getElementById('celebration-overlay').style.display = 'flex';
+                            playCelebrationSound();
+                            // Then show bonus animation and awarding
+                            showCelebrationWithBonus(personName, avatarUrl, personId);
+                        }
                     }
                 }
             }, 900); // Wait for sparkle animation
@@ -6799,6 +6844,39 @@ function completeChore(choreId) {
     .catch(error => {
         if (window.showToast) showToast('Error completing chore', 'error');
         console.error('Error completing chore:', error);
+    });
+}
+
+function undoChoreCompletion(choreId, choreElemClone, parentList, column) {
+    fetch("{{ url_for('routes.undo_complete_chore') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chore_id: choreId }),
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            if (column && data.new_points !== undefined) {
+                const pointsDisplay = column.querySelector('.points-display');
+                if (pointsDisplay) {
+                    const pointsValue = pointsDisplay.querySelector('.chore-points-value');
+                    if (pointsValue) pointsValue.textContent = formatPointsValue(data.new_points, window.REWARD_SYSTEM);
+                }
+            }
+            if (choreElemClone && parentList) {
+                choreElemClone.style.display = '';
+                parentList.prepend(choreElemClone);
+            } else {
+                window.location.reload();
+            }
+            if (window.showToast) showToast('Chore marked incomplete', 'info', 2500);
+        } else {
+            if (window.showToast) showToast(data.error || 'Could not undo chore', 'error');
+        }
+    })
+    .catch(err => {
+        console.error('Undo error:', err);
+        if (window.showToast) showToast('Failed to undo chore', 'error');
     });
 }
 
@@ -7999,4 +8077,88 @@ function doRedeemReward(rewardId) {
 
     initWeather();
 })();
+</script>
+
+<!-- Floating Speed-Dial Quick Action Button (+) -->
+<div id="speed-dial-wrap" class="speed-dial-wrap">
+    <button id="speed-dial-main-btn" class="speed-dial-main-btn" title="Quick Actions" aria-label="Quick Actions" onclick="toggleSpeedDial()">
+        <i class="fas fa-plus"></i>
+    </button>
+    <div id="speed-dial-menu" class="speed-dial-menu">
+        <button type="button" class="speed-dial-item" onclick="speedDialAction('chore')">
+            <span class="speed-dial-item-icon" style="background:#e100ff;"><i class="fas fa-tasks"></i></span>
+            <span>Add Chore</span>
+        </button>
+        <button type="button" class="speed-dial-item" onclick="speedDialAction('shopping')">
+            <span class="speed-dial-item-icon" style="background:#10b981;"><i class="fas fa-cart-shopping"></i></span>
+            <span>Add Shopping</span>
+        </button>
+        <button type="button" class="speed-dial-item" onclick="speedDialAction('note')">
+            <span class="speed-dial-item-icon" style="background:#f59e0b;"><i class="fas fa-sticky-note"></i></span>
+            <span>New Note</span>
+        </button>
+        <button type="button" class="speed-dial-item" onclick="speedDialAction('organise')">
+            <span class="speed-dial-item-icon" style="background:#0ea5e9;"><i class="fas fa-folder-open"></i></span>
+            <span>Add Organise</span>
+        </button>
+        <button type="button" class="speed-dial-item" onclick="speedDialAction('reward')">
+            <span class="speed-dial-item-icon" style="background:#a78bfa;"><i class="fas fa-gift"></i></span>
+            <span>Create Reward</span>
+        </button>
+    </div>
+</div>
+
+<script>
+function toggleSpeedDial(forceState) {
+    const wrap = document.getElementById('speed-dial-wrap');
+    if (!wrap) return;
+    if (typeof forceState === 'boolean') {
+        wrap.classList.toggle('is-open', forceState);
+    } else {
+        wrap.classList.toggle('is-open');
+    }
+}
+
+function speedDialAction(type) {
+    toggleSpeedDial(false);
+    if (type === 'chore') {
+        goToSection('add-chores-section');
+        setTimeout(() => {
+            const input = document.getElementById('title') || document.querySelector('#add-chores-section input[type="text"]');
+            if (input) input.focus();
+        }, 300);
+    } else if (type === 'shopping') {
+        goToSection('shopping-list-section');
+        setTimeout(() => {
+            const input = document.getElementById('shopping-item-input') || document.querySelector('#shopping-list-section input[type="text"]');
+            if (input) input.focus();
+        }, 300);
+    } else if (type === 'note') {
+        goToSection('notes-kanban-section');
+        setTimeout(() => {
+            const input = document.querySelector('.notes-add-input') || document.getElementById('dash-note-text');
+            if (input) input.focus();
+        }, 300);
+    } else if (type === 'organise') {
+        const addBtn = document.getElementById('organise-add-btn');
+        if (addBtn) {
+            addBtn.click();
+        } else {
+            goToSection('organise-section');
+        }
+    } else if (type === 'reward') {
+        goToSection('create-reward-section');
+        setTimeout(() => {
+            const input = document.getElementById('reward-title') || document.querySelector('#create-reward-section input[type="text"]');
+            if (input) input.focus();
+        }, 300);
+    }
+}
+
+document.addEventListener('click', function (e) {
+    const wrap = document.getElementById('speed-dial-wrap');
+    if (wrap && wrap.classList.contains('is-open') && !wrap.contains(e.target)) {
+        wrap.classList.remove('is-open');
+    }
+});
 </script>
