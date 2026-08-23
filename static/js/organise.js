@@ -1476,14 +1476,14 @@
         if (isOverdue) {
             const overdueDays = Math.abs(mostUrgent.days_until_due);
             if (badgeEl) badgeEl.textContent = `Overdue (${overdueDays}d ago)`;
-            if (headingEl) headingEl.textContent = `⚠️ Action Needed: ${mostUrgent.title}`;
-            if (descEl) descEl.textContent = `${mostUrgent.category || 'Organise'} was due on ${formatDate(mostUrgent.due_date)} · Tap to view`;
+            if (headingEl) headingEl.textContent = mostUrgent.title;
+            if (descEl) descEl.textContent = `${mostUrgent.category || 'Organise'} was due on ${formatDate(mostUrgent.due_date)} · Tap to view details`;
         } else {
             const dueDays = mostUrgent.days_until_due;
             const dueStr = dueDays === 0 ? 'Today' : `in ${dueDays} day${dueDays === 1 ? '' : 's'}`;
             if (badgeEl) badgeEl.textContent = `Due ${dueStr}`;
-            if (headingEl) headingEl.textContent = `⚠️ Renewal Reminder: ${mostUrgent.title}`;
-            if (descEl) descEl.textContent = `${mostUrgent.category || 'Organise'} is due on ${formatDate(mostUrgent.due_date)} (${dueStr}) · Tap to view`;
+            if (headingEl) headingEl.textContent = mostUrgent.title;
+            if (descEl) descEl.textContent = `${mostUrgent.category || 'Organise'} renewal due on ${formatDate(mostUrgent.due_date)} · Tap to view details`;
         }
 
         banner.style.display = 'flex';

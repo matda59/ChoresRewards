@@ -8563,8 +8563,8 @@ body.side-nav-body-collapsed { padding-left: 8px; }
 .chores,
 .meal-planner-section,
 .organise-section,
-.speed-dial-btn,
-.speed-dial-item,
+.header-quick-add-btn,
+.header-quick-add-menu,
 .toast {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -8638,116 +8638,130 @@ body.side-nav-body-collapsed { padding-left: 8px; }
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   FLOATING SPEED-DIAL QUICK ACTION BUTTON (+)
+   HEADER QUICK ADD DROPDOWN
    ══════════════════════════════════════════════════════════════════ */
-.speed-dial-wrap {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 999;
-    display: flex;
-    flex-direction: column-reverse;
-    align-items: flex-end;
-    gap: 12px;
-    pointer-events: none;
-}
-
-.speed-dial-wrap * {
-    pointer-events: auto;
-}
-
-.speed-dial-main-btn {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-    color: #ffffff;
-    border: none;
-    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.45);
-    display: flex;
+.header-quick-add-wrap {
+    position: relative;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    cursor: pointer;
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease;
-    outline: none;
 }
 
-.speed-dial-main-btn:hover {
-    transform: scale(1.08);
-    box-shadow: 0 6px 26px rgba(99, 102, 241, 0.6);
-}
-
-.speed-dial-main-btn i {
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.speed-dial-wrap.is-open .speed-dial-main-btn i {
-    transform: rotate(135deg);
-}
-
-.speed-dial-menu {
-    display: flex;
-    flex-direction: column-reverse;
-    gap: 10px;
-    opacity: 0;
-    transform: translateY(16px) scale(0.9);
-    transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-    pointer-events: none;
-}
-
-.speed-dial-wrap.is-open .speed-dial-menu {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: auto;
-}
-
-.speed-dial-item {
-    display: flex;
+.header-quick-add-btn {
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
-    background: rgba(30, 41, 59, 0.9);
-    color: var(--cr-text-primary);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 999px;
-    padding: 8px 16px 8px 10px;
-    cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    gap: 6px;
+    color: var(--cr-text-secondary);
     text-decoration: none;
-    font-size: 0.88rem;
-    font-weight: 600;
+    font-size: 0.9rem;
+    font-weight: 500;
+    font-family: inherit;
+    padding: 7px 14px;
+    border-radius: 20px;
+    background: var(--cr-header-control-bg);
+    border: 1.5px solid var(--cr-header-control-border);
     white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
-.speed-dial-item:hover {
-    transform: translateX(-4px) scale(1.03);
-    background: rgba(30, 41, 59, 1);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+.header-quick-add-btn:hover,
+.header-quick-add-wrap.is-open .header-quick-add-btn {
+    background: rgba(56, 189, 248, 0.18);
+    color: var(--cr-text-primary);
+    border-color: rgba(56, 189, 248, 0.35);
 }
 
-.speed-dial-item-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+.header-quick-add-btn .quick-add-chevron {
+    font-size: 0.72em;
+    opacity: 0.7;
+    transition: transform 0.2s ease;
+}
+
+.header-quick-add-wrap.is-open .header-quick-add-btn .quick-add-chevron {
+    transform: rotate(180deg);
+}
+
+.header-quick-add-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 175px;
+    background: var(--cr-modal-surface);
+    border: 1px solid var(--cr-surface-border);
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding: 6px;
+    display: none;
+    flex-direction: column;
+    gap: 3px;
+    z-index: 10000;
+    transform-origin: top right;
+}
+
+.header-quick-add-wrap.is-open .header-quick-add-menu {
+    display: flex;
+    animation: quick-add-pop 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes quick-add-pop {
+    0% { opacity: 0; transform: scale(0.92) translateY(-6px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.header-quick-add-item {
     display: flex;
     align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-size: 0.95rem;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--cr-text-primary);
+    font-size: 0.88rem;
+    font-weight: 500;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.header-quick-add-item i {
+    font-size: 1rem;
+    width: 18px;
+    text-align: center;
     flex-shrink: 0;
 }
 
-[data-theme="light"] .speed-dial-item {
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(15, 23, 42, 0.1);
-    color: #0f172a;
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1);
+.header-quick-add-item:hover {
+    background: var(--cr-subtle-panel);
+    color: var(--cr-text-primary);
 }
 
-[data-theme="light"] .speed-dial-item:hover {
+[data-theme="light"] .header-quick-add-btn:hover,
+[data-theme="light"] .header-quick-add-wrap.is-open .header-quick-add-btn {
+    background: rgba(14, 165, 233, 0.12);
+    color: #0369a1;
+    border-color: rgba(14, 165, 233, 0.3);
+}
+
+[data-theme="light"] .header-quick-add-menu {
     background: #ffffff;
-    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.15);
+    border-color: rgba(15, 23, 42, 0.12);
+    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.15);
+}
+
+[data-theme="light"] .header-quick-add-item:hover {
+    background: rgba(15, 23, 42, 0.05);
+}
+
+@media (max-width: 600px) {
+    .header-quick-add-btn {
+        font-size: 0.78em !important;
+        padding: 5px 10px !important;
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -8756,44 +8770,48 @@ body.side-nav-body-collapsed { padding-left: 8px; }
 .urgent-renewal-banner {
     display: none;
     align-items: center;
-    gap: 12px;
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(239, 68, 68, 0.18) 100%);
-    border: 1px solid rgba(245, 158, 11, 0.4);
-    border-left: 5px solid #f59e0b;
-    border-radius: 12px;
-    padding: 10px 16px;
+    gap: 14px;
+    background: linear-gradient(135deg, var(--cr-header-bg-1) 0%, var(--cr-header-bg-2) 100%);
+    border: 1px solid var(--cr-surface-border);
+    border-radius: 14px;
+    padding: 12px 18px;
     margin-bottom: 16px;
     color: var(--cr-text-primary);
     cursor: pointer;
-    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.12);
-    animation: urgent-pulse 2.5s infinite ease-in-out;
-    transition: transform 0.15s ease;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+    transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .urgent-renewal-banner:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 22px rgba(245, 158, 11, 0.22);
+    transform: translateY(-2px);
+    border-color: rgba(251, 191, 36, 0.45);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
 }
 
-.urgent-renewal-banner.is-overdue {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.18) 0%, rgba(185, 28, 28, 0.22) 100%);
+.urgent-renewal-banner.is-overdue:hover {
     border-color: rgba(239, 68, 68, 0.45);
-    border-left-color: #ef4444;
 }
 
-@keyframes urgent-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3); }
-    50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
-}
-
-.urgent-renewal-icon {
-    font-size: 1.35rem;
-    color: #f59e0b;
+.urgent-renewal-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(251, 191, 36, 0.14);
+    border: 1.5px solid rgba(251, 191, 36, 0.35);
+    color: #fbbf24;
+    font-size: 1.1rem;
     flex-shrink: 0;
 }
 
-.urgent-renewal-banner.is-overdue .urgent-renewal-icon {
-    color: #ef4444;
+.urgent-renewal-banner.is-overdue .urgent-renewal-icon-box {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #f87171;
 }
 
 .urgent-renewal-content {
@@ -8803,31 +8821,96 @@ body.side-nav-body-collapsed { padding-left: 8px; }
 
 .urgent-renewal-title {
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: 0.96rem;
+    color: var(--cr-text-primary);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
 .urgent-renewal-desc {
-    font-size: 0.82rem;
+    font-size: 0.84rem;
     color: var(--cr-text-secondary);
-    margin-top: 2px;
+    margin-top: 3px;
+    line-height: 1.35;
 }
 
 .urgent-renewal-badge {
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 2px 8px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 3px 10px;
     border-radius: 999px;
-    background: #f59e0b;
-    color: #000;
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    letter-spacing: 0.2px;
 }
 
 .urgent-renewal-banner.is-overdue .urgent-renewal-badge {
-    background: #ef4444;
-    color: #fff;
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.urgent-renewal-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--cr-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: var(--cr-header-control-bg);
+    border: 1.5px solid var(--cr-header-control-border);
+    flex-shrink: 0;
+    transition: background 0.2s, color 0.2s;
+}
+
+.urgent-renewal-banner:hover .urgent-renewal-action {
+    background: rgba(251, 191, 36, 0.18);
+    color: var(--cr-text-primary);
+}
+
+.urgent-renewal-banner.is-overdue:hover .urgent-renewal-action {
+    background: rgba(239, 68, 68, 0.18);
+    color: var(--cr-text-primary);
+}
+
+[data-theme="light"] .urgent-renewal-banner {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-color: rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="light"] .urgent-renewal-banner:hover {
+    border-color: rgba(217, 119, 6, 0.35);
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.1);
+}
+
+[data-theme="light"] .urgent-renewal-badge {
+    background: rgba(217, 119, 6, 0.1);
+    color: #b45309;
+    border-color: rgba(217, 119, 6, 0.25);
+}
+
+[data-theme="light"] .urgent-renewal-banner.is-overdue .urgent-renewal-badge {
+    background: rgba(220, 38, 38, 0.1);
+    color: #dc2626;
+    border-color: rgba(220, 38, 38, 0.25);
+}
+
+[data-theme="light"] .urgent-renewal-icon-box {
+    background: rgba(217, 119, 6, 0.1);
+    border-color: rgba(217, 119, 6, 0.25);
+    color: #d97706;
+}
+
+[data-theme="light"] .urgent-renewal-banner.is-overdue .urgent-renewal-icon-box {
+    background: rgba(220, 38, 38, 0.1);
+    border-color: rgba(220, 38, 38, 0.25);
+    color: #dc2626;
 }
 
 /* ══════════════════════════════════════════════════════════════════
