@@ -131,12 +131,53 @@ function drop(event) {
                     `;
                 }
             }
-            // Show toast notification for completion or overdue
+            // Show toast notification with 5-second Undo action
+            const choreTitle = data.chore_title || 'Chore';
             if (window.showToast) {
                 if (data.overdue) {
-                    showToast('Chore was overdue. No points awarded.', 'warning');
+                    showToast({
+                        message: `"${choreTitle}" was overdue. No points awarded.`,
+                        type: 'warning',
+                        duration: 5000,
+                        actionText: 'Undo',
+                        onAction: () => {
+                            fetch('/undo_complete_chore', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ chore_id: choreId }),
+                            })
+                            .then(res => res.json())
+                            .then(undoData => {
+                                if (undoData.success) {
+                                    window.location.reload();
+                                } else {
+                                    showToast(undoData.error || 'Failed to undo chore', 'error');
+                                }
+                            });
+                        }
+                    });
                 } else {
-                    showToast('Chore completed!', 'success');
+                    showToast({
+                        message: `"${choreTitle}" marked done.`,
+                        type: 'success',
+                        duration: 5000,
+                        actionText: 'Undo',
+                        onAction: () => {
+                            fetch('/undo_complete_chore', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ chore_id: choreId }),
+                            })
+                            .then(res => res.json())
+                            .then(undoData => {
+                                if (undoData.success) {
+                                    window.location.reload();
+                                } else {
+                                    showToast(undoData.error || 'Failed to undo chore', 'error');
+                                }
+                            });
+                        }
+                    });
                 }
             }
             // Fetch the updated completed chores HTML fragment and update the DOM

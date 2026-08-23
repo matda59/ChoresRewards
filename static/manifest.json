@@ -1,0 +1,48 @@
+{
+  "name": "ChoresRewards Family Hub",
+  "short_name": "ChoresRewards",
+  "description": "Self-hosted family hub for chores, rewards, meals, shopping, and household events",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#1e293b",
+  "icons": [
+    {
+      "src": "/static/images/mascot-transp.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/images/Mascot.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["lifestyle", "utilities", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Today's Tasks",
+      "short_name": "Tasks",
+      "description": "View and complete today's chores",
+      "url": "/#kanban",
+      "icons": [{ "src": "/static/images/mascot-transp.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Shopping List",
+      "short_name": "Shopping",
+      "description": "View household shopping list",
+      "url": "/#shopping-list-section",
+      "icons": [{ "src": "/static/images/mascot-transp.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Meal Planner",
+      "short_name": "Meals",
+      "description": "View this week's meals",
+      "url": "/#meal-planner-section",
+      "icons": [{ "src": "/static/images/mascot-transp.png", "sizes": "192x192" }]
+    }
+  ]
+}

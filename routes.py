@@ -2078,6 +2078,17 @@ def reset_daily_chores():
     else:
         print("[reset_daily_chores] No chores needed to be reset")
 
+@routes_bp.route('/manifest.json')
+def manifest():
+    return current_app.send_static_file('manifest.json')
+
+@routes_bp.route('/sw.js')
+def service_worker():
+    response = current_app.send_static_file('sw.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
+
 @routes_bp.route('/')
 def index():
     # AppSetting already imported at top
@@ -2592,6 +2603,7 @@ def complete_chore():
         return jsonify({
             'success': True,
             'assigned_to': chore.assigned_to,
+            'chore_title': chore.title,
             'progress': {
                 'completed': completed,
                 'total': total
@@ -2611,6 +2623,50 @@ def complete_chore():
             'success': False,
             'error': str(e)
         }), 400
+
+@routes_bp.route('/undo_complete_chore', methods=['POST'])
+def undo_complete_chore():
+    if not session.get('authenticated', False):
+        return jsonify({'success': False, 'error': 'Login required'}), 401
+    try:
+        chore_id = request.json.get('chore_id')
+        chore = Chore.query.get(chore_id)
+        if not chore:
+            return jsonify({'success': False, 'error': 'Chore not found'}), 404
+        if not chore.completed:
+            return jsonify({'success': False, 'error': 'Chore is not completed'}), 400
+
+        chore.completed = False
+        chore.date_completed = None
+
+        person = Person.query.filter_by(name=chore.assigned_to).first()
+        if person:
+            person.points = _round_points(max(0, person.points - chore.points))
+            db.session.commit()
+            log_activity(
+                'chore_undone',
+                f"Chore '{chore.title}' was undone and {chore.points} points were deducted",
+                user_name=chore.assigned_to
+            )
+        else:
+            db.session.commit()
+
+        completed, total = Chore.calculate_weekly_progress(chore.assigned_to)
+        return jsonify({
+            'success': True,
+            'assigned_to': chore.assigned_to,
+            'chore_id': chore.id,
+            'chore_title': chore.title,
+            'new_points': _round_points(person.points + person.bonus_points) if person else 0,
+            'progress': {
+                'completed': completed,
+                'total': total
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        log_activity('system_error', f"Error undoing chore completion: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 @routes_bp.route('/add_person', methods=['POST'])
 def add_person():

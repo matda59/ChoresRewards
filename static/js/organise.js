@@ -595,29 +595,53 @@
 
 
         // Last service pill
-
         let lastSvcPill = '';
-
         if (services.length) {
-
             const last = services[0]; // already sorted desc
-
             const dateStr = last.service_date ? formatDate(last.service_date) : '';
-
             lastSvcPill = `<span class="org-car-pill org-car-pill--neutral">
-
                 <i class="fas fa-wrench"></i> Last service: ${escapeHtml(last.service_type)}${dateStr ? ' — ' + dateStr : ''}
-
             </span>`;
-
         }
 
+        // Service Interval Milestone Progress Bar
+        let milestoneBar = '';
+        if (withMileage.length && withNextDate.length) {
+            const maxMileage = Math.max(...withMileage.map(s => s.mileage));
+            const nextWithMileage = withNextDate.find(s => s.next_service_mileage != null);
+            if (nextWithMileage && nextWithMileage.next_service_mileage > 0) {
+                const targetMileage = nextWithMileage.next_service_mileage;
+                const remainingKm = targetMileage - maxMileage;
+                const prevServices = services.filter(s => s.mileage != null && s.mileage < maxMileage);
+                const baseMileage = prevServices.length ? Math.max(...prevServices.map(s => s.mileage)) : Math.max(0, targetMileage - 10000);
+                const interval = Math.max(1000, targetMileage - baseMileage);
+                const currentProgress = Math.max(0, maxMileage - baseMileage);
+                const pct = Math.min(100, Math.max(0, Math.round((currentProgress / interval) * 100)));
 
+                let statusClass = '';
+                if (remainingKm <= 0 || remainingKm <= 1000) statusClass = 'is-danger';
+                else if (remainingKm <= 2500) statusClass = 'is-warning';
+
+                const remainingLabel = remainingKm <= 0
+                    ? '<span style="color:#ef4444; font-weight:700;"><i class="fas fa-exclamation-circle"></i> Service Overdue!</span>'
+                    : `<span style="font-weight:700; color:${remainingKm <= 2500 ? '#f59e0b' : 'var(--cr-text-secondary)'};"><i class="fas fa-road"></i> ${remainingKm.toLocaleString()} km until service</span>`;
+
+                milestoneBar = `
+                <div class="org-service-milestone-wrap">
+                    <div class="org-service-milestone-header">
+                        <span><i class="fas fa-tachometer-alt"></i> ${maxMileage.toLocaleString()} km / ${targetMileage.toLocaleString()} km (${pct}%)</span>
+                        ${remainingLabel}
+                    </div>
+                    <div class="org-service-milestone-bar-bg">
+                        <div class="org-service-milestone-bar-fill ${statusClass}" style="width: ${pct}%;"></div>
+                    </div>
+                </div>`;
+            }
+        }
 
         const allPills = pills + odomPill + nextSvcPill + lastSvcPill;
-
-        strip.innerHTML = allPills || '<span class="org-car-pill org-car-pill--neutral" style="opacity:.5;">No due dates set</span>';
-
+        const pillsHtml = allPills ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${allPills}</div>` : '<span class="org-car-pill org-car-pill--neutral" style="opacity:.5;">No due dates set</span>';
+        strip.innerHTML = pillsHtml + milestoneBar;
     }
 
 
@@ -1424,64 +1448,77 @@
 
 
 
-    // ── Load ───────────────────────────────────────────────────────────────
+    // ── Urgent Renewal Banner Check ───────────────────────────────────────
+    function checkUrgentRenewals(items) {
+        const banner = document.getElementById('urgent-renewal-banner');
+        if (!banner) return;
+        if (!items || !items.length) {
+            banner.style.display = 'none';
+            return;
+        }
 
-    function loadOrganise() {
+        const urgentItems = items.filter(i => !i.paid && i.due_date && i.days_until_due != null && i.days_until_due <= 7);
+        if (!urgentItems.length) {
+            banner.style.display = 'none';
+            return;
+        }
 
-        fetch('/api/organise')
+        // Sort: overdue items first (smallest/most negative days_until_due)
+        urgentItems.sort((a, b) => a.days_until_due - b.days_until_due);
+        const mostUrgent = urgentItems[0];
+        const headingEl = document.getElementById('urgent-renewal-heading');
+        const badgeEl = document.getElementById('urgent-renewal-badge');
+        const descEl = document.getElementById('urgent-renewal-desc');
 
-            .then(r => r.json())
+        const isOverdue = mostUrgent.days_until_due < 0;
+        banner.classList.toggle('is-overdue', isOverdue);
 
-            .then(res => {
+        if (isOverdue) {
+            const overdueDays = Math.abs(mostUrgent.days_until_due);
+            if (badgeEl) badgeEl.textContent = `Overdue (${overdueDays}d ago)`;
+            if (headingEl) headingEl.textContent = `⚠️ Action Needed: ${mostUrgent.title}`;
+            if (descEl) descEl.textContent = `${mostUrgent.category || 'Organise'} was due on ${formatDate(mostUrgent.due_date)} · Tap to view`;
+        } else {
+            const dueDays = mostUrgent.days_until_due;
+            const dueStr = dueDays === 0 ? 'Today' : `in ${dueDays} day${dueDays === 1 ? '' : 's'}`;
+            if (badgeEl) badgeEl.textContent = `Due ${dueStr}`;
+            if (headingEl) headingEl.textContent = `⚠️ Renewal Reminder: ${mostUrgent.title}`;
+            if (descEl) descEl.textContent = `${mostUrgent.category || 'Organise'} is due on ${formatDate(mostUrgent.due_date)} (${dueStr}) · Tap to view`;
+        }
 
-                if (res.success) {
-
-                    organiseItems = res.items;
-
-                    renderOrganise();
-
-                }
-
-            })
-
-            .catch(() => {
-
-                const c = document.getElementById('organise-items-container');
-
-                if (c) c.innerHTML = '<p class="org-empty">Failed to load items.</p>';
-
-            });
-
+        banner.style.display = 'flex';
     }
 
-
+    // ── Load ───────────────────────────────────────────────────────────────
+    function loadOrganise() {
+        fetch('/api/organise')
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    organiseItems = res.items;
+                    renderOrganise();
+                    checkUrgentRenewals(organiseItems);
+                }
+            })
+            .catch(() => {
+                const c = document.getElementById('organise-items-container');
+                if (c) c.innerHTML = '<p class="org-empty">Failed to load items.</p>';
+            });
+    }
 
     // ── Init ───────────────────────────────────────────────────────────────
-
     document.addEventListener('DOMContentLoaded', function () {
+        // Always load organise items on startup to populate urgent banner & milestones
+        loadOrganise();
 
         const section = document.getElementById('organise-section');
-
         if (section) {
-
             const toggle = section.querySelector('.section-toggle');
-
             if (toggle) {
-
                 toggle.addEventListener('click', function () {
-
                     if (!organiseItems.length) loadOrganise();
-
-                }, { once: true });
-
+                });
             }
-
-            if (!section.classList.contains('collapsed')) {
-
-                loadOrganise();
-
-            }
-
         }
 
 
