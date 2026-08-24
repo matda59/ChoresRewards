@@ -374,6 +374,12 @@
         forcedPreview = false;
         gesture = null;
         if (overlayEl) overlayEl.classList.remove('cr-ss-visible');
+        layerEls.forEach(l => {
+            if (l) {
+                l.style.backgroundImage = 'none';
+                l.className = 'cr-ss-layer';
+            }
+        });
         stopSlideshow();
         clearInterval(clockTimer);
         clockTimer = null;
@@ -410,6 +416,7 @@
     window.ChoresScreensaver = {
         show: showScreensaver,
         hide: hideScreensaver,
+        isActive: function () { return showing; },
         next: function () { if (showing) { showSlide(1); restartSlideTimer(); } },
         prev: function () { if (showing) { showSlide(-1); restartSlideTimer(); } },
         preview: function () {

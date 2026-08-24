@@ -197,3 +197,30 @@ function drop(event) {
         }
     });
 }
+
+// ── 24/7 Kiosk Stability: Scheduled Nightly Idle Heap Purge ──────────────
+(function initKioskStability() {
+    let lastUserActivity = Date.now();
+    const markActivity = () => { lastUserActivity = Date.now(); };
+    ['pointerdown', 'touchstart', 'keydown'].forEach(evt => {
+        window.addEventListener(evt, markActivity, { passive: true });
+    });
+
+    setInterval(() => {
+        const now = new Date();
+        // Check if 3:00 AM - 3:05 AM window
+        if (now.getHours() === 3 && now.getMinutes() <= 5) {
+            const todayStr = now.toISOString().slice(0, 10);
+            const lastReload = localStorage.getItem('cr_last_nightly_reload');
+            if (lastReload === todayStr) return; // already refreshed today
+
+            const isIdle = (Date.now() - lastUserActivity) > 15 * 60 * 1000;
+            const isScreensaverActive = Boolean(window.ChoresScreensaver && window.ChoresScreensaver.isActive && window.ChoresScreensaver.isActive());
+
+            if (isIdle || isScreensaverActive) {
+                localStorage.setItem('cr_last_nightly_reload', todayStr);
+                window.location.reload(true);
+            }
+        }
+    }, 60 * 1000);
+})();
