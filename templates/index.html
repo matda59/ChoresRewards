@@ -28,7 +28,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260804c">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260830a">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -569,7 +569,7 @@ window.addEventListener('DOMContentLoaded', function() {
         window.PERSON_TOTAL_COMPLETED = {{ person_total_completed | tojson }};
     </script>
     <script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/organise.js') }}?v=20260531e"></script>
+    <script src="{{ url_for('static', filename='js/organise.js') }}?v=20260903a"></script>
     <script>
     // Show quiz as part of celebration overlay
     let quizShownToday = false;
@@ -6214,23 +6214,32 @@ function updateStreakDisplay(column, streakCount) {
     </h2>
     <div class="organise-body">
         <div class="organise-toolbar">
-            <p class="org-subtitle">Track your cars, insurance, bills and more. Service history is built into each car.</p>
+            <p class="org-subtitle">Add each car once. Registration, insurance and other documents attach to that car so you can update them over time.</p>
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                 <button id="organise-add-btn" class="org-add-btn admin-only"><i class="fas fa-plus"></i> Add Item</button>
                 <div class="org-quick-wrap admin-only">
                     <button id="org-quick-btn" class="org-quick-btn" type="button"><i class="fas fa-car"></i> Car template ▾</button>
                     <div id="org-quick-menu" class="org-quick-menu" style="display:none;">
-                        <button class="org-quick-item" data-title="Registration / Rego" data-icon="🔖">🔖 Registration / Rego</button>
-                        <button class="org-quick-item" data-title="CTP / Green Slip" data-icon="🛡️">🛡️ CTP / Green Slip</button>
-                        <button class="org-quick-item" data-title="Comprehensive Insurance" data-icon="🛡️">🛡️ Comprehensive Insurance</button>
-                        <button class="org-quick-item" data-title="Service / Oil Change" data-icon="🔧" data-type="service">🔧 Service / Oil Change</button>
-                        <button class="org-quick-item" data-title="Roadworthy Certificate" data-icon="📋">📋 Roadworthy Certificate</button>
-                        <button class="org-quick-item" data-title="Tyre Change / Rotation" data-icon="🔩" data-type="service">🔩 Tyre Change / Rotation</button>
-                        <button class="org-quick-item" data-title="Battery Replacement" data-icon="🔋" data-type="service">🔋 Battery Replacement</button>
-                        <button class="org-quick-item" data-title="Road Tax" data-icon="💰">💰 Road Tax</button>
-                        <button class="org-quick-item" data-title="Roadside Assistance" data-icon="🚨">🚨 Roadside Assistance</button>
-                        <button class="org-quick-item" data-title="E-Tag / Toll Account" data-icon="⚡">⚡ E-Tag / Toll Account</button>
-                        <button class="org-quick-item" data-title="Driver's Licence" data-icon="🪪">🪪 Driver's Licence</button>
+                        <div class="org-quick-heading">Car</div>
+                        <button class="org-quick-item" data-kind="vehicle" data-title="" data-icon="🚗">🚗 Add a car</button>
+                        <div class="org-quick-heading">Attach to a car</div>
+                        <button class="org-quick-item" data-kind="renewal" data-title="Registration / Rego" data-icon="🔖">🔖 Registration / Rego</button>
+                        <button class="org-quick-item" data-kind="renewal" data-title="CTP / Green Slip" data-icon="🛡️">🛡️ CTP / Green Slip</button>
+                        <button class="org-quick-item" data-kind="renewal" data-title="Comprehensive Insurance" data-icon="🛡️">🛡️ Comprehensive Insurance</button>
+                        <button class="org-quick-item" data-kind="renewal" data-title="Roadworthy Certificate" data-icon="📋">📋 Roadworthy Certificate</button>
+                        <button class="org-quick-item" data-kind="renewal" data-title="Road Tax" data-icon="💰">💰 Road Tax</button>
+                        <button class="org-quick-item" data-kind="renewal" data-title="Roadside Assistance" data-icon="🚨">🚨 Roadside Assistance</button>
+                        <button class="org-quick-item" data-kind="renewal" data-title="E-Tag / Toll Account" data-icon="⚡">⚡ E-Tag / Toll Account</button>
+                        <button class="org-quick-item" data-kind="renewal" data-title="Warranty" data-icon="📜">📜 Warranty</button>
+                        <button class="org-quick-item" data-kind="renewal" data-title="Car Loan" data-icon="💳">💳 Car Loan</button>
+                        <button class="org-quick-item" data-kind="renewal" data-title="Parking Permit" data-icon="🅿️">🅿️ Parking Permit</button>
+                        <div class="org-quick-heading">Service log</div>
+                        <button class="org-quick-item" data-kind="service" data-title="Service / Oil Change" data-icon="🔧">🔧 Service / Oil Change</button>
+                        <button class="org-quick-item" data-kind="service" data-title="Tyre Change / Rotation" data-icon="🔩">🔩 Tyre Change / Rotation</button>
+                        <button class="org-quick-item" data-kind="service" data-title="Battery Replacement" data-icon="🔋">🔋 Battery Replacement</button>
+                        <button class="org-quick-item" data-kind="service" data-title="Brake Service" data-icon="🛑">🛑 Brake Service</button>
+                        <div class="org-quick-heading">Not a car</div>
+                        <button class="org-quick-item" data-kind="standalone" data-title="Driver's Licence" data-icon="🪪" data-category="Health">🪪 Driver's Licence</button>
                     </div>
                 </div>
             </div>
@@ -6250,7 +6259,7 @@ function updateStreakDisplay(column, streakCount) {
         </div>
         <div class="org-modal-body">
             <label class="org-label">Title *</label>
-            <input id="org-input-title" type="text" class="org-input" placeholder="e.g. Registration, Insurance, Service" maxlength="200">
+            <input id="org-input-title" type="text" class="org-input" placeholder="e.g. Family car, Registration, Insurance" maxlength="200">
 
             <label class="org-label">Category</label>
             <select id="org-input-category" class="org-input">
@@ -6266,7 +6275,23 @@ function updateStreakDisplay(column, streakCount) {
                 <input id="org-input-custom-category" type="text" class="org-input" placeholder="Custom category name" maxlength="80">
             </div>
 
-            <!-- Vehicle-specific fields (shown when category = Car) -->
+            <div id="org-car-kind-wrap" style="display:none; margin-top:10px;">
+                <label class="org-label">What are you adding?</label>
+                <div class="org-kind-toggle" id="org-kind-toggle">
+                    <button type="button" class="org-kind-btn is-active" data-kind="vehicle">New car</button>
+                    <button type="button" class="org-kind-btn" data-kind="renewal">Document for a car</button>
+                </div>
+            </div>
+
+            <div id="org-linked-car-wrap" style="display:none; margin-top:10px;">
+                <label class="org-label">Linked car *</label>
+                <select id="org-input-parent-id" class="org-input">
+                    <option value="">Select a car…</option>
+                </select>
+                <p class="org-field-hint">This document stays on that car so you can edit the due date, cost and notes later.</p>
+            </div>
+
+            <!-- Vehicle-specific fields (shown when adding/editing a car) -->
             <div id="org-vehicle-fields">
                 <label class="org-label" style="margin-top:10px;"><i class="fas fa-car" style="color:#38bdf8;"></i> Vehicle Details</label>
                 <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
@@ -6345,6 +6370,20 @@ function updateStreakDisplay(column, streakCount) {
 <div id="org-lightbox" onclick="if(event.target===this||event.target.id==='org-lightbox-close')this.style.display='none'" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:9999; justify-content:center; align-items:center; flex-direction:column; gap:14px;">
     <button id="org-lightbox-close" style="position:absolute; top:16px; right:20px; background:none; border:none; color:#fff; font-size:2rem; line-height:1; cursor:pointer;" title="Close">&times;</button>
     <img id="org-lightbox-img" src="" alt="" style="max-width:95vw; max-height:90vh; border-radius:10px; object-fit:contain; box-shadow:0 8px 40px rgba(0,0,0,0.7);">
+</div>
+
+<!-- Pick which car a template/document belongs to -->
+<div id="org-car-picker" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:9050; justify-content:center; align-items:center;">
+    <div class="org-modal-box" style="max-width:420px;">
+        <div class="org-modal-header">
+            <span id="org-car-picker-title" style="font-weight:700; font-size:1.1em;">Which car?</span>
+            <button id="org-car-picker-close" class="org-modal-close-btn" title="Close">&times;</button>
+        </div>
+        <div class="org-modal-body">
+            <p class="org-field-hint" id="org-car-picker-hint">Choose the car this belongs to.</p>
+            <div id="org-car-picker-list" class="org-car-picker-list"></div>
+        </div>
+    </div>
 </div>
 
 <!-- Vehicle Service History Modal -->

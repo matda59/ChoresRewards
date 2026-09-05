@@ -88,6 +88,7 @@ with app.app_context():
             ('vehicle_model', 'VARCHAR(100)'),
             ('vehicle_year', 'INTEGER'),
             ('vehicle_rego', 'VARCHAR(20)'),
+            ('parent_id', 'INTEGER'),
         ]
         _org_changed = False
         for _cn, _ct in _org_new:
