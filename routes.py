@@ -507,6 +507,85 @@ def _get_shopping_data():
     )
 
 
+def _get_meal_social():
+    try:
+        raw = _json.loads(AppSetting.get('meal_social_json', '{}'))
+    except Exception:
+        raw = {}
+    if not isinstance(raw, dict):
+        return {}
+    cleaned = {}
+    for meal_name, entry in raw.items():
+        key = str(meal_name).strip().lower()[:80]
+        if not key or not isinstance(entry, dict):
+            continue
+        comments = []
+        raw_comments = entry.get('comments', [])
+        if isinstance(raw_comments, list):
+            seen_ids = set()
+            for comment in raw_comments:
+                if not isinstance(comment, dict):
+                    continue
+                cid = re.sub(r'[^a-z0-9]', '', str(comment.get('id', '')).strip().lower())[:24]
+                text = str(comment.get('text', '')).strip()[:500]
+                author = str(comment.get('author', '')).strip()[:50]
+                created_at = str(comment.get('created_at', '')).strip()[:40]
+                if not cid or not text or cid in seen_ids:
+                    continue
+                comments.append({
+                    'id': cid,
+                    'author': author or 'Family',
+                    'text': text,
+                    'created_at': created_at,
+                })
+                seen_ids.add(cid)
+        votes = {}
+        raw_votes = entry.get('votes', {})
+        if isinstance(raw_votes, dict):
+            for voter, vote in raw_votes.items():
+                name = str(voter).strip()[:50]
+                choice = str(vote).strip().lower()
+                if name and choice in ('like', 'dislike'):
+                    votes[name] = choice
+        cleaned[key] = {'comments': comments, 'votes': votes}
+    return cleaned
+
+
+def _save_meal_social(data):
+    AppSetting.set('meal_social_json', _json.dumps(data if isinstance(data, dict) else {}))
+
+
+def _family_member_names():
+    return {person.name.strip(): person.name.strip() for person in Person.query.all() if person.name and person.name.strip()}
+
+
+def _canonical_family_name(raw_name):
+    name = str(raw_name or '').strip()[:50]
+    if not name:
+        return None
+    members = _family_member_names()
+    if name in members:
+        return members[name]
+    lowered = name.lower()
+    for original in members:
+        if original.lower() == lowered:
+            return original
+    return None
+
+
+def _meal_social_entry(store, meal_key):
+    key = str(meal_key).strip().lower()[:80]
+    entry = store.get(key)
+    if not isinstance(entry, dict):
+        entry = {'comments': [], 'votes': {}}
+    if not isinstance(entry.get('comments'), list):
+        entry['comments'] = []
+    if not isinstance(entry.get('votes'), dict):
+        entry['votes'] = {}
+    store[key] = entry
+    return key, entry
+
+
 def _normalize_color_value(color_value):
     if not color_value:
         return None
@@ -1651,6 +1730,114 @@ def api_meal_image_delete():
         return jsonify({'success': False, 'error': str(exc)}), 400
 
 
+@routes_bp.route('/api/meal_social', methods=['GET'])
+def api_meal_social():
+    try:
+        return jsonify({'success': True, 'social': _get_meal_social()})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/meal_comment', methods=['POST'])
+def api_meal_comment():
+    try:
+        data = request.get_json() or {}
+        meal_key = str(data.get('meal_key', '')).strip().lower()[:80]
+        text = str(data.get('text', '')).strip()[:500]
+        author = _canonical_family_name(data.get('author'))
+        if not meal_key:
+            return jsonify({'success': False, 'error': 'meal_key required'}), 400
+        if not text:
+            return jsonify({'success': False, 'error': 'Comment cannot be empty'}), 400
+        if not author:
+            return jsonify({'success': False, 'error': 'Pick who is commenting'}), 400
+
+        store = _get_meal_social()
+        key, entry = _meal_social_entry(store, meal_key)
+        if len(entry['comments']) >= 80:
+            return jsonify({'success': False, 'error': 'Too many comments on this meal'}), 400
+
+        comment = {
+            'id': uuid.uuid4().hex[:16],
+            'author': author,
+            'text': text,
+            'created_at': datetime.utcnow().isoformat(timespec='seconds') + 'Z',
+        }
+        entry['comments'].append(comment)
+        _save_meal_social(store)
+        log_activity('settings_updated', f'Comment added on meal "{key}"', user_name=author)
+        return jsonify({'success': True, 'comment': comment, 'social': store.get(key)})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/meal_comment/delete', methods=['POST'])
+def api_meal_comment_delete():
+    try:
+        data = request.get_json() or {}
+        meal_key = str(data.get('meal_key', '')).strip().lower()[:80]
+        comment_id = re.sub(r'[^a-z0-9]', '', str(data.get('comment_id', '')).strip().lower())[:24]
+        if not meal_key or not comment_id:
+            return jsonify({'success': False, 'error': 'meal_key and comment_id required'}), 400
+
+        store = _get_meal_social()
+        key, entry = _meal_social_entry(store, meal_key)
+        before = len(entry['comments'])
+        entry['comments'] = [c for c in entry['comments'] if c.get('id') != comment_id]
+        if len(entry['comments']) == before:
+            return jsonify({'success': False, 'error': 'Comment not found'}), 404
+        if not entry['comments'] and not entry['votes']:
+            store.pop(key, None)
+        _save_meal_social(store)
+        return jsonify({'success': True, 'social': store.get(key, {'comments': [], 'votes': {}})})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/meal_vote', methods=['POST'])
+def api_meal_vote():
+    try:
+        data = request.get_json() or {}
+        meal_key = str(data.get('meal_key', '')).strip().lower()[:80]
+        author = _canonical_family_name(data.get('author'))
+        vote = str(data.get('vote', '')).strip().lower()
+        if not meal_key:
+            return jsonify({'success': False, 'error': 'meal_key required'}), 400
+        if not author:
+            return jsonify({'success': False, 'error': 'Pick who is voting'}), 400
+        if vote not in ('like', 'dislike', ''):
+            return jsonify({'success': False, 'error': 'vote must be like, dislike, or empty'}), 400
+
+        store = _get_meal_social()
+        key, entry = _meal_social_entry(store, meal_key)
+        current = entry['votes'].get(author)
+        if not vote or current == vote:
+            entry['votes'].pop(author, None)
+        else:
+            entry['votes'][author] = vote
+        if not entry['comments'] and not entry['votes']:
+            store.pop(key, None)
+        _save_meal_social(store)
+        return jsonify({'success': True, 'social': store.get(key, {'comments': [], 'votes': {}})})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@routes_bp.route('/api/meal_social/delete', methods=['POST'])
+def api_meal_social_delete():
+    try:
+        data = request.get_json() or {}
+        meal_key = str(data.get('meal_key', '')).strip().lower()[:80]
+        if not meal_key:
+            return jsonify({'success': False, 'error': 'meal_key required'}), 400
+        store = _get_meal_social()
+        store.pop(meal_key, None)
+        _save_meal_social(store)
+        return jsonify({'success': True})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
 @routes_bp.route('/api/shopping_list', methods=['GET', 'POST'])
 def api_shopping_list():
     try:
@@ -2130,6 +2317,13 @@ def index():
     meal_planner_week_days = _build_meal_week_days(meal_planner_week_start)
     meal_planner_plan, meal_planner_suggestions, meal_planner_recurring = _get_meal_planner_data(meal_planner_week_start)
     meal_ingredients, shopping_list_checked, shopping_list_general, shopping_hidden, shopping_active, shopping_stores, meal_images, shopping_meal_order, shopping_list_archived = _get_shopping_data()
+    meal_social = _get_meal_social()
+    family_members = [{
+        'id': person.id,
+        'name': person.name,
+        'color': person.color or '#ffffff',
+        'avatar_url': url_for('static', filename=('uploads/' + person.avatar) if person.avatar else 'default_avatar.png'),
+    } for person in family]
 
     try:
         _notes_raw = _json.loads(AppSetting.get('notes_kanban_json', '{}'))
@@ -2245,6 +2439,8 @@ def index():
         meal_images=meal_images,
         shopping_meal_order=shopping_meal_order,
         shopping_list_archived=shopping_list_archived,
+        meal_social=meal_social,
+        family_members=family_members,
         notes_columns=notes_columns,
         notes_notes=notes_notes,
         timedelta=timedelta,

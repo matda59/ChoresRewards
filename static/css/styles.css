@@ -1876,6 +1876,58 @@
     border-color: rgba(15,23,42,0.14);
     color: var(--text-color);
 }
+[data-theme="light"] .meal-library-poster-row {
+    background: rgba(15,23,42,0.04);
+    border-color: rgba(15,23,42,0.10);
+}
+[data-theme="light"] .meal-library-poster-label {
+    color: rgba(15,23,42,0.55);
+}
+[data-theme="light"] .meal-card-social {
+    border-top-color: rgba(15,23,42,0.08);
+    background: rgba(15,23,42,0.025);
+}
+[data-theme="light"] .meal-vote-btn {
+    background: rgba(15,23,42,0.05);
+    border-color: rgba(15,23,42,0.12);
+    color: rgba(15,23,42,0.55);
+}
+[data-theme="light"] .meal-vote-btn:hover {
+    background: rgba(15,23,42,0.09);
+    color: rgba(15,23,42,0.8);
+}
+[data-theme="light"] .meal-comments-toggle {
+    color: rgba(15,23,42,0.55);
+}
+[data-theme="light"] .meal-comments-toggle:hover,
+[data-theme="light"] .meal-comments-toggle.is-open {
+    color: rgba(15,23,42,0.85);
+    background: rgba(15,23,42,0.05);
+}
+[data-theme="light"] .meal-comment {
+    background: rgba(15,23,42,0.04);
+    border-color: rgba(15,23,42,0.08);
+}
+[data-theme="light"] .meal-comment-time,
+[data-theme="light"] .meal-comments-empty {
+    color: rgba(15,23,42,0.42);
+}
+[data-theme="light"] .meal-comment-text {
+    color: rgba(15,23,42,0.78);
+}
+[data-theme="light"] .meal-comment-delete {
+    color: rgba(15,23,42,0.28);
+}
+[data-theme="light"] .meal-comment-input {
+    background: rgba(15,23,42,0.05);
+    border-color: rgba(15,23,42,0.14);
+    color: var(--text-color);
+}
+[data-theme="light"] .meal-yt-chip {
+    background: rgba(15,23,42,0.05);
+    border-color: rgba(15,23,42,0.12);
+    color: rgba(15,23,42,0.78);
+}
 
 /* Upcoming Family Events (Google Calendar) widget */
 [data-theme="light"] .gcal-view-switch {
@@ -5892,6 +5944,226 @@ label,
     border: 1px solid rgba(96,165,250,0.28);
 }
 .meal-card-qa-btn:hover { background: rgba(96,165,250,0.30); }
+
+.meal-library-poster-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+}
+.meal-library-poster-label {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.55);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.meal-library-author-select {
+    flex: 0 1 180px;
+}
+
+.meal-card-social {
+    border-top: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.025);
+    padding: 8px 10px 10px;
+}
+.meal-card-votes {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+.meal-vote-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.55);
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.meal-vote-btn:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+}
+.meal-vote-btn--like {
+    background: rgba(34,197,94,0.16);
+    border-color: rgba(34,197,94,0.35);
+    color: #86efac;
+}
+.meal-vote-btn--dislike {
+    background: rgba(248,113,113,0.16);
+    border-color: rgba(248,113,113,0.35);
+    color: #fca5a5;
+}
+.meal-comments-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.55);
+    font-size: 0.76rem;
+    font-weight: 600;
+    padding: 5px 2px;
+    cursor: pointer;
+    border-radius: 6px;
+}
+.meal-comments-toggle:hover,
+.meal-comments-toggle.is-open {
+    color: #e2e8f0;
+    background: rgba(255,255,255,0.04);
+}
+.meal-comments-chevron {
+    margin-left: auto;
+    font-size: 0.65rem;
+    transition: transform 0.18s;
+}
+.meal-comments-toggle.is-open .meal-comments-chevron {
+    transform: rotate(180deg);
+}
+.meal-comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin: 6px 0 8px;
+}
+.meal-comments-empty {
+    font-size: 0.74rem;
+    color: rgba(255,255,255,0.38);
+    padding: 2px 2px 4px;
+}
+.meal-comment {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    padding: 7px 8px 8px;
+}
+.meal-comment-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+.meal-comment-avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.meal-comment-author {
+    font-size: 0.74rem;
+    font-weight: 700;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.meal-comment-time {
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.35);
+    flex-shrink: 0;
+}
+.meal-comment-delete {
+    margin-left: auto;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.22);
+    cursor: pointer;
+    font-size: 0.72rem;
+    padding: 0 2px;
+    line-height: 1;
+}
+.meal-comment-delete:hover { color: #fca5a5; }
+.meal-comment-text {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.82);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.meal-comment-text .meal-yt-chip {
+    margin: 6px 0;
+}
+.meal-comment-link {
+    color: #93c5fd;
+    text-decoration: underline;
+    word-break: break-all;
+}
+.meal-comment-link:hover { color: #bfdbfe; }
+.meal-yt-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-decoration: none;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,0,0,0.22);
+    border-radius: 8px;
+    overflow: hidden;
+    color: #f8fafc;
+}
+.meal-yt-chip:hover { background: rgba(239,68,68,0.12); }
+.meal-yt-thumb {
+    width: 72px;
+    height: 40px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #111;
+}
+.meal-yt-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+.meal-yt-meta i { color: #ff4d4d; }
+.meal-comment-composer {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+}
+.meal-comment-input {
+    flex: 1;
+    min-width: 0;
+    resize: vertical;
+    min-height: 38px;
+    max-height: 90px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px;
+    color: #f8fafc;
+    font-size: 0.78rem;
+    padding: 6px 8px;
+    outline: none;
+    font-family: inherit;
+}
+.meal-comment-input:focus { border-color: rgba(96,165,250,0.45); }
+.meal-comment-input::placeholder { color: rgba(255,255,255,0.3); }
+.meal-comment-send {
+    border: 1px solid rgba(96,165,250,0.28);
+    background: rgba(96,165,250,0.16);
+    color: #93c5fd;
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.meal-comment-send:hover { background: rgba(96,165,250,0.30); }
 
 /* Keep old shopping-lib-* styles for the edit inputs reused inside meal cards */
 .shopping-lib-grid {

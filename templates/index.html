@@ -4080,7 +4080,14 @@ function deleteReward(rewardId) {
         <i class="fas fa-book-open"></i> <span>Meal Library</span>
         <i class="fas fa-chevron-down section-chevron"></i>
     </h2>
-    <p class="meal-planner-subtitle">Build your collection of meals and their ingredients. Meals added to your shopping list will appear in the store columns.</p>
+    <p class="meal-planner-subtitle">Build your collection of meals and their ingredients. Leave a comment, drop a YouTube cooking link, or give a meal a like.</p>
+
+    <div class="meal-library-poster-row">
+        <label class="meal-library-poster-label" for="meal-library-author"><i class="fas fa-user"></i> Posting as</label>
+        <select id="meal-library-author" class="meal-quick-add shopping-store-select meal-library-author-select">
+            <option value="">— Who are you? —</option>
+        </select>
+    </div>
 
     <div class="shopping-manage-block" style="margin-bottom:12px;">
         <label class="shopping-manage-label"><i class="fas fa-utensils"></i>&ensp;Add Ingredients to a Meal</label>
@@ -4114,6 +4121,10 @@ function deleteReward(rewardId) {
     let mealImages = {{ meal_images | tojson }};
     let shoppingMealOrder = {{ shopping_meal_order | tojson }};
     let shoppingArchived = {{ shopping_list_archived | tojson }};
+    let mealSocial = {{ meal_social | default({}, true) | tojson }};
+    const familyMembers = {{ family_members | default([], true) | tojson }};
+    const openMealComments = new Set();
+    const MEAL_AUTHOR_STORAGE = 'meal-library-author';
     // Expose for use by meal planner script
     window.mealImages = mealImages;
     window.mealIngredients = mealIngredients;
@@ -4793,6 +4804,327 @@ function deleteReward(rewardId) {
         .then(data => { if (data.success) { mealImages[mealKey] = url; renderIngredientsLibrary(); } });
     }
 
+    function getMealSocialEntry(mealKey) {
+        if (!mealSocial[mealKey] || typeof mealSocial[mealKey] !== 'object') {
+            mealSocial[mealKey] = { comments: [], votes: {} };
+        }
+        if (!Array.isArray(mealSocial[mealKey].comments)) mealSocial[mealKey].comments = [];
+        if (!mealSocial[mealKey].votes || typeof mealSocial[mealKey].votes !== 'object') mealSocial[mealKey].votes = {};
+        return mealSocial[mealKey];
+    }
+
+    function getSelectedMealAuthor() {
+        return (document.getElementById('meal-library-author')?.value || '').trim();
+    }
+
+    function requireMealAuthor(action) {
+        const author = getSelectedMealAuthor();
+        if (author) return author;
+        const sel = document.getElementById('meal-library-author');
+        if (sel) sel.focus();
+        window.showToast?.(`Pick who is ${action} first`, 'warning');
+        return '';
+    }
+
+    function findFamilyMember(name) {
+        return familyMembers.find(p => p.name === name) || null;
+    }
+
+    function authorColor(name) {
+        const color = (findFamilyMember(name)?.color || '').trim();
+        if (color && !['#fff', '#ffffff'].includes(color.toLowerCase())) return color;
+        return '#93c5fd';
+    }
+
+    function parseYouTubeId(url) {
+        const match = String(url || '').match(
+            /(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i
+        );
+        return match ? match[1] : '';
+    }
+
+    function formatMealCommentTime(iso) {
+        if (!iso) return '';
+        const parsed = new Date(iso);
+        if (Number.isNaN(parsed.getTime())) return '';
+        const diffSec = Math.round((Date.now() - parsed.getTime()) / 1000);
+        if (diffSec < 45) return 'just now';
+        if (diffSec < 3600) return `${Math.max(1, Math.round(diffSec / 60))}m ago`;
+        if (diffSec < 86400) return `${Math.max(1, Math.round(diffSec / 3600))}h ago`;
+        if (diffSec < 604800) return `${Math.max(1, Math.round(diffSec / 86400))}d ago`;
+        return parsed.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    }
+
+    function appendMealCommentText(container, text) {
+        const tokenRe = /(https?:\/\/[^\s<>"']+)/gi;
+        let last = 0;
+        let match;
+        while ((match = tokenRe.exec(text))) {
+            if (match.index > last) {
+                container.appendChild(document.createTextNode(text.slice(last, match.index)));
+            }
+            let url = match[1];
+            let trailing = '';
+            const punct = url.match(/^(.*?)([),.;!?]+)$/);
+            if (punct) {
+                url = punct[1];
+                trailing = punct[2];
+            }
+            if (/^https?:\/\//i.test(url)) {
+                const ytId = parseYouTubeId(url);
+                if (ytId) {
+                    container.appendChild(buildYouTubeChip(ytId, url));
+                } else {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+                    a.className = 'meal-comment-link';
+                    a.textContent = url.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+                    container.appendChild(a);
+                }
+            } else {
+                container.appendChild(document.createTextNode(match[1]));
+            }
+            if (trailing) container.appendChild(document.createTextNode(trailing));
+            last = match.index + match[0].length;
+        }
+        if (last < text.length) container.appendChild(document.createTextNode(text.slice(last)));
+    }
+
+    function buildYouTubeChip(videoId, url) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.className = 'meal-yt-chip';
+        a.title = 'Open cooking video on YouTube';
+        const thumb = document.createElement('img');
+        thumb.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+        thumb.alt = '';
+        thumb.className = 'meal-yt-thumb';
+        thumb.referrerPolicy = 'no-referrer';
+        const meta = document.createElement('span');
+        meta.className = 'meal-yt-meta';
+        meta.innerHTML = '<i class="fab fa-youtube"></i><span>Watch video</span>';
+        a.appendChild(thumb);
+        a.appendChild(meta);
+        return a;
+    }
+
+    function applyMealSocial(mealKey, social) {
+        mealSocial[mealKey] = social && typeof social === 'object'
+            ? { comments: Array.isArray(social.comments) ? social.comments : [], votes: social.votes && typeof social.votes === 'object' ? social.votes : {} }
+            : { comments: [], votes: {} };
+        refreshMealSocial(mealKey);
+    }
+
+    function refreshMealSocial(mealKey) {
+        const card = [...document.querySelectorAll('.meal-card[data-meal]')].find(el => el.dataset.meal === mealKey);
+        if (!card) {
+            renderIngredientsLibrary();
+            return;
+        }
+        const existing = card.querySelector('.meal-card-social');
+        const next = buildMealSocialSection(mealKey);
+        if (existing) existing.replaceWith(next);
+        else card.appendChild(next);
+    }
+
+    function postMealVote(mealKey, vote) {
+        const author = requireMealAuthor('voting');
+        if (!author) return;
+        fetch('/api/meal_vote', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ meal_key: mealKey, author, vote })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) applyMealSocial(mealKey, data.social);
+            else window.showToast?.(data.error || 'Could not save vote', 'error');
+        })
+        .catch(() => window.showToast?.('Could not save vote', 'error'));
+    }
+
+    function postMealComment(mealKey, text, inputEl) {
+        const author = requireMealAuthor('commenting');
+        if (!author) return;
+        const body = text.trim();
+        if (!body) return;
+        fetch('/api/meal_comment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ meal_key: mealKey, author, text: body })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                if (inputEl) inputEl.value = '';
+                openMealComments.add(mealKey);
+                applyMealSocial(mealKey, data.social);
+            } else {
+                window.showToast?.(data.error || 'Could not add comment', 'error');
+            }
+        })
+        .catch(() => window.showToast?.('Could not add comment', 'error'));
+    }
+
+    function deleteMealComment(mealKey, commentId) {
+        fetch('/api/meal_comment/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ meal_key: mealKey, comment_id: commentId })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) applyMealSocial(mealKey, data.social);
+            else window.showToast?.(data.error || 'Could not delete comment', 'error');
+        })
+        .catch(() => window.showToast?.('Could not delete comment', 'error'));
+    }
+
+    function buildMealSocialSection(mealKey) {
+        const entry = getMealSocialEntry(mealKey);
+        const comments = entry.comments;
+        const votes = entry.votes;
+        const author = getSelectedMealAuthor();
+        const myVote = author ? votes[author] : '';
+        const likes = Object.keys(votes).filter(name => votes[name] === 'like');
+        const dislikes = Object.keys(votes).filter(name => votes[name] === 'dislike');
+        const wrap = document.createElement('div');
+        wrap.className = 'meal-card-social';
+
+        const voteRow = document.createElement('div');
+        voteRow.className = 'meal-card-votes';
+        const likeBtn = document.createElement('button');
+        likeBtn.type = 'button';
+        likeBtn.className = 'meal-vote-btn' + (myVote === 'like' ? ' meal-vote-btn--like' : '');
+        likeBtn.title = likes.length ? `Liked by ${likes.join(', ')}` : 'Like this meal';
+        likeBtn.innerHTML = `<i class="fas fa-thumbs-up"></i><span>${likes.length}</span>`;
+        likeBtn.addEventListener('click', () => postMealVote(mealKey, 'like'));
+        const dislikeBtn = document.createElement('button');
+        dislikeBtn.type = 'button';
+        dislikeBtn.className = 'meal-vote-btn' + (myVote === 'dislike' ? ' meal-vote-btn--dislike' : '');
+        dislikeBtn.title = dislikes.length ? `Disliked by ${dislikes.join(', ')}` : 'Dislike this meal';
+        dislikeBtn.innerHTML = `<i class="fas fa-thumbs-down"></i><span>${dislikes.length}</span>`;
+        dislikeBtn.addEventListener('click', () => postMealVote(mealKey, 'dislike'));
+        voteRow.appendChild(likeBtn);
+        voteRow.appendChild(dislikeBtn);
+        wrap.appendChild(voteRow);
+
+        const isOpen = openMealComments.has(mealKey);
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'meal-comments-toggle' + (isOpen ? ' is-open' : '');
+        toggle.innerHTML = `<i class="fas fa-comments"></i><span>Comments${comments.length ? ` (${comments.length})` : ''}</span><i class="fas fa-chevron-down meal-comments-chevron"></i>`;
+        toggle.addEventListener('click', () => {
+            if (openMealComments.has(mealKey)) openMealComments.delete(mealKey);
+            else openMealComments.add(mealKey);
+            refreshMealSocial(mealKey);
+        });
+        wrap.appendChild(toggle);
+
+        if (isOpen) {
+            const list = document.createElement('div');
+            list.className = 'meal-comments-list';
+            if (!comments.length) {
+                const empty = document.createElement('div');
+                empty.className = 'meal-comments-empty';
+                empty.textContent = 'No comments yet — add a tip or a YouTube link.';
+                list.appendChild(empty);
+            }
+            comments.forEach(comment => {
+                const row = document.createElement('div');
+                row.className = 'meal-comment';
+                const head = document.createElement('div');
+                head.className = 'meal-comment-head';
+                const person = findFamilyMember(comment.author);
+                if (person?.avatar_url) {
+                    const av = document.createElement('img');
+                    av.src = person.avatar_url;
+                    av.alt = '';
+                    av.className = 'meal-comment-avatar';
+                    av.onerror = () => { av.remove(); };
+                    head.appendChild(av);
+                }
+                const who = document.createElement('span');
+                who.className = 'meal-comment-author';
+                who.textContent = comment.author || 'Family';
+                who.style.color = authorColor(comment.author);
+                const when = document.createElement('span');
+                when.className = 'meal-comment-time';
+                when.textContent = formatMealCommentTime(comment.created_at);
+                head.appendChild(who);
+                if (when.textContent) head.appendChild(when);
+                const del = document.createElement('button');
+                del.type = 'button';
+                del.className = 'meal-comment-delete';
+                del.title = 'Delete comment';
+                del.innerHTML = '&#x2715;';
+                del.addEventListener('click', () => deleteMealComment(mealKey, comment.id));
+                head.appendChild(del);
+                row.appendChild(head);
+                const body = document.createElement('div');
+                body.className = 'meal-comment-text';
+                appendMealCommentText(body, comment.text || '');
+                row.appendChild(body);
+                list.appendChild(row);
+            });
+            wrap.appendChild(list);
+
+            const composer = document.createElement('div');
+            composer.className = 'meal-comment-composer';
+            const ta = document.createElement('textarea');
+            ta.className = 'meal-comment-input';
+            ta.maxLength = 500;
+            ta.rows = 2;
+            ta.placeholder = 'Tip, note, or YouTube link…';
+            const send = document.createElement('button');
+            send.type = 'button';
+            send.className = 'meal-comment-send';
+            send.title = 'Post comment';
+            send.innerHTML = '<i class="fas fa-paper-plane"></i>';
+            const submit = () => postMealComment(mealKey, ta.value, ta);
+            send.addEventListener('click', submit);
+            ta.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    submit();
+                }
+            });
+            composer.appendChild(ta);
+            composer.appendChild(send);
+            wrap.appendChild(composer);
+        }
+        return wrap;
+    }
+
+    function populateMealAuthorSelect() {
+        const sel = document.getElementById('meal-library-author');
+        if (!sel) return;
+        const stored = localStorage.getItem(MEAL_AUTHOR_STORAGE) || '';
+        const validStored = familyMembers.some(p => p.name === stored) ? stored : '';
+        sel.innerHTML = '';
+        const blank = document.createElement('option');
+        blank.value = '';
+        blank.textContent = '— Who are you? —';
+        sel.appendChild(blank);
+        familyMembers.forEach(person => {
+            const opt = document.createElement('option');
+            opt.value = person.name;
+            opt.textContent = person.name;
+            sel.appendChild(opt);
+        });
+        if (validStored) sel.value = validStored;
+        sel.addEventListener('change', () => {
+            const value = sel.value.trim();
+            if (value) localStorage.setItem(MEAL_AUTHOR_STORAGE, value);
+            else localStorage.removeItem(MEAL_AUTHOR_STORAGE);
+            document.querySelectorAll('.meal-card[data-meal]').forEach(card => refreshMealSocial(card.dataset.meal));
+        });
+    }
+
     function renderIngredientsLibrary() {
         // Keep globals in sync for meal planner picker/display
         window.mealImages = mealImages;
@@ -4817,6 +5149,7 @@ function deleteReward(rewardId) {
             const displayName = mealKey.charAt(0).toUpperCase() + mealKey.slice(1);
             const card = document.createElement('div');
             card.className = 'meal-card';
+            card.dataset.meal = mealKey;
             // Image area
             const imgArea = document.createElement('div');
             imgArea.className = 'meal-card-img-area';
@@ -4925,9 +5258,14 @@ function deleteReward(rewardId) {
                     message: `Delete <b>${displayName}</b> and all its ingredients? This cannot be undone.`,
                     buttons: [
                         { text: 'Delete', color: '#ef4444', onClick: () => {
-                            delete mealIngredients[mealKey]; delete mealImages[mealKey];
+                            delete mealIngredients[mealKey]; delete mealImages[mealKey]; delete mealSocial[mealKey];
                             shoppingActive = shoppingActive.filter(k => k !== mealKey);
                             Object.keys(shoppingHidden).forEach(sid => { shoppingHidden[sid] = shoppingHidden[sid].filter(k => k !== mealKey); });
+                            fetch('/api/meal_social/delete', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ meal_key: mealKey })
+                            }).catch(() => {});
                             renderIngredientsLibrary(); renderShoppingList(); debouncedIngredientSave(); debouncedSave();
                         }},
                         { text: 'Cancel', color: '#6b7280', onClick: null }
@@ -5002,6 +5340,7 @@ function deleteReward(rewardId) {
             qaQIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doQA(); } });
             [qaNIn, qaQIn, qaSSel, qaBtn].forEach(el => qaRow.appendChild(el));
             card.appendChild(qaRow);
+            card.appendChild(buildMealSocialSection(mealKey));
             grid.appendChild(card);
         });
         lib.appendChild(grid);
@@ -5172,6 +5511,7 @@ function deleteReward(rewardId) {
     document.getElementById('meal-planner-grid')?.addEventListener('input', renderShoppingList);
     document.getElementById('meal-planner-grid')?.addEventListener('change', renderShoppingList);
 
+    populateMealAuthorSelect();
     renderShoppingList();
 })();
 </script>
