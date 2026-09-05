@@ -2911,6 +2911,135 @@ def activity_log():
 
     db.session.commit()
 
+
+@routes_bp.route('/api/notifications', methods=['GET'])
+def api_notifications():
+    """Header bell feed: overdue/due-soon alerts plus recent activity."""
+    from models import OrganiseItem, VehicleService, Chore, ActivityLog
+
+    today = date.today()
+    alerts = []
+
+    def _days_label(days):
+        if days < 0:
+            return f"{abs(days)}d overdue"
+        if days == 0:
+            return 'Due today'
+        return f"{days}d away"
+
+    def _car_label(item):
+        if not item:
+            return ''
+        parts = [str(p) for p in (item.vehicle_year, item.vehicle_make, item.vehicle_model) if p]
+        name = ' '.join(parts) if parts else (item.title or 'Car')
+        if item.vehicle_rego:
+            return f"{name} · {item.vehicle_rego}"
+        return name
+
+    try:
+        org_items = OrganiseItem.query.filter(OrganiseItem.due_date.isnot(None)).all()
+        for item in org_items:
+            if item.paid:
+                continue
+            days = (item.due_date - today).days
+            if days > 7:
+                continue
+            parent = OrganiseItem.query.get(item.parent_id) if item.parent_id else None
+            scope = _car_label(parent) if parent else (item.category or 'Organise')
+            alerts.append({
+                'id': f'org-{item.id}',
+                'kind': 'organise',
+                'severity': 'overdue' if days < 0 else 'due_soon',
+                'title': item.title,
+                'detail': f"{scope} · {_days_label(days)}",
+                'due_date': item.due_date.isoformat(),
+                'days': days,
+                'target': 'organise-section',
+                'admin_only': True,
+            })
+
+        services = VehicleService.query.filter(VehicleService.next_service_date.isnot(None)).all()
+        for svc in services:
+            days = (svc.next_service_date - today).days
+            if days > 7:
+                continue
+            car = OrganiseItem.query.get(svc.organise_item_id)
+            alerts.append({
+                'id': f'svc-{svc.id}',
+                'kind': 'service',
+                'severity': 'overdue' if days < 0 else 'due_soon',
+                'title': svc.service_type or 'Service',
+                'detail': f"{_car_label(car)} · {_days_label(days)}",
+                'due_date': svc.next_service_date.isoformat(),
+                'days': days,
+                'target': 'organise-section',
+                'admin_only': True,
+            })
+
+        chores = Chore.query.filter_by(completed=False, deleted=False).all()
+        for chore in chores:
+            due = None
+            if chore.due_datetime:
+                due = chore.due_datetime.date() if hasattr(chore.due_datetime, 'date') else chore.due_datetime
+            elif chore.due_date and not chore.is_daily:
+                due = chore.due_date
+            if not due:
+                continue
+            days = (due - today).days
+            if days > 7:
+                continue
+            who = chore.assigned_to or 'Unassigned'
+            alerts.append({
+                'id': f'chore-{chore.id}',
+                'kind': 'chore',
+                'severity': 'overdue' if days < 0 else 'due_soon',
+                'title': chore.title,
+                'detail': f"{who} · {_days_label(days)}",
+                'due_date': due.isoformat(),
+                'days': days,
+                'target': 'kanban',
+                'admin_only': False,
+            })
+
+        alerts.sort(key=lambda a: (0 if a['severity'] == 'overdue' else 1, a['days']))
+
+        tz_name = AppSetting.get('timezone', 'UTC')
+        try:
+            tzinfo = ZoneInfo(tz_name)
+        except Exception:
+            tzinfo = timezone.utc
+        logs = ActivityLog.query.order_by(ActivityLog.date.desc()).limit(12).all()
+        recent = []
+        for lg in logs:
+            raw = lg.date
+            if raw is None:
+                continue
+            if raw.tzinfo is None:
+                aware = raw.replace(tzinfo=timezone.utc)
+            else:
+                aware = raw.astimezone(timezone.utc)
+            local = aware.astimezone(tzinfo)
+            recent.append({
+                'id': lg.id,
+                'type': lg.type,
+                'description': lg.description,
+                'user_name': lg.user_name,
+                'date': local.isoformat(),
+                'date_label': local.strftime('%d %b · %I:%M %p').lstrip('0').replace(' 0', ' '),
+            })
+
+        overdue_count = sum(1 for a in alerts if a['severity'] == 'overdue')
+        return jsonify({
+            'success': True,
+            'alerts': alerts,
+            'recent': recent,
+            'alert_count': len(alerts),
+            'overdue_count': overdue_count,
+        })
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
 @routes_bp.route('/delete_reward', methods=['POST'])
 def delete_reward():
     _guard = _adult_required()

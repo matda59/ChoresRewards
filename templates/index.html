@@ -28,7 +28,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260830a">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260905a">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -802,6 +802,24 @@ window.addEventListener('DOMContentLoaded', function() {
     </div>
     <!-- Activity Log / Settings / Admin lock — kept in the same frozen header bar -->
     <nav class="header-nav-actions">
+        <div class="header-notif-wrap" id="header-notif-wrap">
+            <button type="button" class="header-notif-btn" id="header-notif-btn" title="Notifications" aria-haspopup="true" aria-expanded="false">
+                <i class="fas fa-bell"></i>
+                <span class="header-notif-badge" id="header-notif-badge" hidden>0</span>
+            </button>
+            <div class="header-notif-panel" id="header-notif-panel" hidden>
+                <div class="header-notif-head">
+                    <span>Notifications</span>
+                    <span class="header-notif-head-meta" id="header-notif-head-meta"></span>
+                </div>
+                <div class="header-notif-body" id="header-notif-body">
+                    <p class="header-notif-empty">Loading…</p>
+                </div>
+                <a class="header-notif-footer" href="{{ url_for('routes.activity_log') }}">
+                    View activity log <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+        </div>
         <!-- Quick Add Dropdown -->
         <div class="header-quick-add-wrap" id="header-quick-add-wrap">
             <button type="button" class="header-quick-add-btn" id="header-quick-add-btn" aria-haspopup="true" aria-expanded="false" title="Quick Add">
@@ -8210,5 +8228,135 @@ document.addEventListener('click', function (e) {
     if (wrap && wrap.classList.contains('is-open') && !wrap.contains(e.target)) {
         toggleQuickAdd(false);
     }
+    const notifWrap = document.getElementById('header-notif-wrap');
+    if (notifWrap && notifWrap.classList.contains('is-open') && !notifWrap.contains(e.target)) {
+        toggleNotifPanel(false);
+    }
 });
+
+function toggleNotifPanel(forceState) {
+    const wrap = document.getElementById('header-notif-wrap');
+    const panel = document.getElementById('header-notif-panel');
+    const btn = document.getElementById('header-notif-btn');
+    if (!wrap || !panel || !btn) return;
+    const open = typeof forceState === 'boolean' ? forceState : !wrap.classList.contains('is-open');
+    wrap.classList.toggle('is-open', open);
+    panel.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+    if (open) {
+        toggleQuickAdd(false);
+        loadHeaderNotifications();
+    }
+}
+
+function notifIcon(item) {
+    if (item.kind === 'chore') return 'fa-list-check';
+    if (item.kind === 'service') return 'fa-wrench';
+    if (item.severity === 'overdue') return 'fa-exclamation-circle';
+    return 'fa-clock';
+}
+
+function recentIcon(type) {
+    if (type === 'chore_completed') return 'fa-check-circle';
+    if (type === 'reward_redeemed' || type === 'reward_added') return 'fa-gift';
+    if ((type || '').indexOf('organise') === 0 || (type || '').indexOf('vehicle') === 0) return 'fa-car';
+    return 'fa-circle-info';
+}
+
+function renderHeaderNotifications(data) {
+    const body = document.getElementById('header-notif-body');
+    const badge = document.getElementById('header-notif-badge');
+    const btn = document.getElementById('header-notif-btn');
+    const meta = document.getElementById('header-notif-head-meta');
+    if (!body) return;
+
+    const isAdult = document.documentElement.classList.contains('adult-mode');
+    const alerts = (data.alerts || []).filter(a => !a.admin_only || isAdult);
+    const recent = data.recent || [];
+    const overdue = alerts.filter(a => a.severity === 'overdue').length;
+    const count = alerts.length;
+
+    if (badge) {
+        badge.hidden = count === 0;
+        badge.textContent = count > 9 ? '9+' : String(count);
+        badge.classList.toggle('is-overdue', overdue > 0);
+    }
+    if (btn) {
+        btn.classList.toggle('has-alerts', count > 0);
+        btn.classList.toggle('has-overdue', overdue > 0);
+    }
+    if (meta) {
+        meta.textContent = count ? (overdue ? overdue + ' overdue' : count + ' due soon') : '';
+    }
+
+    let html = '';
+    if (alerts.length) {
+        html += '<div class="header-notif-group-label">Needs attention</div>';
+        html += alerts.map(a => `
+            <button type="button" class="header-notif-item header-notif-item--${a.severity}" data-target="${a.target}">
+                <span class="header-notif-item-icon"><i class="fas ${notifIcon(a)}"></i></span>
+                <span class="header-notif-item-text">
+                    <span class="header-notif-item-title">${escapeNotifHtml(a.title)}</span>
+                    <span class="header-notif-item-detail">${escapeNotifHtml(a.detail || '')}</span>
+                </span>
+                <span class="header-notif-pill header-notif-pill--${a.severity}">${a.severity === 'overdue' ? 'Overdue' : 'Due soon'}</span>
+            </button>`).join('');
+    } else {
+        html += '<p class="header-notif-empty">Nothing overdue or due in the next 7 days.</p>';
+    }
+
+    if (recent.length) {
+        html += '<div class="header-notif-group-label">Recent</div>';
+        html += recent.map(r => `
+            <div class="header-notif-item header-notif-item--recent">
+                <span class="header-notif-item-icon"><i class="fas ${recentIcon(r.type)}"></i></span>
+                <span class="header-notif-item-text">
+                    <span class="header-notif-item-title">${escapeNotifHtml(r.description)}</span>
+                    <span class="header-notif-item-detail">${escapeNotifHtml([r.user_name, r.date_label].filter(Boolean).join(' · '))}</span>
+                </span>
+            </div>`).join('');
+    }
+    body.innerHTML = html;
+}
+
+function escapeNotifHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function loadHeaderNotifications() {
+    fetch('/api/notifications')
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.success) renderHeaderNotifications(data);
+        })
+        .catch(() => {
+            const body = document.getElementById('header-notif-body');
+            if (body) body.innerHTML = '<p class="header-notif-empty">Could not load notifications.</p>';
+        });
+}
+
+document.getElementById('header-notif-btn')?.addEventListener('click', function (e) {
+    e.stopPropagation();
+    toggleNotifPanel();
+});
+
+document.getElementById('header-notif-body')?.addEventListener('click', function (e) {
+    const item = e.target.closest('[data-target]');
+    if (!item) return;
+    toggleNotifPanel(false);
+    if (typeof goToSection === 'function') goToSection(item.dataset.target);
+});
+
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') toggleNotifPanel(false);
+});
+
+loadHeaderNotifications();
+setInterval(loadHeaderNotifications, 60 * 1000);
+new MutationObserver(function () { loadHeaderNotifications(); })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 </script>
