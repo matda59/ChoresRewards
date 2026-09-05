@@ -322,4 +322,4 @@ def log_activity(action_type, description, user_name=None):
         print(log_str, flush=True)
     except Exception as e:
         db.session.rollback()
-        print(f
+        print(f"Error logging activity: {e}", flush=True)
