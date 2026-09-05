@@ -6057,12 +6057,29 @@ label,
     gap: 6px;
     margin-bottom: 4px;
 }
+.meal-comment-avatar-wrap {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    max-width: 20px;
+    max-height: 20px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: inline-block;
+    line-height: 0;
+    background: rgba(255,255,255,0.12);
+}
 .meal-comment-avatar {
-    width: 18px;
-    height: 18px;
+    width: 20px !important;
+    height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
     border-radius: 50%;
     object-fit: cover;
-    flex-shrink: 0;
+    object-position: center top;
+    display: block;
 }
 .meal-comment-author {
     font-size: 0.74rem;

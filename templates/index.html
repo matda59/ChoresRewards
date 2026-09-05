@@ -28,7 +28,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260905a">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260905b">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -5041,12 +5041,17 @@ function deleteReward(rewardId) {
                 head.className = 'meal-comment-head';
                 const person = findFamilyMember(comment.author);
                 if (person?.avatar_url) {
+                    const wrap = document.createElement('span');
+                    wrap.className = 'meal-comment-avatar-wrap';
                     const av = document.createElement('img');
                     av.src = person.avatar_url;
                     av.alt = '';
                     av.className = 'meal-comment-avatar';
-                    av.onerror = () => { av.remove(); };
-                    head.appendChild(av);
+                    av.width = 20;
+                    av.height = 20;
+                    av.onerror = () => { wrap.remove(); };
+                    wrap.appendChild(av);
+                    head.appendChild(wrap);
                 }
                 const who = document.createElement('span');
                 who.className = 'meal-comment-author';
