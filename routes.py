@@ -4025,6 +4025,27 @@ def update_name():
 
 # ── Organise API ──────────────────────────────────────────────────────────────
 
+def _organise_parent_id(raw, exclude_id=None):
+    """Validate a linked-car parent id. Returns int or None."""
+    if raw in (None, '', 0, '0'):
+        return None
+    from models import OrganiseItem
+    try:
+        parent_id = int(raw)
+    except (TypeError, ValueError):
+        raise ValueError('Invalid linked car')
+    if exclude_id and parent_id == exclude_id:
+        raise ValueError('A car cannot be linked to itself')
+    parent = OrganiseItem.query.get(parent_id)
+    if not parent:
+        raise ValueError('Linked car not found')
+    if parent.parent_id:
+        raise ValueError('Can only link to a car, not another document')
+    if parent.category != 'Car':
+        raise ValueError('Linked item must be a car')
+    return parent_id
+
+
 @routes_bp.route('/api/organise', methods=['GET'])
 def api_organise_list():
     from models import OrganiseItem
@@ -4067,12 +4088,16 @@ def api_organise_create():
         vehicle_year_raw = data.get('vehicle_year')
         vehicle_year = int(vehicle_year_raw) if vehicle_year_raw not in (None, '') else None
         vehicle_rego = str(data.get('vehicle_rego', '') or '').strip()[:20] or None
+        parent_id = _organise_parent_id(data.get('parent_id'))
+        if parent_id:
+            vehicle_make = vehicle_model = vehicle_year = vehicle_rego = None
         item = OrganiseItem(
             category=category, title=title, provider=provider, notes=notes,
             due_date=due_date, last_date=last_date, paid=paid, cost=cost,
             reminder_days=reminder_days, icon=icon,
             vehicle_make=vehicle_make, vehicle_model=vehicle_model,
             vehicle_year=vehicle_year, vehicle_rego=vehicle_rego,
+            parent_id=parent_id,
         )
         db.session.add(item)
         db.session.commit()
@@ -4128,6 +4153,12 @@ def api_organise_update(item_id):
             item.vehicle_year = int(data['vehicle_year']) if data['vehicle_year'] not in (None, '') else None
         if 'vehicle_rego' in data:
             item.vehicle_rego = str(data['vehicle_rego'] or '').strip()[:20] or None
+        if 'parent_id' in data:
+            parent_id = _organise_parent_id(data.get('parent_id'), exclude_id=item.id)
+            item.parent_id = parent_id
+            if parent_id:
+                item.vehicle_make = item.vehicle_model = None
+                item.vehicle_year = item.vehicle_rego = None
         db.session.commit()
         log_activity('organise_updated', f"Organise item '{item.title}' updated")
         return jsonify({'success': True, 'item': item.to_dict()})
@@ -4184,6 +4215,9 @@ def api_organise_delete(item_id):
         if not item:
             return jsonify({'success': False, 'error': 'Item not found'}), 404
         title = item.title
+        children = OrganiseItem.query.filter_by(parent_id=item.id).all()
+        for child in children:
+            db.session.delete(child)
         db.session.delete(item)
         db.session.commit()
         log_activity('organise_deleted', f"Organise item '{title}' deleted")

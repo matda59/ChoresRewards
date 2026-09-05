@@ -232,6 +232,7 @@ class OrganiseItem(db.Model):
     vehicle_model = db.Column(db.String(100), nullable=True)
     vehicle_year = db.Column(db.Integer, nullable=True)
     vehicle_rego = db.Column(db.String(20), nullable=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey('organise_item.id', ondelete='CASCADE'), nullable=True)
     vehicle_services = db.relationship('VehicleService', backref='vehicle', lazy=True,
                                        cascade='all, delete-orphan',
                                        order_by='VehicleService.service_date.desc()')
@@ -266,6 +267,7 @@ class OrganiseItem(db.Model):
             'vehicle_model': self.vehicle_model,
             'vehicle_year': self.vehicle_year,
             'vehicle_rego': self.vehicle_rego,
+            'parent_id': self.parent_id,
         }
 
 
@@ -320,4 +322,4 @@ def log_activity(action_type, description, user_name=None):
         print(log_str, flush=True)
     except Exception as e:
         db.session.rollback()
-        print(f"Error logging activity: {e}", flush=True)
+        print(f

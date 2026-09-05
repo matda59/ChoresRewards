@@ -8052,6 +8052,122 @@ html.adult-mode .admin-only[data-display="inline-flex"] {
     transition: background 0.15s;
 }
 .org-quick-item:hover { background: rgba(56,189,248,0.12); color: #e2e8f0; }
+.org-quick-heading {
+    padding: 8px 16px 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.org-field-hint {
+    margin: 6px 0 0;
+    font-size: 0.8em;
+    color: var(--cr-text-secondary);
+    line-height: 1.4;
+}
+.org-kind-toggle {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.org-kind-btn {
+    flex: 1;
+    min-width: 140px;
+    background: rgba(148,163,184,0.12);
+    border: 1px solid rgba(148,163,184,0.25);
+    color: #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.88em;
+    font-weight: 600;
+    cursor: pointer;
+}
+.org-kind-btn.is-active {
+    background: rgba(56,189,248,0.16);
+    border-color: rgba(56,189,248,0.45);
+    color: #e0f2fe;
+}
+.org-car-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.org-car-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    background: rgba(148,163,184,0.08);
+    border: 1px solid rgba(148,163,184,0.18);
+    color: #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.95em;
+    font-weight: 600;
+    cursor: pointer;
+}
+.org-car-picker-item:hover {
+    background: rgba(56,189,248,0.14);
+    border-color: rgba(56,189,248,0.35);
+}
+.org-renewals-block {
+    padding: 10px 14px 12px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+}
+.org-renewals-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 0.88em;
+    font-weight: 700;
+    color: #cbd5e1;
+}
+.org-renewals-empty,
+.org-orphan-hint {
+    margin: 0;
+    font-size: 0.84em;
+    color: var(--cr-text-secondary);
+    font-style: italic;
+}
+.org-orphan-hint { margin: 0 0 10px; }
+.org-renewal-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.org-renewal-row:last-child { border-bottom: none; }
+.org-renewal-main { flex: 1; min-width: 0; }
+.org-renewal-title { font-weight: 700; color: #e2e8f0; font-size: 0.92em; }
+.org-renewal-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 3px;
+    font-size: 0.8em;
+    color: #94a3b8;
+}
+.org-renewal-extra { color: #94a3b8; }
+.org-renewal-nodate { opacity: 0.7; }
+.org-renewal-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.org-btn-attach {
+    background: rgba(56,189,248,0.14);
+    border: 1px solid rgba(56,189,248,0.28);
+    color: #38bdf8;
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+}
 
 /* ── Side navigation ─────────────────────────────────────────────────────── */
 
@@ -8307,6 +8423,32 @@ body.side-nav-body-collapsed { padding-left: 8px; }
     background: rgba(14,165,233,0.08);
     color: #0284c7;
 }
+[data-theme="light"] .org-quick-heading { color: #64748b; }
+[data-theme="light"] .org-kind-btn {
+    background: rgba(15,23,42,0.04);
+    border-color: rgba(15,23,42,0.12);
+    color: #334155;
+}
+[data-theme="light"] .org-kind-btn.is-active {
+    background: rgba(14,165,233,0.12);
+    border-color: rgba(14,165,233,0.35);
+    color: #0369a1;
+}
+[data-theme="light"] .org-car-picker-item {
+    background: rgba(15,23,42,0.03);
+    border-color: rgba(15,23,42,0.1);
+    color: #0f172a;
+}
+[data-theme="light"] .org-car-picker-item:hover {
+    background: rgba(14,165,233,0.08);
+    border-color: rgba(14,165,233,0.28);
+}
+[data-theme="light"] .org-renewals-block { border-top-color: rgba(15,23,42,0.07); }
+[data-theme="light"] .org-renewals-head { color: #334155; }
+[data-theme="light"] .org-renewal-row { border-bottom-color: rgba(15,23,42,0.06); }
+[data-theme="light"] .org-renewal-title { color: #0f172a; }
+[data-theme="light"] .org-renewal-meta,
+[data-theme="light"] .org-renewal-extra { color: #64748b; }
 [data-theme="light"] .org-category-heading {
     color: #334155;
     border-bottom-color: rgba(15,23,42,0.08);
