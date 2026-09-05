@@ -1350,11 +1350,26 @@
     --cr-header-bg-2: #1a2840;
     --cr-modal-overlay: rgba(0,0,0,0.6);
     --cr-modal-surface: #1e293b;
+
+    /* PIN / login overlay */
+    --cr-auth-bg: linear-gradient(160deg, #0c1424 0%, #0f1c38 60%, #111b30 100%);
+    --cr-auth-card-bg: linear-gradient(145deg, #162035 0%, #1c2d4a 100%);
+    --cr-auth-card-border: rgba(255, 255, 255, 0.1);
+    --cr-auth-card-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+    --cr-auth-text: #ffffff;
+    --cr-auth-muted: rgba(255, 255, 255, 0.4);
+    --cr-auth-chip-bg: rgba(255, 255, 255, 0.06);
+    --cr-auth-chip-border: rgba(255, 255, 255, 0.1);
+    --cr-auth-chip-hover-bg: rgba(255, 255, 255, 0.12);
+    --cr-auth-chip-hover-border: rgba(255, 255, 255, 0.28);
+    --cr-auth-input-bg: rgba(99, 102, 241, 0.1);
+    --cr-auth-input-focus-bg: rgba(99, 102, 241, 0.18);
 }
 
 /* Dark Mode Overrides using CSS variables — kept identical to :root so the
    default `data-theme="dark"` attribute causes zero visual change. */
 [data-theme="dark"] {
+    color-scheme: dark;
     --background-color: #0f172a;
     --text-color: #f1f5f9;
     --section-background: #1e293b;
@@ -1372,6 +1387,7 @@
 
 /* Light Mode — new palette used only on pages that opt in via the theme toggle */
 [data-theme="light"] {
+    color-scheme: light;
     --background-color: #eef2f9;
     --text-color: #1e293b;
     --section-background: #ffffff;
@@ -1401,6 +1417,19 @@
     --cr-header-control-bg-hover: rgba(15,23,42,0.12);
     --cr-header-control-border: rgba(15,23,42,0.14);
     --org-green: #15803d;
+
+    --cr-auth-bg: linear-gradient(160deg, #eef2f9 0%, #e4ebf5 60%, #dce6f2 100%);
+    --cr-auth-card-bg: linear-gradient(145deg, #ffffff 0%, #f4f7fc 100%);
+    --cr-auth-card-border: rgba(15, 23, 42, 0.1);
+    --cr-auth-card-shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
+    --cr-auth-text: #1e293b;
+    --cr-auth-muted: rgba(30, 41, 59, 0.5);
+    --cr-auth-chip-bg: rgba(15, 23, 42, 0.04);
+    --cr-auth-chip-border: rgba(15, 23, 42, 0.12);
+    --cr-auth-chip-hover-bg: rgba(15, 23, 42, 0.08);
+    --cr-auth-chip-hover-border: rgba(99, 102, 241, 0.35);
+    --cr-auth-input-bg: rgba(99, 102, 241, 0.08);
+    --cr-auth-input-focus-bg: rgba(99, 102, 241, 0.14);
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -6622,7 +6651,7 @@ label,
     display: none;
     position: fixed;
     inset: 0;
-    background: linear-gradient(160deg, #0c1424 0%, #0f1c38 60%, #111b30 100%);
+    background: var(--cr-auth-bg);
     z-index: 10000;
     justify-content: center;
     align-items: center;
@@ -6654,14 +6683,14 @@ label,
 }
 
 .auth-app-name {
-    color: #fff;
+    color: var(--cr-auth-text);
     font-size: 1.75rem;
     font-weight: 700;
     letter-spacing: -0.01em;
 }
 
 .auth-greeting {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--cr-auth-muted);
     font-size: 1rem;
     margin: 0 0 2.2rem;
 }
@@ -6675,8 +6704,8 @@ label,
 
 /* Person card */
 .person-picker-btn {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1.5px solid rgba(255, 255, 255, 0.1);
+    background: var(--cr-auth-chip-bg);
+    border: 1.5px solid var(--cr-auth-chip-border);
     border-radius: 16px;
     padding: 1.3rem 1rem 1rem;
     cursor: pointer;
@@ -6685,15 +6714,15 @@ label,
     align-items: center;
     gap: 0.45rem;
     width: 130px;
-    color: #fff;
+    color: var(--cr-auth-text);
     transition: background 0.18s, border-color 0.18s, transform 0.18s, box-shadow 0.18s;
 }
 
 .person-picker-btn:not([disabled]):hover {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.28);
+    background: var(--cr-auth-chip-hover-bg);
+    border-color: var(--cr-auth-chip-hover-border);
     transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--cr-auth-card-shadow);
 }
 
 .person-picker-btn[disabled],
@@ -6718,7 +6747,7 @@ label,
 .picker-name {
     font-weight: 600;
     font-size: 0.97em;
-    color: #fff;
+    color: var(--cr-auth-text);
 }
 
 .picker-badge {
@@ -6738,8 +6767,8 @@ label,
 }
 
 .picker-badge-noin {
-    color: rgba(255, 255, 255, 0.45);
-    background: rgba(255, 255, 255, 0.06);
+    color: var(--cr-auth-muted);
+    background: var(--cr-auth-chip-bg);
 }
 
 /* PIN entry screen */
@@ -6755,7 +6784,7 @@ label,
     align-self: flex-start;
     background: transparent;
     border: none;
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--cr-auth-muted);
     cursor: pointer;
     font-size: 0.92em;
     padding: 0;
@@ -6767,19 +6796,19 @@ label,
 }
 
 .auth-back-btn:hover {
-    color: rgba(255, 255, 255, 0.82);
+    color: var(--cr-auth-text);
 }
 
 .auth-pin-card {
-    background: linear-gradient(145deg, #162035 0%, #1c2d4a 100%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--cr-auth-card-bg);
+    border: 1px solid var(--cr-auth-card-border);
     border-radius: 20px;
     padding: 2.2rem 2rem 2rem;
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+    box-shadow: var(--cr-auth-card-shadow);
 }
 
 .auth-pin-avatar {
@@ -6793,14 +6822,14 @@ label,
 }
 
 .auth-pin-name {
-    color: #fff;
+    color: var(--cr-auth-text);
     margin: 0 0 0.3rem;
     font-size: 1.35em;
     font-weight: 700;
 }
 
 .auth-pin-hint {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--cr-auth-muted);
     margin: 0 0 1.6rem;
     font-size: 0.9em;
 }
@@ -6813,16 +6842,20 @@ label,
     padding: 12px 0;
     border: 2px solid rgba(99, 102, 241, 0.35);
     border-radius: 12px;
-    background: rgba(99, 102, 241, 0.1);
-    color: #fff;
+    background: var(--cr-auth-input-bg);
+    color: var(--cr-auth-text);
     outline: none;
     margin-bottom: 0.6rem;
     transition: border-color 0.2s, background 0.2s;
 }
 
+.auth-pin-input::placeholder {
+    color: var(--cr-auth-muted);
+}
+
 .auth-pin-input:focus {
     border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.18);
+    background: var(--cr-auth-input-focus-bg);
 }
 
 .auth-pin-error {
@@ -6845,6 +6878,7 @@ label,
     cursor: pointer;
     font-weight: 700;
     letter-spacing: 0.02em;
+    text-align: center;
     box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
     transition: opacity 0.2s;
 }
@@ -6912,29 +6946,29 @@ html.adult-mode .admin-only[data-display="inline-flex"] {
 #adult-pin-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.78);
+    background: var(--cr-modal-overlay);
     display: none;
     align-items: center;
     justify-content: center;
     z-index: 9999;
 }
 #adult-pin-box {
-    background: linear-gradient(135deg, #1e2d45 0%, #24354f 100%);
-    border: 1px solid rgba(99, 102, 241, 0.4);
+    background: var(--cr-auth-card-bg);
+    border: 1px solid var(--cr-auth-card-border);
     border-radius: 18px;
     padding: 2rem 2.5rem;
     text-align: center;
-    box-shadow: 0 16px 60px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--cr-auth-card-shadow);
     min-width: 280px;
 }
 #adult-pin-box h3 {
     margin: 0 0 0.4rem;
-    color: #fff;
+    color: var(--cr-auth-text);
     font-size: 1.15em;
 }
 #adult-pin-box p {
     margin: 0 0 1.2rem;
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--cr-auth-muted);
     font-size: 0.9em;
 }
 #adult-pin-input {
@@ -6942,8 +6976,8 @@ html.adult-mode .admin-only[data-display="inline-flex"] {
     padding: 12px 16px;
     border: 2px solid rgba(99, 102, 241, 0.4);
     border-radius: 10px;
-    background: rgba(99, 102, 241, 0.1);
-    color: #fff;
+    background: var(--cr-auth-input-bg);
+    color: var(--cr-auth-text);
     font-size: 1.5em;
     font-weight: 700;
     text-align: center;
@@ -6951,9 +6985,12 @@ html.adult-mode .admin-only[data-display="inline-flex"] {
     outline: none;
     transition: border-color 0.2s;
 }
+#adult-pin-input::placeholder {
+    color: var(--cr-auth-muted);
+}
 #adult-pin-input:focus {
     border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.18);
+    background: var(--cr-auth-input-focus-bg);
 }
 #adult-pin-error {
     margin-top: 0.7rem;

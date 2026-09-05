@@ -1533,12 +1533,18 @@
 <!-- Add missing modal elements expected by auth.js -->
 
 <!-- PIN Authorization Overlay Start -->
-<div id="pin-overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center; flex-direction: column;">
-    <div style="background: #222; padding: 2rem; border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.8); width: 320px; max-width: 90%;">
-        <h2 style="color: white; margin-bottom: 1rem; text-align: center;">Enter Master PIN</h2>
-        <input id="master-pin-input" type="password" maxlength="4" pattern="\d{4}" placeholder="4-digit PIN" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; border: none; margin-bottom: 1rem; text-align: center;">
-        <div id="master-pin-error" style="color: #f44336; font-weight: 600; margin-bottom: 1rem; display: none; text-align: center;"></div>
-        <button id="master-pin-submit" style="width: 100%; padding: 0.75rem; font-size: 1.2rem; border-radius: 8px; background-color: #4CAF50; color: white; border: none; cursor: pointer;">Submit</button>
+<div id="pin-overlay" class="auth-overlay">
+    <div class="auth-pin-screen" style="display:flex;">
+        <div class="auth-app-header">
+            <span class="auth-app-name">ChoresRewards</span>
+        </div>
+        <div class="auth-pin-card">
+            <p class="auth-pin-hint">Enter PIN to continue</p>
+            <input id="master-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
+                   maxlength="4" placeholder="••••" autocomplete="off" class="auth-pin-input">
+            <div id="master-pin-error" class="auth-pin-error"></div>
+            <button id="master-pin-submit" class="auth-pin-submit">Unlock</button>
+        </div>
     </div>
 </div>
 <!-- PIN Authorization Overlay End -->
