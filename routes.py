@@ -73,6 +73,129 @@ def load_quiz_questions():
         return []
 
 
+EXTRA_CHORES_DEFAULTS = [
+    {'title': 'Put toys in the toy box', 'points': 1, 'min_age': 3, 'icon': '🧸'},
+    {'title': 'Make your bed extra neat', 'points': 1, 'min_age': 4, 'icon': '🛏️'},
+    {'title': 'Wipe the kitchen table', 'points': 1, 'min_age': 4, 'icon': '🧽'},
+    {'title': 'Water the plants', 'points': 1, 'min_age': 4, 'icon': '🌱'},
+    {'title': 'Clean the toy room', 'points': 2, 'min_age': 5, 'icon': '🎮'},
+    {'title': 'Help fold laundry', 'points': 2, 'min_age': 5, 'icon': '👕'},
+    {'title': 'Vacuum a room', 'points': 2, 'min_age': 6, 'icon': '🧹'},
+    {'title': 'Empty the dishwasher', 'points': 2, 'min_age': 6, 'icon': '🍽️'},
+    {'title': 'Clean up dog poo outside', 'points': 2, 'min_age': 6, 'icon': '🐶'},
+    {'title': 'Take out the rubbish', 'points': 2, 'min_age': 7, 'icon': '🗑️'},
+    {'title': 'Clean the bathroom', 'points': 3, 'min_age': 8, 'icon': '🚿'},
+    {'title': 'Cook dinner for the family', 'points': 5, 'min_age': 10, 'icon': '🍳'},
+]
+
+
+def _normalise_extra_chore(raw, sort_order=0):
+    if not isinstance(raw, dict):
+        return None
+    title = str(raw.get('title', '')).strip()[:100]
+    if not title:
+        return None
+    extra_id = re.sub(r'[^a-z0-9]', '', str(raw.get('id', '')).strip().lower())[:32]
+    if not extra_id:
+        extra_id = uuid.uuid4().hex[:16]
+    try:
+        points = float(raw.get('points', 1) or 1)
+    except (TypeError, ValueError):
+        points = 1.0
+    if points < 0:
+        points = 0.0
+    try:
+        min_age = int(raw.get('min_age', 0) or 0)
+    except (TypeError, ValueError):
+        min_age = 0
+    min_age = max(0, min(min_age, 18))
+    max_age = raw.get('max_age', None)
+    try:
+        max_age = int(max_age) if max_age not in (None, '', False) else None
+    except (TypeError, ValueError):
+        max_age = None
+    if max_age is not None:
+        max_age = max(min_age, min(max_age, 18))
+    icon = str(raw.get('icon', '') or '').strip()[:20]
+    enabled = raw.get('enabled', True)
+    if isinstance(enabled, str):
+        enabled = enabled.strip().lower() not in ('0', 'false', 'off', 'no')
+    else:
+        enabled = bool(enabled)
+    return {
+        'id': extra_id,
+        'title': title,
+        'points': points,
+        'min_age': min_age,
+        'max_age': max_age,
+        'icon': icon,
+        'enabled': enabled,
+        'sort_order': int(raw.get('sort_order', sort_order) or sort_order),
+    }
+
+
+def _seed_extra_chores():
+    seeded = []
+    for index, item in enumerate(EXTRA_CHORES_DEFAULTS):
+        extra = _normalise_extra_chore(item, sort_order=index)
+        if extra:
+            seeded.append(extra)
+    return seeded
+
+
+def _get_extra_chores():
+    raw = AppSetting.get('extra_chores_json', '')
+    if not raw:
+        extras = _seed_extra_chores()
+        _save_extra_chores(extras)
+        return extras
+    try:
+        data = _json.loads(raw)
+    except Exception:
+        data = []
+    if not isinstance(data, list) or not data:
+        extras = _seed_extra_chores()
+        _save_extra_chores(extras)
+        return extras
+    cleaned = []
+    seen = set()
+    for index, item in enumerate(data):
+        extra = _normalise_extra_chore(item, sort_order=index)
+        if not extra or extra['id'] in seen:
+            continue
+        seen.add(extra['id'])
+        cleaned.append(extra)
+    cleaned.sort(key=lambda e: (e.get('sort_order', 0), e['title'].lower()))
+    return cleaned
+
+
+def _save_extra_chores(extras):
+    AppSetting.set('extra_chores_json', _json.dumps(extras if isinstance(extras, list) else []))
+
+
+def _person_age_value(person):
+    try:
+        age = int(person.age) if person and person.age is not None else None
+    except (TypeError, ValueError):
+        age = None
+    return age if age is not None else 4
+
+
+def _extra_matches_age(extra, age):
+    min_age = int(extra.get('min_age') or 0)
+    max_age = extra.get('max_age')
+    if age < min_age:
+        return False
+    if max_age not in (None, '') and age > int(max_age):
+        return False
+    return True
+
+
+def _extras_for_person(person):
+    age = _person_age_value(person)
+    return [e for e in _get_extra_chores() if e.get('enabled', True) and _extra_matches_age(e, age)]
+
+
 def save_quiz_questions(questions):
     """Persist the list of quiz questions to the instance JSON file."""
     path = _quiz_questions_path()
@@ -988,6 +1111,140 @@ def settings_quiz():
         error=error,
         success=success,
     )
+
+# Extra Chores catalog
+@routes_bp.route('/settings/extras', methods=['GET', 'POST'])
+def settings_extras():
+    """Parent-editable catalog of optional extra chores kids can claim to earn more."""
+    if not session.get('adult_mode', False) and not session.get('authenticated', False):
+        return redirect(url_for('routes.index'))
+    error = None
+    success = None
+    if request.method == 'POST':
+        if not session.get('adult_mode', False):
+            error = 'Adult mode is required to edit extra chores.'
+        else:
+            raw = request.form.get('extra_chores_json', '')
+            try:
+                data = _json.loads(raw) if raw else []
+                if not isinstance(data, list):
+                    raise ValueError('Expected a list of extra chores')
+                cleaned = []
+                seen = set()
+                for index, item in enumerate(data):
+                    extra = _normalise_extra_chore(item, sort_order=index)
+                    if not extra or extra['id'] in seen:
+                        continue
+                    seen.add(extra['id'])
+                    cleaned.append(extra)
+                if not cleaned:
+                    raise ValueError('Add at least one extra chore')
+                _save_extra_chores(cleaned)
+                log_activity('settings_updated', f'Extra chore catalog updated ({len(cleaned)} items)')
+                success = f'Saved {len(cleaned)} extra chore(s).'
+            except ValueError as e:
+                error = str(e)
+            except Exception as e:
+                error = f'Could not save extra chores: {e}'
+    extras = _get_extra_chores()
+    reward_system = AppSetting.get_reward_system()
+    return render_template(
+        'settings_extras.html',
+        extra_chores=extras,
+        reward_system=reward_system,
+        error=error,
+        success=success,
+    )
+
+
+@routes_bp.route('/api/extra_chores', methods=['GET'])
+def api_extra_chores():
+    if not session.get('authenticated', False):
+        return jsonify({'success': False, 'error': 'Login required'}), 401
+    person_id = request.args.get('person_id', type=int)
+    extras = _get_extra_chores()
+    if person_id:
+        person = Person.query.get(person_id)
+        if not person:
+            return jsonify({'success': False, 'error': 'Person not found'}), 404
+        extras = _extras_for_person(person)
+    return jsonify({'success': True, 'extras': extras})
+
+
+@routes_bp.route('/api/extra_chores/claim', methods=['POST'])
+def api_extra_chores_claim():
+    if not session.get('authenticated', False):
+        return jsonify({'success': False, 'error': 'Login required'}), 401
+    try:
+        data = request.get_json() or {}
+        extra_id = re.sub(r'[^a-z0-9]', '', str(data.get('extra_id', '')).strip().lower())[:32]
+        person_id = data.get('person_id')
+        try:
+            person_id = int(person_id)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'person_id required'}), 400
+        if not extra_id:
+            return jsonify({'success': False, 'error': 'extra_id required'}), 400
+
+        person = Person.query.get(person_id)
+        if not person:
+            return jsonify({'success': False, 'error': 'Person not found'}), 404
+
+        extras = _get_extra_chores()
+        extra = next((e for e in extras if e['id'] == extra_id), None)
+        if not extra or not extra.get('enabled', True):
+            return jsonify({'success': False, 'error': 'That extra chore is not available'}), 404
+        if not _extra_matches_age(extra, _person_age_value(person)):
+            return jsonify({'success': False, 'error': 'That extra chore is for a different age'}), 403
+
+        open_extras = Chore.query.filter_by(
+            assigned_to_id=person.id,
+            is_extra=True,
+            completed=False,
+            deleted=False,
+        ).all()
+        if any((c.extra_id or '') == extra_id for c in open_extras):
+            return jsonify({'success': False, 'error': 'That extra is already on their list'}), 409
+        if len(open_extras) >= 3:
+            return jsonify({'success': False, 'error': 'Finish an extra first — max 3 at a time'}), 400
+
+        new_chore = Chore(
+            title=extra['title'],
+            assigned_to=person.name,
+            assigned_to_id=person.id,
+            points=extra['points'],
+            is_daily=False,
+            completed=False,
+            date_completed=None,
+            due_date=None,
+            due_datetime=None,
+            days_of_week=None,
+            icon=extra.get('icon') or None,
+            is_extra=True,
+            extra_id=extra['id'],
+        )
+        db.session.add(new_chore)
+        db.session.commit()
+        log_activity(
+            'chore_added',
+            f"Extra chore '{extra['title']}' worth {extra['points']} was claimed by {person.name}",
+            user_name=person.name,
+        )
+        return jsonify({
+            'success': True,
+            'chore_id': new_chore.id,
+            'title': extra['title'],
+            'points': extra['points'],
+            'icon': extra.get('icon') or '',
+            'assigned_to': person.name,
+            'person_id': person.id,
+            'is_extra': True,
+            'extra_id': extra['id'],
+        })
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
 
 # ── Screensaver / Photo Slideshow ──────────────────────────────────────────────
 SCREENSAVER_UPLOAD_SUBDIR = 'screensaver'
@@ -2494,6 +2751,7 @@ def index():
         badge_definitions_list=badge_definitions_list,
         person_earned_keys=person_earned_keys,
         person_total_completed=person_total_completed,
+        extra_chores=_get_extra_chores(),
     ))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     resp.headers['Pragma'] = 'no-cache'

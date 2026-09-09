@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Extra Chores - ChoresRewards</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function () {
+            var t = localStorage.getItem('cr-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .settings-layout {
+            display: flex;
+            max-width: 1100px;
+            margin: 2rem auto;
+            background: linear-gradient(135deg, #141f33 0%, #1a2840 100%);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 16px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+            color: #fff;
+        }
+        .settings-nav {
+            width: 220px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px 0 0 16px;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            border-right: 1px solid rgba(255,255,255,0.07);
+        }
+        .settings-nav a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 0.97rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.7em;
+            padding: 0.7em 1em;
+            border-radius: 10px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .settings-nav a.active, .settings-nav a:hover {
+            background: rgba(76,175,80,0.18);
+            color: #4CAF50;
+        }
+        .settings-nav a.active { background: rgba(76,175,80,0.25); font-weight: 700; }
+        .settings-content {
+            flex: 1;
+            padding: 2rem 2.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            min-width: 0;
+        }
+        .section-title {
+            font-size: 1.1rem; font-weight: 700; margin-bottom: 0.9rem;
+            color: #fff; display: flex; align-items: center; gap: 0.5em;
+        }
+        .section-title > i { color: #4CAF50; }
+        .settings-section {
+            background: linear-gradient(135deg, #1a2436 0%, #1e2d42 100%);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 14px;
+            padding: 1.5rem;
+            color: #fff;
+        }
+        .save-btn {
+            padding: 0.55rem 1.2rem; border-radius: 8px; border: none;
+            cursor: pointer; font-size: 0.9rem; font-weight: 700;
+            background: #4CAF50; color: #fff;
+        }
+        .success-message, .error-message {
+            font-weight: 500; margin-top: 0.5rem;
+            padding: 0.6rem 1rem; border-radius: 10px;
+        }
+        .success-message {
+            color: #a5d6a7; background: rgba(76,175,80,0.1);
+            border: 1px solid rgba(76,175,80,0.25);
+        }
+        .error-message {
+            color: #ef9a9a; background: rgba(244,67,54,0.1);
+            border: 1px solid rgba(244,67,54,0.25);
+        }
+        .btn-outline {
+            padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;
+            font-size: 0.88rem; font-weight: 600;
+            background: rgba(76,175,80,0.15); color: #4CAF50;
+            border: 1.5px solid rgba(76,175,80,0.35);
+        }
+        .btn-danger {
+            background: rgba(239,68,68,0.12); color: #f87171;
+            border: 1px solid rgba(239,68,68,0.3);
+            padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer;
+            font-size: 0.82rem; font-weight: 600;
+        }
+        .extra-card {
+            background: rgba(0,0,0,0.22);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem;
+        }
+        .extra-row { display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: flex-end; }
+        .extra-field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+        .extra-field.title { flex: 2 1 220px; }
+        .extra-field.points, .extra-field.age, .extra-field.icon { flex: 0 0 90px; }
+        .extra-label {
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em;
+            text-transform: uppercase; color: rgba(255,255,255,0.5);
+        }
+        .extra-input {
+            width: 100%; box-sizing: border-box;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px; padding: 0.5rem 0.7rem;
+            color: #fff; font-size: 0.9rem;
+        }
+        .extra-enabled {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.85rem; color: rgba(255,255,255,0.7); padding-bottom: 0.35rem;
+        }
+        @media (max-width: 900px) {
+            .settings-layout { flex-direction: column; }
+            .settings-nav { width: 100%; border-radius: 16px 16px 0 0; flex-direction: row; flex-wrap: wrap; }
+            .settings-content { padding: 1.5rem 1rem; }
+        }
+        [data-theme="light"] .settings-layout,
+        [data-theme="light"] .settings-section { background: var(--cr-surface); color: var(--text-color); }
+        [data-theme="light"] .settings-nav { background: rgba(15,23,42,0.04); }
+        [data-theme="light"] .settings-nav a { color: var(--text-color); }
+        [data-theme="light"] .extra-card { background: rgba(15,23,42,0.04); border-color: rgba(15,23,42,0.1); }
+        [data-theme="light"] .extra-input { background: #fff; color: var(--text-color); border-color: rgba(15,23,42,0.14); }
+        [data-theme="light"] .section-title { color: var(--text-color); }
+    </style>
+</head>
+<body>
+    {% include 'fragments/side_nav.html' %}
+    <script src="{{ url_for('static', filename='js/side_nav.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/screensaver.js') }}"></script>
+    <header>
+        <div class="header-content" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,var(--cr-header-bg-1) 0%,var(--cr-header-bg-2) 100%);padding:0.75rem 1.5rem;border-bottom:1px solid var(--cr-surface-border);">
+            <h2 style="color: var(--cr-text-primary);">Chores and Rewards - Settings</h2>
+        </div>
+        <nav class="settings-topnav">
+            <a href="{{ url_for('routes.index') }}" class="topnav-link">Home</a>
+            <a href="{{ url_for('routes.activity_log') }}" class="topnav-link">Activity Log</a>
+        </nav>
+    </header>
+    <main>
+        <div class="settings-layout">
+            <nav class="settings-nav">
+                <a href="{{ url_for('routes.settings') }}"{% if request.endpoint == 'routes.settings' %} class="active"{% endif %}><i class="fas fa-cog"></i> General Settings</a>
+                <a href="{{ url_for('routes.settings_audio') }}"{% if request.endpoint == 'routes.settings_audio' %} class="active"{% endif %}><i class="fas fa-volume-up"></i> Audio Settings</a>
+                <a href="{{ url_for('routes.settings_notification') }}"{% if request.endpoint == 'routes.settings_notification' %} class="active"{% endif %}><i class="fas fa-bell"></i> Notification Settings</a>
+                <a href="{{ url_for('routes.settings_quiz') }}"{% if request.endpoint == 'routes.settings_quiz' %} class="active"{% endif %}><i class="fas fa-question-circle"></i> Quiz Questions</a>
+                <a href="{{ url_for('routes.settings_extras') }}"{% if request.endpoint == 'routes.settings_extras' %} class="active"{% endif %}><i class="fas fa-broom"></i> Extra Chores</a>
+                <a href="{{ url_for('routes.settings_screensaver') }}"{% if request.endpoint == 'routes.settings_screensaver' %} class="active"{% endif %}><i class="fas fa-images"></i> Screensaver</a>
+            </nav>
+            <div class="settings-content">
+                <h3 class="section-title"><i class="fas fa-broom"></i> Extra Chores</h3>
+                <section class="settings-section">
+                    <p style="color:var(--cr-text-secondary);margin-top:0;">
+                        These optional jobs appear when a kid taps <strong style="color:var(--cr-text-primary);">Earn more</strong> on a reward, or on their kanban after they finish today’s listed chores.
+                        <strong style="color:var(--cr-text-primary);">Min age</strong> hides a job from younger kids — a 4-year-old will not see Cook dinner.
+                        Values use the household’s current {% if reward_system == 'cash' %}cash{% else %}points{% endif %} system.
+                    </p>
+                    {% if success %}<div class="success-message"><i class="fas fa-check-circle"></i> {{ success }}</div>{% endif %}
+                    {% if error %}<div class="error-message"><i class="fas fa-exclamation-triangle"></i> {{ error }}</div>{% endif %}
+
+                    <form method="POST" action="{{ url_for('routes.settings_extras') }}" id="extras-form" onsubmit="return prepareExtrasSave()">
+                        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin:1rem 0;">
+                            <button type="button" class="btn-outline" onclick="addExtraRow()"><i class="fas fa-plus"></i> Add extra</button>
+                            <button type="submit" class="save-btn"><i class="fas fa-save"></i> Save extras</button>
+                        </div>
+                        <div id="extras-list"></div>
+                        <input type="hidden" name="extra_chores_json" id="extra-chores-json">
+                    </form>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script>
+    const isCash = {{ (reward_system == 'cash') | tojson }};
+    let extras = {{ extra_chores | default([], true) | tojson }};
+
+    function esc(value) {
+        return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    }
+
+    function addExtraRow(extra) {
+        extra = extra || { id: '', title: '', points: isCash ? 1 : 2, min_age: 5, icon: '', enabled: true };
+        const list = document.getElementById('extras-list');
+        const card = document.createElement('div');
+        card.className = 'extra-card';
+        card.innerHTML =
+            '<div class="extra-row">' +
+            '<input type="hidden" class="js-id" value="' + esc(extra.id || '') + '">' +
+            '<label class="extra-field title"><span class="extra-label">Title</span>' +
+            '<input class="extra-input js-title" maxlength="100" value="' + esc(extra.title || '') + '" placeholder="Vacuum a room"></label>' +
+            '<label class="extra-field points"><span class="extra-label">' + (isCash ? 'Cash' : 'Points') + '</span>' +
+            '<input class="extra-input js-points" type="number" min="0" step="' + (isCash ? '0.01' : '0.5') + '" value="' + esc(extra.points) + '"></label>' +
+            '<label class="extra-field age"><span class="extra-label">Min age</span>' +
+            '<input class="extra-input js-min-age" type="number" min="0" max="18" value="' + esc(extra.min_age || 0) + '"></label>' +
+            '<label class="extra-field icon"><span class="extra-label">Icon</span>' +
+            '<input class="extra-input js-icon" maxlength="8" value="' + esc(extra.icon || '') + '" placeholder="🧹"></label>' +
+            '<label class="extra-enabled"><input type="checkbox" class="js-enabled"' + (extra.enabled === false ? '' : ' checked') + '> On</label>' +
+            '<button type="button" class="btn-danger" onclick="this.closest(\'.extra-card\').remove()">Remove</button>' +
+            '</div>';
+        list.appendChild(card);
+    }
+
+    function prepareExtrasSave() {
+        const cards = [...document.querySelectorAll('#extras-list .extra-card')];
+        const payload = [];
+        for (const card of cards) {
+            const title = card.querySelector('.js-title').value.trim();
+            if (!title) continue;
+            payload.push({
+                id: card.querySelector('.js-id').value.trim(),
+                title,
+                points: Number(card.querySelector('.js-points').value || 0),
+                min_age: Number(card.querySelector('.js-min-age').value || 0),
+                icon: card.querySelector('.js-icon').value.trim(),
+                enabled: card.querySelector('.js-enabled').checked,
+            });
+        }
+        if (!payload.length) {
+            alert('Add at least one extra chore.');
+            return false;
+        }
+        document.getElementById('extra-chores-json').value = JSON.stringify(payload);
+        return true;
+    }
+
+    extras.forEach(addExtraRow);
+    if (!extras.length) addExtraRow();
+    </script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <div id="adult-pin-overlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
+        <div id="adult-pin-box" style="background:var(--cr-modal-surface); border-radius:16px; padding:32px 28px; min-width:300px; text-align:center; box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+            <div style="font-size:2.5em; margin-bottom:10px;">🔒</div>
+            <h3 style="color:var(--cr-text-primary); margin:0 0 6px; font-size:1.3em;">Adult Mode</h3>
+            <p style="color:var(--cr-text-secondary); margin:0 0 20px; font-size:0.9em;">Enter your 4-digit PIN</p>
+            <form id="adult-pin-form" autocomplete="off">
+                <input id="adult-pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
+                       maxlength="4" placeholder="••••"
+                       style="width:120px; font-size:2em; text-align:center; letter-spacing:8px; padding:10px; border:2px solid var(--cr-subtle-panel-border); border-radius:10px; background:var(--cr-subtle-panel); color:var(--cr-text-primary); outline:none;">
+            </form>
+            <p id="adult-pin-error" style="color:#f87171; min-height:1.4em; margin-top:12px; font-size:0.9em;"></p>
+            <button onclick="document.getElementById('adult-pin-overlay').style.display='none'" style="margin-top:4px; background:transparent; border:none; color:var(--cr-text-secondary); font-size:0.85em; cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/auth_profile.js') }}"></script>
+</body>
+</html>

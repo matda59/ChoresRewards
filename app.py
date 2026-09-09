@@ -119,6 +119,12 @@ with app.app_context():
         if 'icon' not in chore_cols:
             db.session.execute(text('ALTER TABLE chore ADD COLUMN icon VARCHAR(20)'))
             db.session.commit()
+        if 'is_extra' not in chore_cols:
+            db.session.execute(text('ALTER TABLE chore ADD COLUMN is_extra BOOLEAN DEFAULT 0'))
+            db.session.commit()
+        if 'extra_id' not in chore_cols:
+            db.session.execute(text('ALTER TABLE chore ADD COLUMN extra_id VARCHAR(32)'))
+            db.session.commit()
 
     # Clear stale upload references: null any avatar/image_url that points to a
     # file that no longer exists on disk (happens after container rebuilds when

@@ -224,6 +224,7 @@
                 <a href="{{ url_for('routes.settings_audio') }}"{% if request.endpoint == 'routes.settings_audio' %} class="active"{% endif %}><i class="fas fa-volume-up"></i> Audio Settings</a>
                 <a href="{{ url_for('routes.settings_notification') }}"{% if request.endpoint == 'routes.settings_notification' %} class="active"{% endif %}><i class="fas fa-bell"></i> Notification Settings</a>
                 <a href="{{ url_for('routes.settings_quiz') }}"{% if request.endpoint == 'routes.settings_quiz' %} class="active"{% endif %}><i class="fas fa-question-circle"></i> Quiz Questions</a>
+                <a href="{{ url_for('routes.settings_extras') }}"{% if request.endpoint == 'routes.settings_extras' %} class="active"{% endif %}><i class="fas fa-broom"></i> Extra Chores</a>
                 <a href="{{ url_for('routes.settings_screensaver') }}"{% if request.endpoint == 'routes.settings_screensaver' %} class="active"{% endif %}><i class="fas fa-images"></i> Screensaver</a>
             </nav>
             <div class="settings-content">

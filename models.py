@@ -98,6 +98,8 @@ class Chore(db.Model):
     due_datetime = db.Column(db.DateTime, nullable=True)  # New field for due date and time
     deleted = db.Column(db.Boolean, default=False)  # New field to track deletion for daily chores
     icon = db.Column(db.String(20), nullable=True)  # Optional custom emoji icon
+    is_extra = db.Column(db.Boolean, default=False)  # Claimed from the extra-chore catalog
+    extra_id = db.Column(db.String(32), nullable=True)  # Catalog template id when is_extra
     
     def __init__(self, **kwargs):
         super(Chore, self).__init__(**kwargs)

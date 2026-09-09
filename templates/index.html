@@ -28,7 +28,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260905b">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260909a">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -485,6 +485,16 @@ window.addEventListener('DOMContentLoaded', function() {
 </div>
 <!-- End Person Picker Login Overlay -->
 <!-- Celebration Overlay -->
+<div id="earn-more-overlay" class="earn-more-overlay" hidden>
+    <div class="earn-more-sheet" role="dialog" aria-labelledby="earn-more-title">
+        <button type="button" class="earn-more-close" onclick="closeEarnMore()" aria-label="Close">&times;</button>
+        <p class="earn-more-kicker">Above and beyond</p>
+        <h2 id="earn-more-title">Want to earn more?</h2>
+        <p id="earn-more-subtitle" class="earn-more-subtitle">Pick an extra job to add to your list.</p>
+        <div id="earn-more-grid" class="earn-more-grid"></div>
+        <p id="earn-more-empty" class="earn-more-empty" hidden>No extra jobs for this age yet. An adult can add some in Settings.</p>
+    </div>
+</div>
 <div id="celebration-overlay" class="celebration-overlay">
     <div class="celebration-content">
         <div class="celebration-stars">⭐ ⭐ ⭐</div>
@@ -563,6 +573,7 @@ window.addEventListener('DOMContentLoaded', function() {
         window.quiz_questions = {{ quiz_questions|tojson }};
         // Person ages for age-based quiz filtering
         window.person_ages = {{ person_ages|tojson }};
+        window.extraChores = {{ extra_chores | default([], true) | tojson }};
         // Badge profile data
         window.BADGE_DEFINITIONS = {{ badge_definitions_list | tojson }};
         window.PERSON_EARNED_KEYS = {{ person_earned_keys | tojson }};
@@ -2356,6 +2367,11 @@ window.addEventListener('DOMContentLoaded', function() {
                                 {{ achieved_percent|round(1) }}% achieved • {{ left_percent|round(1) }}% left
                             </div>
                         </div>
+                        {% if current_points < reward.points_required %}
+                        <button type="button" class="btn-earn-more" onclick="openEarnMore({{ person.id }})">
+                            <i class="fas fa-plus-circle"></i> Earn more
+                        </button>
+                        {% endif %}
                     {% endif %}
                                         <div class="reward-actions-modern admin-only">
                                                 <button class="btn-redeem" onclick="completeReward({{ reward.id }})" aria-label="Redeem reward">
@@ -5662,7 +5678,7 @@ function deleteReward(rewardId) {
             {# Sort the combined list by the order field #}
             {% set sorted_family = (charlotte + others) | sort(attribute='order') %}
             {% for person in sorted_family %}
-            <div class="column" data-person="{{ person.name }}">
+            <div class="column" data-person="{{ person.name }}" data-person-id="{{ person.id }}" data-person-age="{{ person.age if person.age is not none else '' }}">
                 <!-- Column header with centered name and edit icon -->
                 <div class="column-header">
                     <h3 class="name" style="position:relative !important; padding-right:28px !important;">
@@ -5773,7 +5789,7 @@ function deleteReward(rewardId) {
             {% if filtered_incomplete_chores %}
                 <div class="chores-list incomplete-chores-list">
                     {% for chore in filtered_incomplete_chores %}
-                        <div class="chore{% if chore.due_datetime %} has-due-date{% endif %}" data-chore-id="{{ chore.id }}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px; padding-top:40px;">
+                        <div class="chore{% if chore.due_datetime %} has-due-date{% endif %}{% if chore.is_extra %} chore-extra{% endif %}" data-chore-id="{{ chore.id }}"{% if chore.extra_id %} data-extra-id="{{ chore.extra_id }}"{% endif %} style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px; padding-top:40px;">
                             <button class="btn-delete-chore-sm admin-only" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
                             <span class="chore-points-badge" style="position:absolute;top:6px;left:6px;margin-left:0;" title="Points for this chore">
                                 {% if reward_system == 'cash' %}
@@ -5790,6 +5806,9 @@ function deleteReward(rewardId) {
                             </div>
                             <div class="chore-meta">
                                 <div class="chore-tags">
+                                    {% if chore.is_extra %}
+                                        <span class="chore-tag chore-tag-extra"><i class="fas fa-star"></i> Extra</span>
+                                    {% endif %}
                                     {% if chore.is_daily %}
                                         <span class="chore-tag chore-tag-daily"><i class="fas fa-sync"></i> Daily</span>
                                     {% endif %}
@@ -5833,6 +5852,13 @@ function deleteReward(rewardId) {
                 </div>
                 {% endif %}
             {% endif %}
+
+            <div class="earn-more-prompt" id="earn-more-{{ person.id }}" hidden>
+                <p class="earn-more-prompt-kicker">Want to earn more?</p>
+                <button type="button" class="earn-more-btn" onclick="openEarnMore({{ person.id }})">
+                    <i class="fas fa-plus-circle"></i> Pick an extra job
+                </button>
+            </div>
             
             <!-- Collapsible Completed Chores Section -->
             {% if completed_chores %}
@@ -7165,6 +7191,7 @@ function injectNewChoreCard(resp, formData) {
 
     // Build tags HTML
     let tagsHtml = '';
+    if (formData.is_extra) tagsHtml += '<span class="chore-tag chore-tag-extra"><i class="fas fa-star"></i> Extra</span>';
     if (isDaily) tagsHtml += '<span class="chore-tag chore-tag-daily"><i class="fas fa-sync"></i> Daily</span>';
     if (formData.days_of_week && formData.days_of_week.length > 0) {
         const days = formData.days_of_week.map(d => d.trim().toLowerCase());
@@ -7194,7 +7221,7 @@ function injectNewChoreCard(resp, formData) {
         ? `<i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i><span class="chore-points-value">$${points}</span>`
         : `<i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i><span class="chore-points-value">${points}</span>`;
 
-    const cardHtml = `<div class="chore" data-chore-id="${resp.chore_id}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px; padding-top:40px;">
+    const cardHtml = `<div class="chore${formData.is_extra ? ' chore-extra' : ''}" data-chore-id="${resp.chore_id}"${formData.extra_id ? ` data-extra-id="${formData.extra_id}"` : ''} style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px; padding-top:40px;">
         <button class="btn-delete-chore-sm" onclick="confirmDeleteChore(${resp.chore_id}, ${isDaily})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
         <span class="chore-points-badge" style="position:absolute;top:6px;left:6px;margin-left:0;" title="Points for this chore">${pointsHtml}</span>
         <div class="chore-header">
@@ -7212,6 +7239,8 @@ function injectNewChoreCard(resp, formData) {
     if (noChoreMsg && noChoreMsg.textContent.includes('No chores')) noChoreMsg.remove();
     const allDone = column.querySelector('.all-done-banner');
     if (allDone) allDone.remove();
+    const freeDay = column.querySelector('.no-chores-banner');
+    if (freeDay) freeDay.remove();
 
     // Find or create the incomplete-chores-list
     let list = column.querySelector('.incomplete-chores-list');
@@ -7243,7 +7272,140 @@ function injectNewChoreCard(resp, formData) {
             </div>`);
         }
     }
+    refreshEarnMorePrompt(column);
 }
+
+function personAgeForId(personId) {
+    const ages = window.person_ages || {};
+    const raw = ages[personId] ?? ages[String(personId)];
+    const age = Number(raw);
+    return Number.isFinite(age) ? age : 4;
+}
+
+function extrasForPerson(personId) {
+    const age = personAgeForId(personId);
+    const catalog = Array.isArray(window.extraChores) ? window.extraChores : [];
+    return catalog.filter(extra => {
+        if (extra && extra.enabled === false) return false;
+        const minAge = Number(extra.min_age || 0);
+        const maxAge = extra.max_age === null || extra.max_age === undefined || extra.max_age === ''
+            ? null
+            : Number(extra.max_age);
+        if (age < minAge) return false;
+        if (maxAge !== null && Number.isFinite(maxAge) && age > maxAge) return false;
+        return true;
+    });
+}
+
+function columnPersonId(column) {
+    if (!column) return null;
+    return column.getAttribute('data-person-id')
+        || column.querySelector('.person-name')?.getAttribute('data-person-id');
+}
+
+function refreshEarnMorePrompt(column) {
+    if (!column) return;
+    const personId = columnPersonId(column);
+    const prompt = personId
+        ? (document.getElementById(`earn-more-${personId}`) || column.querySelector('.earn-more-prompt'))
+        : column.querySelector('.earn-more-prompt');
+    if (!prompt) return;
+    const regularLeft = column.querySelectorAll('.incomplete-chores-list .chore:not(.chore-extra)').length;
+    const extras = extrasForPerson(personId);
+    const show = regularLeft === 0 && extras.length > 0;
+    prompt.hidden = !show;
+}
+
+function refreshAllEarnMorePrompts() {
+    document.querySelectorAll('.column[data-person]').forEach(refreshEarnMorePrompt);
+}
+
+let earnMorePersonId = null;
+
+function openEarnMore(personId) {
+    const extras = extrasForPerson(personId);
+    earnMorePersonId = personId;
+    const overlay = document.getElementById('earn-more-overlay');
+    const grid = document.getElementById('earn-more-grid');
+    const empty = document.getElementById('earn-more-empty');
+    const subtitle = document.getElementById('earn-more-subtitle');
+    const column = document.querySelector(`.column[data-person-id="${personId}"]`);
+    const name = column?.getAttribute('data-person') || 'you';
+    const isCash = (window.REWARD_SYSTEM || 'points') === 'cash';
+    if (subtitle) subtitle.textContent = `Extra jobs for ${name}, matched to their age.`;
+    if (grid) grid.innerHTML = '';
+    if (!extras.length) {
+        if (empty) empty.hidden = false;
+        if (overlay) { overlay.hidden = false; overlay.classList.add('is-open'); }
+        return;
+    }
+    if (empty) empty.hidden = true;
+    extras.forEach(extra => {
+        const claimed = column?.querySelector(`.chore-extra[data-extra-id="${extra.id}"]`);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'earn-more-choice' + (claimed ? ' is-claimed' : '');
+        btn.disabled = !!claimed;
+        const value = isCash ? `$${Number(extra.points).toFixed(2)}` : `${extra.points} pts`;
+        btn.innerHTML = `<span class="earn-more-choice-icon">${extra.icon || '✅'}</span>`
+            + `<span class="earn-more-choice-title">${_escapeHtml(extra.title)}</span>`
+            + `<span class="earn-more-choice-meta">Age ${extra.min_age}+ · ${value}</span>`;
+        btn.addEventListener('click', () => claimExtraChore(personId, extra));
+        grid.appendChild(btn);
+    });
+    if (overlay) {
+        overlay.hidden = false;
+        overlay.classList.add('is-open');
+    }
+}
+
+function closeEarnMore() {
+    const overlay = document.getElementById('earn-more-overlay');
+    if (overlay) {
+        overlay.hidden = true;
+        overlay.classList.remove('is-open');
+    }
+    earnMorePersonId = null;
+}
+
+function claimExtraChore(personId, extra) {
+    fetch('/api/extra_chores/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person_id: personId, extra_id: extra.id })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            if (window.showToast) showToast(data.error || 'Could not add extra chore', 'error');
+            return;
+        }
+        injectNewChoreCard(data, {
+            title: data.title,
+            assigned_to: data.assigned_to,
+            points: data.points,
+            icon: data.icon,
+            is_daily: false,
+            is_extra: true,
+            extra_id: data.extra_id
+        });
+        closeEarnMore();
+        if (window.showToast) showToast(`Added “${data.title}”`, 'success');
+        const column = document.querySelector(`.column[data-person-id="${personId}"]`);
+        if (column) {
+            column.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            goToSection?.('kanban');
+        }
+    })
+    .catch(() => {
+        if (window.showToast) showToast('Could not add extra chore', 'error');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', refreshAllEarnMorePrompts);
+document.getElementById('earn-more-overlay')?.addEventListener('click', (event) => {
+    if (event.target.id === 'earn-more-overlay') closeEarnMore();
+});
 
 // Complete chore function with slot machine and sparkle animation
 function completeChore(choreId) {
@@ -7317,11 +7479,13 @@ function completeChore(choreId) {
                     const personNameElem = column ? column.querySelector('.person-name') : null;
                     const personId = personNameElem ? personNameElem.getAttribute('data-person-id') : null;
                     choreElem.remove();
-                    // Check if there are any incomplete chores left
+                    // Check if there are any incomplete regular chores left
                     if (column) {
-                        const incompleteChores = column.querySelectorAll('.incomplete-chores-list .chore');
-                        if (incompleteChores.length === 0 && personName) {
-                            // Show celebration overlay immediately when last chore completed
+                        const regularLeft = column.querySelectorAll('.incomplete-chores-list .chore:not(.chore-extra)');
+                        const wasExtra = choreElemClone?.classList.contains('chore-extra');
+                        refreshEarnMorePrompt(column);
+                        if (regularLeft.length === 0 && personName && !wasExtra) {
+                            // Show celebration overlay immediately when last listed chore completed
                             document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
                             document.getElementById('celebration-avatar').src = avatarUrl;
                             document.getElementById('celebration-overlay').style.display = 'flex';
@@ -7366,6 +7530,7 @@ function undoChoreCompletion(choreId, choreElemClone, parentList, column) {
             } else {
                 window.location.reload();
             }
+            if (column) refreshEarnMorePrompt(column);
             if (window.showToast) showToast('Chore marked incomplete', 'info', 2500);
         } else {
             if (window.showToast) showToast(data.error || 'Could not undo chore', 'error');
