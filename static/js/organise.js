@@ -62,6 +62,34 @@
         return `${days}d away`;
     }
 
+    function isoDateParts(dt) {
+        return [
+            dt.getFullYear(),
+            String(dt.getMonth() + 1).padStart(2, '0'),
+            String(dt.getDate()).padStart(2, '0'),
+        ].join('-');
+    }
+
+    function todayISO() {
+        return isoDateParts(new Date());
+    }
+
+    function addOneYear(iso) {
+        const [y, m, d] = String(iso).split('-').map(Number);
+        return isoDateParts(new Date(y + 1, m - 1, d));
+    }
+
+    function nextDueDate(iso) {
+        let next = addOneYear(iso);
+        const today = todayISO();
+        let guard = 0;
+        while (next < today && guard < 10) {
+            next = addOneYear(next);
+            guard += 1;
+        }
+        return next;
+    }
+
     function statusClass(status) {
         if (status === 'overdue') return 'org-status-overdue';
         if (status === 'due_soon') return 'org-status-soon';
@@ -255,6 +283,7 @@
                 </div>
                 <div class="org-car-actions admin-only">
                     <button class="org-btn-edit" onclick="organiseEdit(${item.id})" title="Edit car"><i class="fas fa-pencil-alt"></i></button>
+                    ${item.due_date ? `<button class="org-btn-toggle-paid" onclick="organiseTogglePaid(${item.id})" title="${item.paid ? 'Mark unpaid' : 'Mark paid and set next due date'}"><i class="fas ${item.paid ? 'fa-times-circle' : 'fa-check-circle'}"></i></button>` : ''}
                     <button class="org-btn-delete" onclick="organiseDelete(${item.id})" title="Delete car"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
@@ -290,8 +319,8 @@
             return '<p class="org-renewals-empty">No documents on this car yet. Add registration, insurance or other renewals here.</p>';
         }
         return children.map(child => {
-            const sc = statusClass(child.status);
-            const dl = child.due_date ? daysLabel(child.days_until_due) : '';
+            const sc = child.paid ? 'org-status-ok' : statusClass(child.status);
+            const dl = child.due_date && !child.paid ? daysLabel(child.days_until_due) : '';
             const due = child.due_date
                 ? `<span class="org-days-label ${sc}">${formatDate(child.due_date)}${dl ? ' · ' + dl : ''}</span>`
                 : '<span class="org-renewal-nodate">No due date</span>';
@@ -308,7 +337,7 @@
                 </div>
                 <div class="org-renewal-actions admin-only">
                     <button class="org-btn-edit" onclick="organiseEdit(${child.id})" title="Edit details"><i class="fas fa-pencil-alt"></i></button>
-                    <button class="org-btn-toggle-paid" onclick="organiseTogglePaid(${child.id})" title="${child.paid ? 'Mark unpaid' : 'Mark paid'}">
+                    <button class="org-btn-toggle-paid" onclick="organiseTogglePaid(${child.id})" title="${child.paid ? 'Mark unpaid' : 'Mark paid and set next due date'}">
                         ${child.paid ? '<i class="fas fa-times-circle"></i>' : '<i class="fas fa-check-circle"></i>'}
                     </button>
                     <button class="org-btn-delete" onclick="organiseDelete(${child.id})" title="Delete"><i class="fas fa-trash"></i></button>
@@ -321,7 +350,7 @@
         const pills = [];
         const docs = children || childItems(item.id);
 
-        docs.filter(d => d.due_date).forEach(d => {
+        docs.filter(d => d.due_date && !d.paid).forEach(d => {
             const dl = daysLabel(d.days_until_due);
             pills.push(`<span class="org-car-pill org-car-pill--${d.status || 'ok'}">
                 ${d.icon || ''} ${escapeHtml(d.title)}: ${formatDate(d.due_date)}
@@ -329,7 +358,7 @@
             </span>`);
         });
 
-        if (item.due_date && !docs.some(d => d.due_date === item.due_date)) {
+        if (item.due_date && !item.paid && !docs.some(d => d.due_date)) {
             const dl = daysLabel(item.days_until_due);
             pills.push(`<span class="org-car-pill org-car-pill--${item.status || 'ok'}">
                 <i class="fas fa-id-card"></i> Renewal: ${formatDate(item.due_date)}
@@ -553,7 +582,7 @@
             <div class="org-card-actions admin-only">
                 ${attachBtn}
                 <button class="org-btn-edit" onclick="organiseEdit(${item.id})" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                <button class="org-btn-toggle-paid" onclick="organiseTogglePaid(${item.id})" title="${item.paid ? 'Mark unpaid' : 'Mark paid'}">
+                <button class="org-btn-toggle-paid" onclick="organiseTogglePaid(${item.id})" title="${item.paid ? 'Mark unpaid' : 'Mark paid and set next due date'}">
                     ${item.paid ? '<i class="fas fa-times-circle"></i>' : '<i class="fas fa-check-circle"></i>'}
                 </button>
                 <button class="org-btn-delete" onclick="organiseDelete(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
@@ -924,10 +953,22 @@
     window.organiseTogglePaid = function (id) {
         const item = organiseItems.find(i => i.id === id);
         if (!item) return;
+
+        const payload = { paid: !item.paid };
+        if (!item.paid && item.due_date) {
+            const nextDue = nextDueDate(item.due_date);
+            if (!confirm(`Mark "${item.title}" as paid and set the next due date to ${formatDate(nextDue)}?`)) {
+                return;
+            }
+            payload.paid = false;
+            payload.last_date = todayISO();
+            payload.due_date = nextDue;
+        }
+
         fetch(`/api/organise/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ paid: !item.paid }),
+            body: JSON.stringify(payload),
         })
             .then(r => r.json())
             .then(res => {
@@ -1031,6 +1072,7 @@
                     organiseItems = res.items;
                     renderOrganise();
                     checkUrgentRenewals(organiseItems);
+                    if (typeof loadHeaderNotifications === 'function') loadHeaderNotifications();
                 }
             })
             .catch(() => {

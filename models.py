@@ -245,10 +245,11 @@ class OrganiseItem(db.Model):
         days_until_due = None
         if self.due_date:
             days_until_due = (self.due_date - today).days
-            if days_until_due < 0:
-                status = 'overdue'
-            elif days_until_due <= (self.reminder_days or 30):
-                status = 'due_soon'
+            if not self.paid:
+                if days_until_due < 0:
+                    status = 'overdue'
+                elif days_until_due <= (self.reminder_days or 30):
+                    status = 'due_soon'
         return {
             'id': self.id,
             'category': self.category,
