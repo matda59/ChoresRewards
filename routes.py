@@ -1023,15 +1023,56 @@ def _save_screensaver_photos(photos):
     AppSetting.set('screensaver_photos_json', _json.dumps(photos))
 
 
+def _sync_screensaver_photos():
+    """Drop missing files from the saved list and pick up new images in the folder."""
+    upload_folder = _screensaver_upload_folder()
+    photos = _get_screensaver_photos()
+    kept = []
+    changed = False
+    for photo in photos:
+        filename = photo.get('filename') or ''
+        if filename and os.path.isfile(os.path.join(upload_folder, filename)):
+            kept.append(photo)
+        else:
+            changed = True
+    known = {p.get('filename') for p in kept}
+    try:
+        names = os.listdir(upload_folder)
+    except OSError:
+        names = []
+    for filename in sorted(names):
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in SCREENSAVER_ALLOWED_EXTS or filename in known:
+            continue
+        kept.append({'filename': filename, 'uploaded_at': datetime.utcnow().isoformat()})
+        changed = True
+    if changed:
+        _save_screensaver_photos(kept)
+    return kept
+
+
 def _get_screensaver_settings():
     return {key: AppSetting.get(key, default) for key, default in SCREENSAVER_DEFAULTS.items()}
 
 
 def _screensaver_photo_urls(photos):
-    return [
-        url_for('static', filename=f"uploads/{SCREENSAVER_UPLOAD_SUBDIR}/{p['filename']}")
-        for p in photos if p.get('filename')
-    ]
+    folder = _screensaver_upload_folder()
+    urls = []
+    for photo in photos:
+        filename = photo.get('filename')
+        if not filename:
+            continue
+        url = url_for('static', filename=f"uploads/{SCREENSAVER_UPLOAD_SUBDIR}/{filename}")
+        version = ''
+        path = os.path.join(folder, filename)
+        try:
+            version = str(int(os.path.getmtime(path)))
+        except OSError:
+            version = str(photo.get('uploaded_at') or '')
+        if version:
+            url = f'{url}?v={quote(version, safe="")}'
+        urls.append(url)
+    return urls
 
 
 @routes_bp.route('/settings/screensaver', methods=['GET', 'POST'])
@@ -1058,11 +1099,12 @@ def settings_screensaver():
             success = 'Screensaver settings saved.'
         except Exception as e:
             error = f'Could not save screensaver settings: {e}'
+    photos = _sync_screensaver_photos()
     return render_template(
         'settings_screensaver.html',
         screensaver=_get_screensaver_settings(),
-        photos=_get_screensaver_photos(),
-        photo_urls=_screensaver_photo_urls(_get_screensaver_photos()),
+        photos=photos,
+        photo_urls=_screensaver_photo_urls(photos),
         error=error,
         success=success,
     )
@@ -1072,7 +1114,7 @@ def settings_screensaver():
 def api_screensaver_config():
     """Public (session-only) config endpoint polled by the screensaver overlay on every page."""
     settings = _get_screensaver_settings()
-    photos = _get_screensaver_photos()
+    photos = _sync_screensaver_photos()
     return jsonify({
         'success': True,
         'enabled': settings['screensaver_enabled'] == 'true',
@@ -1187,18 +1229,10 @@ def api_screensaver_rescan():
     _guard = _adult_required()
     if _guard:
         return _guard
-    upload_folder = _screensaver_upload_folder()
-    photos = _get_screensaver_photos()
-    known_filenames = {p.get('filename') for p in photos}
-    added = 0
-    for filename in sorted(os.listdir(upload_folder)):
-        ext = os.path.splitext(filename)[1].lower()
-        if ext not in SCREENSAVER_ALLOWED_EXTS or filename in known_filenames:
-            continue
-        photos.append({'filename': filename, 'uploaded_at': datetime.utcnow().isoformat()})
-        added += 1
+    before = {p.get('filename') for p in _get_screensaver_photos()}
+    photos = _sync_screensaver_photos()
+    added = sum(1 for p in photos if p.get('filename') not in before)
     if added:
-        _save_screensaver_photos(photos)
         log_activity('settings_updated', f'{added} screensaver photo(s) found by folder scan')
     return jsonify({'success': True, 'photos': _screensaver_photo_urls(photos), 'added': added})
 

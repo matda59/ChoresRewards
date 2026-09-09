@@ -132,7 +132,7 @@
     }
 
     function fetchConfig() {
-        return fetch(CONFIG_URL, { credentials: 'same-origin' })
+        return fetch(CONFIG_URL, { credentials: 'same-origin', cache: 'no-store' })
             .then(res => res.ok ? res.json() : null)
             .then(data => (data && data.success) ? data : null)
             .catch(() => null);
@@ -395,10 +395,15 @@
         });
         setInterval(() => {
             fetchConfig().then(cfg => {
-                if (cfg) {
-                    config = cfg;
-                    if (!showing) resetIdleTimer();
+                if (!cfg) return;
+                const prevPhotos = ((config && config.photos) || []).join('\n');
+                const nextPhotos = (cfg.photos || []).join('\n');
+                config = cfg;
+                if (prevPhotos !== nextPhotos) {
+                    buildOrder();
+                    if (showing) showSlide(1);
                 }
+                if (!showing) resetIdleTimer();
             });
         }, CONFIG_REFRESH_MS);
 
@@ -421,14 +426,10 @@
         prev: function () { if (showing) { showSlide(-1); restartSlideTimer(); } },
         preview: function () {
             forcedPreview = true;
-            if (!config) {
-                fetchConfig().then(cfg => {
-                    config = cfg || { enabled: false, photos: [], idle_timeout: 180, slide_duration: 8, transition: 'kenburns', order: 'shuffle', overlay_clock: true, overlay_chores: false };
-                    showScreensaver();
-                });
-            } else {
+            fetchConfig().then(cfg => {
+                config = cfg || { enabled: false, photos: [], idle_timeout: 180, slide_duration: 8, transition: 'kenburns', order: 'shuffle', overlay_clock: true, overlay_chores: false };
                 showScreensaver();
-            }
+            });
         }
     };
 })();

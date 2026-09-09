@@ -1,5 +1,5 @@
 // ChoresRewards Service Worker
-const CACHE_NAME = 'choresrewards-v3';
+const CACHE_NAME = 'choresrewards-v4';
 const STATIC_ASSETS = [
   '/',
   '/static/css/styles.css',
@@ -39,6 +39,12 @@ self.addEventListener('fetch', (event) => {
 
   // Do not intercept non-GET requests or socket/API mutations
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Always fetch user uploads from the network so new/replaced photos show up
+  if (url.pathname.startsWith('/static/uploads/')) {
+    event.respondWith(fetch(event.request));
     return;
   }
 

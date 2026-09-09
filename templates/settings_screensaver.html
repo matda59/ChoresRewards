@@ -431,7 +431,12 @@
         });
 
         function filenameFromUrl(url) {
-            return url.split('/').pop();
+            try {
+                const path = new URL(url, window.location.origin).pathname;
+                return decodeURIComponent(path.split('/').pop() || '');
+            } catch (e) {
+                return (url.split('?')[0].split('/').pop() || '');
+            }
         }
 
         function deletePhoto(url) {

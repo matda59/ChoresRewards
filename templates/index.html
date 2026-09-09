@@ -1357,45 +1357,105 @@ window.addEventListener('DOMContentLoaded', function() {
                 card.setAttribute('aria-label', 'Start family photo slideshow');
             }
             if (!wrap) return;
-            fetch('/api/screensaver/config').then(r => r.json()).then(cfg => {
-                const photos = (cfg && cfg.photos) || [];
-                if (!photos.length) return;
+
+            const PHOTO_REFRESH_MS = 60 * 1000;
+            let photos = [];
+            let currentIdx = 0;
+            let rotateTimer = null;
+            let img1 = null;
+            let img2 = null;
+            let activeImg = null;
+            let nextImg = null;
+
+            function photosEqual(a, b) {
+                return a.length === b.length && a.every((url, i) => url === b[i]);
+            }
+
+            function stopRotate() {
+                if (rotateTimer) {
+                    clearInterval(rotateTimer);
+                    rotateTimer = null;
+                }
+            }
+
+            function showEmpty() {
+                stopRotate();
+                wrap.querySelectorAll('img').forEach(el => el.remove());
+                img1 = img2 = activeImg = nextImg = null;
+                if (document.getElementById('dash-photo-empty')) return;
+                const emptyMsg = document.createElement('p');
+                emptyMsg.className = 'dash-empty-hint';
+                emptyMsg.id = 'dash-photo-empty';
+                emptyMsg.innerHTML = 'No photos yet — add some in Settings &rarr; Screensaver.';
+                wrap.appendChild(emptyMsg);
+            }
+
+            function ensureImages() {
                 const emptyMsg = document.getElementById('dash-photo-empty');
                 if (emptyMsg) emptyMsg.remove();
-                
-                // Use only 2 image elements to save RAM on low-end devices
-                const img1 = document.createElement('img');
-                const img2 = document.createElement('img');
-                img1.alt = ''; img2.alt = '';
+                if (img1 && img2) return;
+                img1 = document.createElement('img');
+                img2 = document.createElement('img');
+                img1.alt = '';
+                img2.alt = '';
                 img1.className = 'dash-photo-active';
-                img2.className = '';
-                
-                img1.src = photos[0];
                 wrap.appendChild(img1);
                 wrap.appendChild(img2);
-                
-                if (photos.length < 2) return;
-                
-                let currentIdx = 0;
-                let activeImg = img1;
-                let nextImg = img2;
-                
-                setInterval(() => {
+                activeImg = img1;
+                nextImg = img2;
+            }
+
+            function startRotate() {
+                stopRotate();
+                if (photos.length < 2 || !nextImg) return;
+                rotateTimer = setInterval(() => {
+                    if (!photos.length || !nextImg) return;
                     currentIdx = (currentIdx + 1) % photos.length;
-                    nextImg.src = photos[currentIdx];
-                    
-                    // Wait for the next image to load before crossfading
+                    const target = photos[currentIdx];
                     nextImg.onload = () => {
                         nextImg.classList.add('dash-photo-active');
                         activeImg.classList.remove('dash-photo-active');
-                        
-                        // Swap references
                         const temp = activeImg;
                         activeImg = nextImg;
                         nextImg = temp;
                     };
+                    nextImg.src = target;
                 }, 6000);
-            }).catch(() => {});
+            }
+
+            function applyPhotos(nextPhotos) {
+                if (photosEqual(photos, nextPhotos)) return;
+                photos = nextPhotos.slice();
+                currentIdx = 0;
+                if (!photos.length) {
+                    showEmpty();
+                    return;
+                }
+                ensureImages();
+                if (activeImg) {
+                    activeImg.className = 'dash-photo-active';
+                    activeImg.src = photos[0];
+                }
+                if (nextImg) {
+                    nextImg.className = '';
+                    nextImg.removeAttribute('src');
+                }
+                startRotate();
+            }
+
+            function refreshPhotos() {
+                fetch('/api/screensaver/config', { cache: 'no-store' })
+                    .then(r => r.json())
+                    .then(cfg => applyPhotos((cfg && cfg.photos) || []))
+                    .catch(() => {});
+            }
+
+            refreshPhotos();
+            setInterval(refreshPhotos, PHOTO_REFRESH_MS);
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) refreshPhotos();
+            });
+            window.addEventListener('focus', refreshPhotos);
         })();
         // Sticky notes — quick post-it style notes on the dashboard.
         (() => {
