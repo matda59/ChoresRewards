@@ -721,7 +721,7 @@
                 'Pacific/Saipan', 'Pacific/Tahiti', 'Pacific/Tarawa', 'Pacific/Tongatapu', 'Pacific/Wake', 'Pacific/Wallis'
             ] %}
             {% for tz in timezones %}
-            <option value="{{ tz }}" style="color:#222;background:#fff;"{% if tz == 'Australia/Melbourne' %} selected{% endif %}>{{ tz }}</option>
+            <option value="{{ tz }}" style="color:#222;background:#fff;"{% if tz == timezone %} selected{% endif %}>{{ tz }}</option>
             {% endfor %}
                         </select>
                         <br><br>

@@ -2880,7 +2880,13 @@ def setup_wizard():
 
     # GET
     people = Person.query.all()
-    return render_template('setup_wizard.html', people=people, wizard_errors=[], form_data={})
+    return render_template(
+        'setup_wizard.html',
+        people=people,
+        wizard_errors=[],
+        form_data={},
+        default_timezone=os.getenv('TZ', 'UTC'),
+    )
 
 @routes_bp.route('/api/login', methods=['POST'])
 def api_login():
@@ -3246,15 +3252,20 @@ def activity_log():
         
         # Get all logs ordered by date (newest first)
         logs = query.order_by(ActivityLog.date.desc()).all()
-        # Convert timestamps to Australia/Sydney timezone for display
-        syd = ZoneInfo("Australia/Sydney")
+        # Convert timestamps from their UTC storage representation to the
+        # family timezone selected in Settings.
+        timezone_name = AppSetting.get('timezone', os.getenv('TZ', 'UTC'))
+        try:
+            display_timezone = ZoneInfo(timezone_name)
+        except Exception:
+            display_timezone = timezone.utc
         for lg in logs:
             # Ensure datetime is timezone-aware in UTC
             if lg.date.tzinfo is None:
                 aware = lg.date.replace(tzinfo=timezone.utc)
             else:
                 aware = lg.date.astimezone(timezone.utc)
-            lg.local_date = aware.astimezone(syd)
+            lg.local_date = aware.astimezone(display_timezone)
         
         # Get unique types and users for filter dropdowns
         all_types = db.session.query(ActivityLog.type).distinct().all()
