@@ -28,7 +28,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260909a">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260915a">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -53,6 +53,10 @@
                                 <script>
                                 // Auto-refresh the page every 30 minutes to ensure daily chores update
                                 setInterval(function() {
+                                    try {
+                                        var timer = JSON.parse(localStorage.getItem('visualTimerState') || '{}');
+                                        if (timer && timer.running) return;
+                                    } catch (e) {}
                                     window.location.reload();
                                 }, 30 * 60 * 1000); // 30 minutes in milliseconds
                                 </script>
@@ -1071,6 +1075,64 @@ window.addEventListener('DOMContentLoaded', function() {
 
         </div>
 
+        <!-- Kids visual countdown timer (Time Timer style pie) -->
+        <div class="dashboard-card dashboard-card-timer" id="dashboard-timer-panel">
+            <h3 class="dashboard-card-title">
+                <i class="fas fa-hourglass-half" style="color:#f97316;"></i> Visual Timer
+            </h3>
+            <div class="visual-timer" id="visual-timer">
+                <div class="visual-timer-face-col">
+                    <div class="visual-timer-face-wrap" id="visual-timer-face">
+                        <svg class="visual-timer-svg" viewBox="0 0 220 220" role="img" aria-labelledby="visual-timer-digits">
+                            <title>Time remaining pie chart</title>
+                            <circle class="visual-timer-disc" cx="110" cy="110" r="100"></circle>
+                            <path id="visual-timer-pie" class="visual-timer-pie" d=""></path>
+                            <g id="visual-timer-ticks" class="visual-timer-ticks"></g>
+                            <line id="visual-timer-hand" class="visual-timer-hand" x1="110" y1="110" x2="110" y2="18"></line>
+                            <circle class="visual-timer-hub" cx="110" cy="110" r="7"></circle>
+                        </svg>
+                    </div>
+                    <div class="visual-timer-readout">
+                        <div class="visual-timer-digits" id="visual-timer-digits">05:00</div>
+                        <div class="visual-timer-status" id="visual-timer-status">Pick a time</div>
+                    </div>
+                </div>
+                <div class="visual-timer-controls">
+                    <p class="visual-timer-label">Color</p>
+                    <div class="visual-timer-colors" id="visual-timer-colors" role="group" aria-label="Timer color"></div>
+
+                    <p class="visual-timer-label">Quick times</p>
+                    <div class="visual-timer-presets" id="visual-timer-presets" role="group" aria-label="Timer presets">
+                        <button type="button" class="visual-timer-preset is-selected" data-ms="300000">5m</button>
+                        <button type="button" class="visual-timer-preset" data-ms="600000">10m</button>
+                        <button type="button" class="visual-timer-preset" data-ms="1200000">20m</button>
+                        <button type="button" class="visual-timer-preset" data-ms="1800000">30m</button>
+                        <button type="button" class="visual-timer-preset" data-ms="2700000">45m</button>
+                        <button type="button" class="visual-timer-preset" data-ms="3600000">1hr</button>
+                        <button type="button" class="visual-timer-preset" data-ms="7200000">2hr</button>
+                    </div>
+
+                    <p class="visual-timer-label">Custom minutes</p>
+                    <form class="visual-timer-custom" id="visual-timer-custom-form">
+                        <input id="visual-timer-custom-min" type="number" inputmode="numeric" min="1" max="180" step="1" placeholder="Minutes" aria-label="Custom minutes">
+                        <button type="submit" class="visual-timer-set-btn">Set</button>
+                    </form>
+
+                    <div class="visual-timer-actions">
+                        <button type="button" class="visual-timer-btn visual-timer-btn-start" id="visual-timer-start">
+                            <i class="fas fa-play"></i> Start
+                        </button>
+                        <button type="button" class="visual-timer-btn visual-timer-btn-pause" id="visual-timer-pause" disabled>
+                            <i class="fas fa-pause"></i> Pause
+                        </button>
+                        <button type="button" class="visual-timer-btn visual-timer-btn-reset" id="visual-timer-reset">
+                            <i class="fas fa-rotate-left"></i> Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Sticky Notes — its own resizable full-width panel -->
         <div class="dashboard-card dashboard-card-photos dashboard-card-notes" id="dashboard-notes-panel">
             <h3 class="dashboard-card-title">
@@ -1099,8 +1161,10 @@ window.addEventListener('DOMContentLoaded', function() {
             will-change: transform;
         }
         .dashboard-card:hover { transform: translateY(-2px); }
-        .dashboard-card-photos { cursor: default; }
-        .dashboard-card-photos:hover { transform: none; }
+        .dashboard-card-photos,
+        .dashboard-card-timer { cursor: default; }
+        .dashboard-card-photos:hover,
+        .dashboard-card-timer:hover { transform: none; }
         .dashboard-card-photos:not(.dashboard-card-notes) { cursor: pointer; }
         .dashboard-card-photos:not(.dashboard-card-notes):hover { transform: translateY(-2px); }
         .dashboard-card-title {
@@ -1624,6 +1688,7 @@ window.addEventListener('DOMContentLoaded', function() {
             load();
         })();
     </script>
+    <script src="{{ url_for('static', filename='js/visual_timer.js') }}?v=20260915a"></script>
 
     <!-- Notes Kanban Section -->
     <section class="notes-kanban-section collapsible-section collapsed" id="notes-kanban-section">

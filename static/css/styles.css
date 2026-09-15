@@ -9792,3 +9792,296 @@ button.header-notif-item:hover { background: rgba(148,163,184,0.12); }
 .org-service-milestone-bar-fill.is-danger {
     background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   DASHBOARD VISUAL TIMER (Time Timer-style pie countdown)
+   ══════════════════════════════════════════════════════════════════ */
+.dashboard-card-timer {
+    margin-top: 16px;
+    cursor: default;
+}
+
+.dashboard-card-timer:hover {
+    transform: none;
+}
+
+.visual-timer {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    flex-wrap: wrap;
+}
+
+.visual-timer-face-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    margin: 4px auto;
+}
+
+.visual-timer-face-wrap {
+    position: relative;
+    width: min(320px, 78vw);
+    aspect-ratio: 1;
+    --vt-fill: #ef4444;
+    --vt-glow: rgba(239, 68, 68, 0.45);
+}
+
+.visual-timer-svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.28));
+}
+
+.visual-timer-disc {
+    fill: #fff7ed;
+    stroke: #1e293b;
+    stroke-width: 6;
+}
+
+.visual-timer-pie {
+    transition: fill 0.25s ease;
+}
+
+.visual-timer-tick {
+    stroke: #334155;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.visual-timer-tick-major {
+    stroke-width: 3.5;
+}
+
+.visual-timer-hand {
+    stroke-width: 4;
+    stroke-linecap: round;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+}
+
+.visual-timer-hub {
+    fill: #1e293b;
+    stroke: #fff;
+    stroke-width: 2;
+}
+
+.visual-timer-readout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.visual-timer-digits {
+    font-size: clamp(1.7rem, 5vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--cr-text-primary);
+    line-height: 1.05;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.visual-timer-status {
+    margin-top: 2px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--cr-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.visual-timer-face-wrap.is-running .visual-timer-svg {
+    filter: drop-shadow(0 10px 22px var(--vt-glow));
+}
+
+.visual-timer-face-wrap.is-ending {
+    animation: visual-timer-pulse 0.8s ease-in-out infinite;
+}
+
+.visual-timer-face-wrap.is-finished {
+    animation: visual-timer-celebrate 0.9s ease;
+}
+
+.visual-timer-face-wrap.is-finished .visual-timer-disc {
+    fill: #ecfdf5;
+    stroke: #10b981;
+}
+
+.visual-timer-face-col:has(.is-finished) .visual-timer-digits,
+.visual-timer-face-col:has(.is-finished) .visual-timer-status {
+    color: #34d399;
+}
+
+.visual-timer-controls {
+    flex: 1 1 280px;
+    min-width: 240px;
+}
+
+.visual-timer-label {
+    margin: 0 0 8px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cr-text-secondary);
+}
+
+.visual-timer-colors,
+.visual-timer-presets,
+.visual-timer-actions,
+.visual-timer-custom {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.visual-timer-color {
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    border: 3px solid rgba(255, 255, 255, 0.45);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+    touch-action: manipulation;
+    padding: 0;
+    position: relative;
+}
+
+.visual-timer-color.is-selected {
+    outline: 3px solid var(--cr-text-primary);
+    outline-offset: 3px;
+    transform: scale(1.08);
+}
+
+.visual-timer-preset,
+.visual-timer-set-btn,
+.visual-timer-btn,
+.visual-timer-custom input {
+    min-height: 52px;
+    border-radius: 16px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    border: none;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.visual-timer-preset {
+    min-width: 68px;
+    padding: 0 16px;
+    background: var(--cr-subtle-panel);
+    color: var(--cr-text-primary);
+    border: 2px solid var(--cr-subtle-panel-border);
+}
+
+.visual-timer-preset.is-selected,
+.visual-timer-preset:hover {
+    background: #f97316;
+    border-color: #fb923c;
+    color: #fff;
+}
+
+.visual-timer-custom input {
+    width: 140px;
+    padding: 0 16px;
+    background: var(--cr-subtle-panel);
+    color: var(--cr-text-primary);
+    border: 2px solid var(--cr-subtle-panel-border);
+    font-family: inherit;
+}
+
+.visual-timer-custom input:focus {
+    outline: none;
+    border-color: #fb923c;
+}
+
+.visual-timer-set-btn {
+    padding: 0 22px;
+    background: #64748b;
+    color: #fff;
+}
+
+.visual-timer-set-btn:hover {
+    background: #475569;
+}
+
+.visual-timer-actions {
+    margin-bottom: 0;
+}
+
+.visual-timer-btn {
+    flex: 1 1 120px;
+    padding: 0 18px;
+    color: #fff;
+}
+
+.visual-timer-btn-start {
+    background: #16a34a;
+}
+
+.visual-timer-btn-start:hover:not(:disabled) {
+    background: #15803d;
+}
+
+.visual-timer-btn-pause {
+    background: #f59e0b;
+    color: #1e293b;
+}
+
+.visual-timer-btn-pause:hover:not(:disabled) {
+    background: #d97706;
+}
+
+.visual-timer-btn-reset {
+    background: #475569;
+}
+
+.visual-timer-btn-reset:hover:not(:disabled) {
+    background: #334155;
+}
+
+.visual-timer-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+@keyframes visual-timer-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+}
+
+@keyframes visual-timer-celebrate {
+    0% { transform: scale(0.92); }
+    55% { transform: scale(1.06); }
+    100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .visual-timer-face-wrap.is-ending,
+    .visual-timer-face-wrap.is-finished {
+        animation: none;
+    }
+}
+
+@media (max-width: 700px) {
+    .visual-timer {
+        justify-content: center;
+        gap: 18px;
+    }
+    .visual-timer-face-wrap {
+        width: min(250px, 82vw);
+    }
+}
+
+[data-theme="light"] .visual-timer-disc {
+    fill: #fffdf8;
+}
+
+[data-theme="dark"] .dashboard-card-timer:hover,
+[data-theme="light"] .dashboard-card-timer:hover {
+    transform: none;
+}
