@@ -234,6 +234,9 @@ class OrganiseItem(db.Model):
     vehicle_model = db.Column(db.String(100), nullable=True)
     vehicle_year = db.Column(db.Integer, nullable=True)
     vehicle_rego = db.Column(db.String(20), nullable=True)
+    current_odometer = db.Column(db.Integer, nullable=True)
+    next_service_date = db.Column(db.Date, nullable=True)
+    next_service_mileage = db.Column(db.Integer, nullable=True)
     parent_id = db.Column(db.Integer, db.ForeignKey('organise_item.id', ondelete='CASCADE'), nullable=True)
     vehicle_services = db.relationship('VehicleService', backref='vehicle', lazy=True,
                                        cascade='all, delete-orphan',
@@ -270,6 +273,9 @@ class OrganiseItem(db.Model):
             'vehicle_model': self.vehicle_model,
             'vehicle_year': self.vehicle_year,
             'vehicle_rego': self.vehicle_rego,
+            'current_odometer': self.current_odometer,
+            'next_service_date': self.next_service_date.isoformat() if self.next_service_date else None,
+            'next_service_mileage': self.next_service_mileage,
             'parent_id': self.parent_id,
         }
 

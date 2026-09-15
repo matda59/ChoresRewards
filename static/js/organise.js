@@ -15,6 +15,8 @@
     const serviceCache = {};
     let editingServiceId = null;
     let editingServiceItemId = null;
+    let editingStatusItemId = null;
+    let statusFocusField = 'km';
 
     const CATEGORY_ICONS = {
         Car: '🚗',
@@ -154,6 +156,41 @@
         return organiseItems.some(i => i.parent_id === carId);
     }
 
+    function currentKm(item, services) {
+        const fromServices = (services || []).filter(s => s.mileage != null).map(s => s.mileage);
+        const serviceMax = fromServices.length ? Math.max(...fromServices) : null;
+        if (item && item.current_odometer != null) {
+            return serviceMax != null ? Math.max(item.current_odometer, serviceMax) : item.current_odometer;
+        }
+        return serviceMax;
+    }
+
+    function nextServiceInfo(item, services) {
+        const list = services || [];
+        const fromSvc = list.filter(s => s.next_service_date || s.next_service_mileage != null);
+        fromSvc.sort((a, b) => String(a.next_service_date || '9999').localeCompare(String(b.next_service_date || '9999')));
+        const fallback = fromSvc[0] || null;
+        const date = (item && item.next_service_date) || (fallback && fallback.next_service_date) || null;
+        const km = (item && item.next_service_mileage != null)
+            ? item.next_service_mileage
+            : (fallback && fallback.next_service_mileage != null ? fallback.next_service_mileage : null);
+        return { date, km };
+    }
+
+    function lastServiceInfo(services) {
+        return (services && services.length) ? services[0] : null;
+    }
+
+    function serviceDueClass(dateIso) {
+        if (!dateIso) return 'neutral';
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const nextDate = new Date(dateIso + 'T00:00:00');
+        const diffDays = Math.round((nextDate - today) / 86400000);
+        if (diffDays < 0) return 'overdue';
+        if (diffDays <= 30) return 'due_soon';
+        return 'ok';
+    }
+
     function buildEmojiPickerHtml() {
         return EMOJI_DATA.map(group => `
             <div class="org-ep-group">
@@ -252,22 +289,20 @@
 
         cars.forEach(c => {
             if (!serviceCache[c.id]) fetchServiceSummary(c.id);
-            else updateCarSummaryStrip(c.id);
+            else renderCarWidgets(c.id);
         });
     }
 
     function renderCarCard(item) {
         const photoStr = item.photo_url
-            ? `<div class="org-card-photo"><img src="${escapeHtml(item.photo_url)}" alt="Photo" class="org-card-photo-img org-photo-zoomable" loading="lazy" onclick="orgOpenLightbox(this.src,this.alt)"></div>`
-            : '';
+            ? `<div class="org-car-thumb"><img src="${escapeHtml(item.photo_url)}" alt="Photo" class="org-photo-zoomable" loading="lazy" onclick="orgOpenLightbox(this.src,this.alt)"></div>`
+            : `<div class="org-car-thumb org-car-thumb--placeholder">${item.icon || '🚗'}</div>`;
         const parts = [item.vehicle_year, item.vehicle_make, item.vehicle_model].filter(Boolean);
         const vehicleName = parts.length ? escapeHtml(parts.join(' ')) : escapeHtml(item.title);
         const regoStr = item.vehicle_rego
             ? `<span class="org-rego-badge">${escapeHtml(item.vehicle_rego)}</span>` : '';
         const notesStr = item.notes
-            ? `<div class="org-card-notes"><i class="fas fa-sticky-note"></i> ${escapeHtml(item.notes)}</div>` : '';
-        const children = childItems(item.id);
-        const duePills = buildCarDuePills(item, children);
+            ? `<div class="org-card-notes">${escapeHtml(item.notes)}</div>` : '';
 
         return `
         <div class="org-car-card" data-id="${item.id}">
@@ -275,7 +310,6 @@
                 ${photoStr}
                 <div class="org-car-info">
                     <div class="org-car-title">
-                        <span class="org-card-icon">${item.icon || '🚗'}</span>
                         <span class="org-car-name">${vehicleName}</span>
                         ${regoStr}
                     </div>
@@ -283,27 +317,19 @@
                 </div>
                 <div class="org-car-actions admin-only">
                     <button class="org-btn-edit" onclick="organiseEdit(${item.id})" title="Edit car"><i class="fas fa-pencil-alt"></i></button>
-                    ${item.due_date ? `<button class="org-btn-toggle-paid" onclick="organiseTogglePaid(${item.id})" title="${item.paid ? 'Mark unpaid' : 'Mark paid and set next due date'}"><i class="fas ${item.paid ? 'fa-times-circle' : 'fa-check-circle'}"></i></button>` : ''}
                     <button class="org-btn-delete" onclick="organiseDelete(${item.id})" title="Delete car"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
-            <div class="org-car-summary-strip" id="car-summary-${item.id}">${duePills}</div>
-            <div class="org-renewals-block">
-                <div class="org-renewals-head">
-                    <span><i class="fas fa-file-alt"></i> Documents &amp; renewals</span>
-                    <button type="button" class="org-svc-add-btn admin-only" onclick="organiseAddRenewal(${item.id})" title="Add a document to this car">
-                        <i class="fas fa-plus"></i> Add
-                    </button>
-                </div>
-                <div class="org-renewals-list">${renderRenewalRows(children)}</div>
+            <div class="org-widget-grid" id="car-widgets-${item.id}">
+                <div class="org-widget org-widget--placeholder"><span class="org-svc-loading">Loading…</span></div>
             </div>
             <div class="org-svc-toggle-bar">
                 <button class="org-svc-toggle-btn" onclick="toggleServicePanel(${item.id})">
-                    <i class="fas fa-wrench"></i> Service History
+                    <i class="fas fa-wrench"></i> Service history
                     <i class="fas fa-chevron-down org-svc-chevron" id="svc-chevron-${item.id}"></i>
                 </button>
                 <button class="org-svc-add-btn admin-only" onclick="openServiceModal(${item.id}, null)" title="Add service record">
-                    <i class="fas fa-plus"></i> Add Service
+                    <i class="fas fa-plus"></i> Log service
                 </button>
             </div>
             <div class="org-svc-panel" id="svc-panel-${item.id}" style="display:none;">
@@ -314,65 +340,22 @@
         </div>`;
     }
 
-    function renderRenewalRows(children) {
-        if (!children.length) {
-            return '<p class="org-renewals-empty">No documents on this car yet. Add registration, insurance or other renewals here.</p>';
-        }
-        return children.map(child => {
-            const sc = child.paid ? 'org-status-ok' : statusClass(child.status);
-            const dl = child.due_date && !child.paid ? daysLabel(child.days_until_due) : '';
-            const due = child.due_date
-                ? `<span class="org-days-label ${sc}">${formatDate(child.due_date)}${dl ? ' · ' + dl : ''}</span>`
-                : '<span class="org-renewal-nodate">No due date</span>';
-            const extra = [
-                child.provider ? escapeHtml(child.provider) : '',
-                child.cost != null ? `$${parseFloat(child.cost).toFixed(2)}` : '',
-                child.paid ? 'Paid' : '',
-            ].filter(Boolean).join(' · ');
-            return `
-            <div class="org-renewal-row ${sc}" data-id="${child.id}">
-                <div class="org-renewal-main">
-                    <div class="org-renewal-title">${child.icon || '📄'} ${escapeHtml(child.title)}</div>
-                    <div class="org-renewal-meta">${due}${extra ? `<span class="org-renewal-extra">${extra}</span>` : ''}</div>
-                </div>
-                <div class="org-renewal-actions admin-only">
-                    <button class="org-btn-edit" onclick="organiseEdit(${child.id})" title="Edit details"><i class="fas fa-pencil-alt"></i></button>
-                    <button class="org-btn-toggle-paid" onclick="organiseTogglePaid(${child.id})" title="${child.paid ? 'Mark unpaid' : 'Mark paid and set next due date'}">
-                        ${child.paid ? '<i class="fas fa-times-circle"></i>' : '<i class="fas fa-check-circle"></i>'}
-                    </button>
-                    <button class="org-btn-delete" onclick="organiseDelete(${child.id})" title="Delete"><i class="fas fa-trash"></i></button>
-                </div>
-            </div>`;
-        }).join('');
-    }
-
-    function buildCarDuePills(item, children) {
-        const pills = [];
-        const docs = children || childItems(item.id);
-
-        docs.filter(d => d.due_date && !d.paid).forEach(d => {
-            const dl = daysLabel(d.days_until_due);
-            pills.push(`<span class="org-car-pill org-car-pill--${d.status || 'ok'}">
-                ${d.icon || ''} ${escapeHtml(d.title)}: ${formatDate(d.due_date)}
-                <span class="org-car-pill-badge">${dl}</span>
-            </span>`);
-        });
-
-        if (item.due_date && !item.paid && !docs.some(d => d.due_date)) {
-            const dl = daysLabel(item.days_until_due);
-            pills.push(`<span class="org-car-pill org-car-pill--${item.status || 'ok'}">
-                <i class="fas fa-id-card"></i> Renewal: ${formatDate(item.due_date)}
-                <span class="org-car-pill-badge">${dl}</span>
-            </span>`);
-        }
-
-        if (item.last_date) {
-            pills.push(`<span class="org-car-pill org-car-pill--neutral">
-                <i class="fas fa-history"></i> Last renewed: ${formatDate(item.last_date)}
-            </span>`);
-        }
-
-        return pills.join('');
+    function widgetMarkup(opts) {
+        const status = opts.status ? ` org-widget--${opts.status}` : '';
+        const extra = opts.extraClass ? ` ${opts.extraClass}` : '';
+        const action = opts.onclick ? ` onclick="${opts.onclick}"` : '';
+        const hint = opts.hint ? ` title="${escapeHtml(opts.hint)}"` : '';
+        const meta = opts.meta ? `<div class="org-widget-meta">${opts.meta}</div>` : '';
+        const edit = opts.editable
+            ? '<span class="org-widget-edit"><i class="fas fa-pen"></i></span>'
+            : '';
+        return `
+        <button type="button" class="org-widget${status}${extra}"${action}${hint}>
+            ${edit}
+            <span class="org-widget-label">${opts.icon || ''} ${opts.label}</span>
+            <span class="org-widget-value">${opts.value}</span>
+            ${meta}
+        </button>`;
     }
 
     function fetchServiceSummary(itemId) {
