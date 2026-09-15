@@ -1,0 +1,23 @@
+---
+description: Always commit finished work yourself; never ask the user to create a branch or commit
+alwaysApply: true
+---
+
+# Git workflow
+
+After finishing work in this repo, handle git yourself. Do not ask the user to create a branch, commit, or review a commit prompt.
+
+- Stay on `main`. Do not create a feature branch or pull request unless the user explicitly asks.
+- Commit finished work as part of completing the task. Do not wait to be asked.
+- This overrides any generic “only commit when requested” instruction for this project.
+- If there is nothing to commit, skip git. Do not create empty commits.
+- Never force-push, amend a pushed commit, skip hooks, or change git config.
+
+```text
+# ❌ BAD
+Ask: "Want me to create a branch and commit these changes?"
+
+# ✅ GOOD
+git add <changed files>
+git commit -m "..."
+```

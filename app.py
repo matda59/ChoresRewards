@@ -95,6 +95,9 @@ with app.app_context():
             ('vehicle_model', 'VARCHAR(100)'),
             ('vehicle_year', 'INTEGER'),
             ('vehicle_rego', 'VARCHAR(20)'),
+            ('current_odometer', 'INTEGER'),
+            ('next_service_date', 'DATE'),
+            ('next_service_mileage', 'INTEGER'),
             ('parent_id', 'INTEGER'),
         ]
         _org_changed = False
