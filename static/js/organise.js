@@ -13,8 +13,11 @@
     let pickCarResolver = null;
 
     const serviceCache = {};
+    const openServicePanels = new Set();
     let editingServiceId = null;
     let editingServiceItemId = null;
+    let editingStatusItemId = null;
+    let statusFocusField = 'km';
 
     const CATEGORY_ICONS = {
         Car: '🚗',
@@ -154,6 +157,41 @@
         return organiseItems.some(i => i.parent_id === carId);
     }
 
+    function currentKm(item, services) {
+        const fromServices = (services || []).filter(s => s.mileage != null).map(s => s.mileage);
+        const serviceMax = fromServices.length ? Math.max(...fromServices) : null;
+        if (item && item.current_odometer != null) {
+            return serviceMax != null ? Math.max(item.current_odometer, serviceMax) : item.current_odometer;
+        }
+        return serviceMax;
+    }
+
+    function nextServiceInfo(item, services) {
+        const list = services || [];
+        const fromSvc = list.filter(s => s.next_service_date || s.next_service_mileage != null);
+        fromSvc.sort((a, b) => String(a.next_service_date || '9999').localeCompare(String(b.next_service_date || '9999')));
+        const fallback = fromSvc[0] || null;
+        const date = (item && item.next_service_date) || (fallback && fallback.next_service_date) || null;
+        const km = (item && item.next_service_mileage != null)
+            ? item.next_service_mileage
+            : (fallback && fallback.next_service_mileage != null ? fallback.next_service_mileage : null);
+        return { date, km };
+    }
+
+    function lastServiceInfo(services) {
+        return (services && services.length) ? services[0] : null;
+    }
+
+    function serviceDueClass(dateIso) {
+        if (!dateIso) return 'neutral';
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const nextDate = new Date(dateIso + 'T00:00:00');
+        const diffDays = Math.round((nextDate - today) / 86400000);
+        if (diffDays < 0) return 'overdue';
+        if (diffDays <= 30) return 'due_soon';
+        return 'ok';
+    }
+
     function buildEmojiPickerHtml() {
         return EMOJI_DATA.map(group => `
             <div class="org-ep-group">
@@ -240,34 +278,33 @@
             }).join('');
         }
 
-        container.innerHTML = html || '<p class="org-empty">No items yet. Click <b>+ Add Item</b> to get started.</p>';
-
-        Object.keys(serviceCache).forEach(id => {
-            const panel = document.getElementById(`svc-panel-${id}`);
-            if (panel) {
-                panel.style.display = '';
-                renderServicePanel(parseInt(id, 10));
-            }
-        });
+        container.innerHTML = html || '<p class="org-empty">No items yet. Click <b>+ Add</b> to get started.</p>';
 
         cars.forEach(c => {
-            if (!serviceCache[c.id]) fetchServiceSummary(c.id);
-            else updateCarSummaryStrip(c.id);
+            renderCarWidgets(c.id);
+            fetchServiceSummary(c.id);
+        });
+
+        openServicePanels.forEach(id => {
+            const panel = document.getElementById(`svc-panel-${id}`);
+            const chevron = document.getElementById(`svc-chevron-${id}`);
+            if (!panel) return;
+            panel.style.display = '';
+            if (chevron) chevron.style.transform = 'rotate(180deg)';
+            renderServicePanel(id);
         });
     }
 
     function renderCarCard(item) {
         const photoStr = item.photo_url
-            ? `<div class="org-card-photo"><img src="${escapeHtml(item.photo_url)}" alt="Photo" class="org-card-photo-img org-photo-zoomable" loading="lazy" onclick="orgOpenLightbox(this.src,this.alt)"></div>`
-            : '';
+            ? `<div class="org-car-thumb"><img src="${escapeHtml(item.photo_url)}" alt="Photo" class="org-photo-zoomable" loading="lazy" onclick="orgOpenLightbox(this.src,this.alt)"></div>`
+            : `<div class="org-car-thumb org-car-thumb--placeholder">${item.icon || '🚗'}</div>`;
         const parts = [item.vehicle_year, item.vehicle_make, item.vehicle_model].filter(Boolean);
         const vehicleName = parts.length ? escapeHtml(parts.join(' ')) : escapeHtml(item.title);
         const regoStr = item.vehicle_rego
             ? `<span class="org-rego-badge">${escapeHtml(item.vehicle_rego)}</span>` : '';
         const notesStr = item.notes
-            ? `<div class="org-card-notes"><i class="fas fa-sticky-note"></i> ${escapeHtml(item.notes)}</div>` : '';
-        const children = childItems(item.id);
-        const duePills = buildCarDuePills(item, children);
+            ? `<div class="org-card-notes">${escapeHtml(item.notes)}</div>` : '';
 
         return `
         <div class="org-car-card" data-id="${item.id}">
@@ -275,7 +312,6 @@
                 ${photoStr}
                 <div class="org-car-info">
                     <div class="org-car-title">
-                        <span class="org-card-icon">${item.icon || '🚗'}</span>
                         <span class="org-car-name">${vehicleName}</span>
                         ${regoStr}
                     </div>
@@ -283,27 +319,19 @@
                 </div>
                 <div class="org-car-actions admin-only">
                     <button class="org-btn-edit" onclick="organiseEdit(${item.id})" title="Edit car"><i class="fas fa-pencil-alt"></i></button>
-                    ${item.due_date ? `<button class="org-btn-toggle-paid" onclick="organiseTogglePaid(${item.id})" title="${item.paid ? 'Mark unpaid' : 'Mark paid and set next due date'}"><i class="fas ${item.paid ? 'fa-times-circle' : 'fa-check-circle'}"></i></button>` : ''}
                     <button class="org-btn-delete" onclick="organiseDelete(${item.id})" title="Delete car"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
-            <div class="org-car-summary-strip" id="car-summary-${item.id}">${duePills}</div>
-            <div class="org-renewals-block">
-                <div class="org-renewals-head">
-                    <span><i class="fas fa-file-alt"></i> Documents &amp; renewals</span>
-                    <button type="button" class="org-svc-add-btn admin-only" onclick="organiseAddRenewal(${item.id})" title="Add a document to this car">
-                        <i class="fas fa-plus"></i> Add
-                    </button>
-                </div>
-                <div class="org-renewals-list">${renderRenewalRows(children)}</div>
+            <div class="org-widget-grid" id="car-widgets-${item.id}">
+                <div class="org-widget org-widget--placeholder"><span class="org-svc-loading">Loading…</span></div>
             </div>
             <div class="org-svc-toggle-bar">
                 <button class="org-svc-toggle-btn" onclick="toggleServicePanel(${item.id})">
-                    <i class="fas fa-wrench"></i> Service History
+                    <i class="fas fa-wrench"></i> Service history
                     <i class="fas fa-chevron-down org-svc-chevron" id="svc-chevron-${item.id}"></i>
                 </button>
                 <button class="org-svc-add-btn admin-only" onclick="openServiceModal(${item.id}, null)" title="Add service record">
-                    <i class="fas fa-plus"></i> Add Service
+                    <i class="fas fa-plus"></i> Log service
                 </button>
             </div>
             <div class="org-svc-panel" id="svc-panel-${item.id}" style="display:none;">
@@ -314,65 +342,22 @@
         </div>`;
     }
 
-    function renderRenewalRows(children) {
-        if (!children.length) {
-            return '<p class="org-renewals-empty">No documents on this car yet. Add registration, insurance or other renewals here.</p>';
-        }
-        return children.map(child => {
-            const sc = child.paid ? 'org-status-ok' : statusClass(child.status);
-            const dl = child.due_date && !child.paid ? daysLabel(child.days_until_due) : '';
-            const due = child.due_date
-                ? `<span class="org-days-label ${sc}">${formatDate(child.due_date)}${dl ? ' · ' + dl : ''}</span>`
-                : '<span class="org-renewal-nodate">No due date</span>';
-            const extra = [
-                child.provider ? escapeHtml(child.provider) : '',
-                child.cost != null ? `$${parseFloat(child.cost).toFixed(2)}` : '',
-                child.paid ? 'Paid' : '',
-            ].filter(Boolean).join(' · ');
-            return `
-            <div class="org-renewal-row ${sc}" data-id="${child.id}">
-                <div class="org-renewal-main">
-                    <div class="org-renewal-title">${child.icon || '📄'} ${escapeHtml(child.title)}</div>
-                    <div class="org-renewal-meta">${due}${extra ? `<span class="org-renewal-extra">${extra}</span>` : ''}</div>
-                </div>
-                <div class="org-renewal-actions admin-only">
-                    <button class="org-btn-edit" onclick="organiseEdit(${child.id})" title="Edit details"><i class="fas fa-pencil-alt"></i></button>
-                    <button class="org-btn-toggle-paid" onclick="organiseTogglePaid(${child.id})" title="${child.paid ? 'Mark unpaid' : 'Mark paid and set next due date'}">
-                        ${child.paid ? '<i class="fas fa-times-circle"></i>' : '<i class="fas fa-check-circle"></i>'}
-                    </button>
-                    <button class="org-btn-delete" onclick="organiseDelete(${child.id})" title="Delete"><i class="fas fa-trash"></i></button>
-                </div>
-            </div>`;
-        }).join('');
-    }
-
-    function buildCarDuePills(item, children) {
-        const pills = [];
-        const docs = children || childItems(item.id);
-
-        docs.filter(d => d.due_date && !d.paid).forEach(d => {
-            const dl = daysLabel(d.days_until_due);
-            pills.push(`<span class="org-car-pill org-car-pill--${d.status || 'ok'}">
-                ${d.icon || ''} ${escapeHtml(d.title)}: ${formatDate(d.due_date)}
-                <span class="org-car-pill-badge">${dl}</span>
-            </span>`);
-        });
-
-        if (item.due_date && !item.paid && !docs.some(d => d.due_date)) {
-            const dl = daysLabel(item.days_until_due);
-            pills.push(`<span class="org-car-pill org-car-pill--${item.status || 'ok'}">
-                <i class="fas fa-id-card"></i> Renewal: ${formatDate(item.due_date)}
-                <span class="org-car-pill-badge">${dl}</span>
-            </span>`);
-        }
-
-        if (item.last_date) {
-            pills.push(`<span class="org-car-pill org-car-pill--neutral">
-                <i class="fas fa-history"></i> Last renewed: ${formatDate(item.last_date)}
-            </span>`);
-        }
-
-        return pills.join('');
+    function widgetMarkup(opts) {
+        const status = opts.status ? ` org-widget--${opts.status}` : '';
+        const extra = opts.extraClass ? ` ${opts.extraClass}` : '';
+        const action = opts.onclick ? ` onclick="${opts.onclick}"` : '';
+        const hint = opts.hint ? ` title="${escapeHtml(opts.hint)}"` : '';
+        const meta = opts.meta ? `<div class="org-widget-meta">${opts.meta}</div>` : '';
+        const edit = opts.editable
+            ? '<span class="org-widget-edit"><i class="fas fa-pen"></i></span>'
+            : '';
+        return `
+        <button type="button" class="org-widget${status}${extra}"${action}${hint}>
+            ${edit}
+            <span class="org-widget-label">${opts.icon || ''} ${opts.label}</span>
+            <span class="org-widget-value">${opts.value}</span>
+            ${meta}
+        </button>`;
     }
 
     function fetchServiceSummary(itemId) {
@@ -381,7 +366,7 @@
             .then(res => {
                 if (res.success) {
                     serviceCache[itemId] = res.services;
-                    updateCarSummaryStrip(itemId);
+                    renderCarWidgets(itemId);
                     const panel = document.getElementById(`svc-panel-${itemId}`);
                     if (panel && panel.style.display !== 'none') renderServicePanel(itemId);
                 }
@@ -389,81 +374,123 @@
             .catch(() => {});
     }
 
-    function updateCarSummaryStrip(itemId) {
-        const strip = document.getElementById(`car-summary-${itemId}`);
-        if (!strip) return;
+    function renderCarWidgets(itemId) {
+        const grid = document.getElementById(`car-widgets-${itemId}`);
+        if (!grid) return;
         const item = organiseItems.find(i => i.id === itemId);
         if (!item) return;
         const services = serviceCache[itemId] || [];
-        const pills = buildCarDuePills(item, childItems(itemId));
+        const docs = childItems(itemId);
+        const km = currentKm(item, services);
+        const next = nextServiceInfo(item, services);
+        const last = lastServiceInfo(services);
+        const nextStatus = serviceDueClass(next.date);
+        let remainingKm = null;
+        if (km != null && next.km != null) remainingKm = next.km - km;
 
-        let odomPill = '';
-        const withMileage = services.filter(s => s.mileage != null);
-        if (withMileage.length) {
-            const maxMileage = Math.max(...withMileage.map(s => s.mileage));
-            odomPill = `<span class="org-car-pill org-car-pill--neutral"><i class="fas fa-tachometer-alt"></i> ${maxMileage.toLocaleString()} km</span>`;
+        const widgets = [];
+        widgets.push(widgetMarkup({
+            label: 'Kilometres',
+            icon: '<i class="fas fa-tachometer-alt"></i>',
+            value: km != null ? `${km.toLocaleString()} km` : 'Set km',
+            meta: km != null ? 'Tap to update' : 'No odometer yet',
+            hint: 'Edit current kilometres',
+            editable: true,
+            extraClass: 'org-widget--km',
+            onclick: `organiseEditStatus(${itemId},'km')`,
+        }));
+
+        const nextValue = next.date || next.km != null
+            ? (next.date ? formatDate(next.date) : 'Date not set')
+            : 'Set next service';
+        const nextMetaParts = [];
+        if (next.km != null) nextMetaParts.push(`${next.km.toLocaleString()} km`);
+        if (remainingKm != null) {
+            nextMetaParts.push(remainingKm <= 0 ? 'Overdue' : `${remainingKm.toLocaleString()} km to go`);
+        }
+        widgets.push(widgetMarkup({
+            label: 'Next service',
+            icon: '<i class="fas fa-calendar-check"></i>',
+            value: nextValue,
+            meta: nextMetaParts.join(' · ') || 'Tap to set date or km',
+            hint: 'Edit next service',
+            editable: true,
+            status: (next.date || next.km != null) ? nextStatus : 'neutral',
+            extraClass: 'org-widget--service',
+            onclick: `organiseEditStatus(${itemId},'service')`,
+        }));
+
+        widgets.push(widgetMarkup({
+            label: 'Last service',
+            icon: '<i class="fas fa-wrench"></i>',
+            value: last ? escapeHtml(last.service_type) : 'No records',
+            meta: last
+                ? `${last.service_date ? formatDate(last.service_date) : 'No date'}${last.mileage != null ? ' · ' + last.mileage.toLocaleString() + ' km' : ''}`
+                : 'Tap to log a service',
+            hint: last ? 'Edit last service record' : 'Log a service',
+            editable: true,
+            extraClass: 'org-widget--last',
+            onclick: last ? `organiseEditService(${itemId},${last.id})` : `openServiceModal(${itemId}, null)`,
+        }));
+
+        docs.forEach(doc => {
+            const sc = doc.paid ? 'ok' : (doc.status || 'neutral');
+            const due = doc.due_date
+                ? `${formatDate(doc.due_date)}${!doc.paid && doc.days_until_due != null ? ' · ' + daysLabel(doc.days_until_due) : ''}`
+                : 'No due date';
+            const extra = [
+                doc.provider ? escapeHtml(doc.provider) : '',
+                doc.paid ? 'Paid' : '',
+                doc.cost != null ? `$${parseFloat(doc.cost).toFixed(2)}` : '',
+            ].filter(Boolean).join(' · ');
+            widgets.push(widgetMarkup({
+                label: escapeHtml(doc.title),
+                icon: doc.icon || '<i class="fas fa-file-alt"></i>',
+                value: due,
+                meta: extra || 'Tap to edit',
+                hint: `Edit ${doc.title}`,
+                editable: true,
+                status: sc,
+                extraClass: 'org-widget--doc',
+                onclick: `organiseEdit(${doc.id})`,
+            }));
+        });
+
+        widgets.push(`
+        <button type="button" class="org-widget org-widget--add" onclick="organiseAddRenewal(${itemId})" title="Add a document">
+            <span class="org-widget-label"><i class="fas fa-plus"></i> Document</span>
+            <span class="org-widget-value">Add renewal</span>
+            <div class="org-widget-meta">Rego, insurance, CTP…</div>
+        </button>`);
+
+        let progress = '';
+        if (km != null && next.km != null && next.km > 0) {
+            const targetMileage = next.km;
+            const remaining = targetMileage - km;
+            const interval = Math.max(1000, targetMileage - Math.max(0, targetMileage - 10000));
+            const currentProgress = Math.max(0, km - Math.max(0, targetMileage - interval));
+            const pct = Math.min(100, Math.max(0, Math.round((currentProgress / interval) * 100)));
+            let barStatus = '';
+            if (remaining <= 0 || remaining <= 1000) barStatus = 'is-danger';
+            else if (remaining <= 2500) barStatus = 'is-warning';
+            const remainingLabel = remaining <= 0
+                ? '<span class="org-progress-overdue"><i class="fas fa-exclamation-circle"></i> Service overdue</span>'
+                : `<span>${remaining.toLocaleString()} km until service</span>`;
+            progress = `
+            <button type="button" class="org-widget org-widget--wide" onclick="organiseEditStatus(${itemId},'service')">
+                <span class="org-widget-edit"><i class="fas fa-pen"></i></span>
+                <span class="org-widget-label"><i class="fas fa-road"></i> Service interval</span>
+                <div class="org-service-milestone-header">
+                    <span>${km.toLocaleString()} / ${targetMileage.toLocaleString()} km (${pct}%)</span>
+                    ${remainingLabel}
+                </div>
+                <div class="org-service-milestone-bar-bg">
+                    <div class="org-service-milestone-bar-fill ${barStatus}" style="width:${pct}%;"></div>
+                </div>
+            </button>`;
         }
 
-        let nextSvcPill = '';
-        const withNextDate = services.filter(s => s.next_service_date);
-        if (withNextDate.length) {
-            withNextDate.sort((a, b) => a.next_service_date.localeCompare(b.next_service_date));
-            const next = withNextDate[0];
-            const today = new Date(); today.setHours(0, 0, 0, 0);
-            const nextDate = new Date(next.next_service_date);
-            const diffDays = Math.round((nextDate - today) / 86400000);
-            let cls = 'org-car-pill--ok';
-            if (diffDays < 0) cls = 'org-car-pill--overdue';
-            else if (diffDays <= 30) cls = 'org-car-pill--due_soon';
-            const mileStr = next.next_service_mileage != null ? ` · ${next.next_service_mileage.toLocaleString()} km` : '';
-            nextSvcPill = `<span class="org-car-pill ${cls}"><i class="fas fa-calendar-check"></i> Next service: ${formatDate(next.next_service_date)}${mileStr}</span>`;
-        }
-
-        let lastSvcPill = '';
-        if (services.length) {
-            const last = services[0];
-            const dateStr = last.service_date ? formatDate(last.service_date) : '';
-            lastSvcPill = `<span class="org-car-pill org-car-pill--neutral">
-                <i class="fas fa-wrench"></i> Last service: ${escapeHtml(last.service_type)}${dateStr ? ' — ' + dateStr : ''}
-            </span>`;
-        }
-
-        let milestoneBar = '';
-        if (withMileage.length && withNextDate.length) {
-            const maxMileage = Math.max(...withMileage.map(s => s.mileage));
-            const nextWithMileage = withNextDate.find(s => s.next_service_mileage != null);
-            if (nextWithMileage && nextWithMileage.next_service_mileage > 0) {
-                const targetMileage = nextWithMileage.next_service_mileage;
-                const remainingKm = targetMileage - maxMileage;
-                const prevServices = services.filter(s => s.mileage != null && s.mileage < maxMileage);
-                const baseMileage = prevServices.length ? Math.max(...prevServices.map(s => s.mileage)) : Math.max(0, targetMileage - 10000);
-                const interval = Math.max(1000, targetMileage - baseMileage);
-                const currentProgress = Math.max(0, maxMileage - baseMileage);
-                const pct = Math.min(100, Math.max(0, Math.round((currentProgress / interval) * 100)));
-                let barStatus = '';
-                if (remainingKm <= 0 || remainingKm <= 1000) barStatus = 'is-danger';
-                else if (remainingKm <= 2500) barStatus = 'is-warning';
-                const remainingLabel = remainingKm <= 0
-                    ? '<span style="color:#ef4444; font-weight:700;"><i class="fas fa-exclamation-circle"></i> Service Overdue!</span>'
-                    : `<span style="font-weight:700; color:${remainingKm <= 2500 ? '#f59e0b' : 'var(--cr-text-secondary)'};"><i class="fas fa-road"></i> ${remainingKm.toLocaleString()} km until service</span>`;
-                milestoneBar = `
-                <div class="org-service-milestone-wrap">
-                    <div class="org-service-milestone-header">
-                        <span><i class="fas fa-tachometer-alt"></i> ${maxMileage.toLocaleString()} km / ${targetMileage.toLocaleString()} km (${pct}%)</span>
-                        ${remainingLabel}
-                    </div>
-                    <div class="org-service-milestone-bar-bg">
-                        <div class="org-service-milestone-bar-fill ${barStatus}" style="width: ${pct}%;"></div>
-                    </div>
-                </div>`;
-            }
-        }
-
-        const allPills = pills + odomPill + nextSvcPill + lastSvcPill;
-        const pillsHtml = allPills
-            ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${allPills}</div>`
-            : '<span class="org-car-pill org-car-pill--neutral" style="opacity:.5;">No due dates set</span>';
-        strip.innerHTML = pillsHtml + milestoneBar;
+        grid.innerHTML = widgets.join('') + progress;
     }
 
     function toggleServicePanel(itemId) {
@@ -473,6 +500,8 @@
         const isOpen = panel.style.display !== 'none';
         panel.style.display = isOpen ? 'none' : '';
         if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+        if (isOpen) openServicePanels.delete(itemId);
+        else openServicePanels.add(itemId);
         if (!isOpen) loadServicePanel(itemId);
     }
 
@@ -483,7 +512,7 @@
                 if (res.success) {
                     serviceCache[itemId] = res.services;
                     renderServicePanel(itemId);
-                    updateCarSummaryStrip(itemId);
+                    renderCarWidgets(itemId);
                 }
             })
             .catch(() => {
@@ -636,6 +665,8 @@
         const showVehicle = isCarCategory && currentItemKind === 'vehicle';
         if (linkedWrap) linkedWrap.style.display = showLinked ? '' : 'none';
         if (vf) vf.style.display = showVehicle ? '' : 'none';
+        const renewalFields = document.getElementById('org-renewal-fields');
+        if (renewalFields) renewalFields.style.display = showVehicle ? 'none' : '';
     }
 
     function openModal(item, preset) {
@@ -685,6 +716,8 @@
         document.getElementById('org-input-vehicle-model').value = item ? (item.vehicle_model || '') : '';
         document.getElementById('org-input-vehicle-year').value = item ? (item.vehicle_year || '') : '';
         document.getElementById('org-input-vehicle-rego').value = item ? (item.vehicle_rego || '') : '';
+        const odoInput = document.getElementById('org-input-odometer');
+        if (odoInput) odoInput.value = item && item.current_odometer != null ? item.current_odometer : '';
 
         const parentId = item ? item.parent_id : preset.parentId;
         fillCarSelect(parentId);
@@ -724,8 +757,8 @@
         const category = categorySel === '__custom__' ? (customCat || 'General') : categorySel;
         const parentRaw = document.getElementById('org-input-parent-id')?.value;
         const isRenewal = currentItemKind === 'renewal';
-
-        return {
+        const odoVal = document.getElementById('org-input-odometer')?.value;
+        const data = {
             title: document.getElementById('org-input-title').value.trim(),
             category: isRenewal ? 'Car' : category,
             provider: document.getElementById('org-input-provider').value.trim(),
@@ -742,8 +775,13 @@
             vehicle_year: isRenewal ? null : (document.getElementById('org-input-vehicle-year').value
                 ? parseInt(document.getElementById('org-input-vehicle-year').value, 10) : null),
             vehicle_rego: isRenewal ? '' : document.getElementById('org-input-vehicle-rego').value.trim(),
+            current_odometer: isRenewal ? null : (odoVal !== '' && odoVal != null ? parseInt(odoVal, 10) : null),
             parent_id: isRenewal ? (parentRaw ? parseInt(parentRaw, 10) : null) : null,
         };
+        if (!data.title && currentItemKind === 'vehicle') {
+            data.title = [data.vehicle_year, data.vehicle_make, data.vehicle_model].filter(Boolean).join(' ') || 'Car';
+        }
+        return data;
     }
 
     async function saveItem() {
@@ -804,13 +842,19 @@
         const carBit = car ? ` — ${carLabel(car)}` : '';
         document.getElementById('svc-modal-title').textContent = (service ? 'Edit Service Record' : 'Add Service Record') + carBit;
         document.getElementById('svc-input-type').value = service ? service.service_type : '';
-        document.getElementById('svc-input-date').value = service ? (service.service_date || '') : '';
-        document.getElementById('svc-input-mileage').value = service ? (service.mileage != null ? service.mileage : '') : '';
+        document.getElementById('svc-input-date').value = service ? (service.service_date || '') : todayISO();
+        document.getElementById('svc-input-mileage').value = service
+            ? (service.mileage != null ? service.mileage : '')
+            : (car && car.current_odometer != null ? car.current_odometer : '');
         document.getElementById('svc-input-provider').value = service ? (service.provider || '') : '';
         document.getElementById('svc-input-cost').value = service ? (service.cost != null ? service.cost : '') : '';
         document.getElementById('svc-input-notes').value = service ? (service.notes || '') : '';
-        document.getElementById('svc-input-next-date').value = service ? (service.next_service_date || '') : '';
-        document.getElementById('svc-input-next-mileage').value = service ? (service.next_service_mileage != null ? service.next_service_mileage : '') : '';
+        document.getElementById('svc-input-next-date').value = service
+            ? (service.next_service_date || '')
+            : (car && car.next_service_date ? car.next_service_date : '');
+        document.getElementById('svc-input-next-mileage').value = service
+            ? (service.next_service_mileage != null ? service.next_service_mileage : '')
+            : (car && car.next_service_mileage != null ? car.next_service_mileage : '');
         modal.style.display = 'flex';
         setTimeout(() => document.getElementById('svc-input-type').focus(), 80);
     }
@@ -849,11 +893,8 @@
         }
         const savedItemId = editingServiceItemId;
         closeServiceModal();
-        loadServicePanel(savedItemId);
-        const panel = document.getElementById(`svc-panel-${savedItemId}`);
-        if (panel) panel.style.display = '';
-        const chevron = document.getElementById(`svc-chevron-${savedItemId}`);
-        if (chevron) chevron.style.transform = 'rotate(180deg)';
+        if (savedItemId) openServicePanels.add(savedItemId);
+        loadOrganise();
     }
 
     function closeCarPicker(result) {
@@ -929,6 +970,76 @@
         img.alt = alt || '';
         lb.style.display = 'flex';
     };
+
+    window.organiseEditStatus = function (itemId, focus) {
+        openStatusModal(itemId, focus);
+    };
+
+    function openStatusModal(itemId, focus) {
+        const item = organiseItems.find(i => i.id === itemId);
+        if (!item) return;
+        editingStatusItemId = itemId;
+        statusFocusField = focus || 'km';
+        const services = serviceCache[itemId] || [];
+        const km = currentKm(item, services);
+        const next = nextServiceInfo(item, services);
+        const modal = document.getElementById('org-status-modal');
+        const title = document.getElementById('org-status-modal-title');
+        const hint = document.getElementById('org-status-modal-hint');
+        if (!modal) return;
+        if (title) {
+            title.textContent = statusFocusField === 'service'
+                ? `Next service — ${carLabel(item)}`
+                : `Kilometres — ${carLabel(item)}`;
+        }
+        if (hint) {
+            hint.textContent = statusFocusField === 'service'
+                ? 'Update the next service date or kilometre target. You can also log a full service from the history below.'
+                : 'Update the current odometer. Logging a service with a higher reading will also raise this.';
+        }
+        document.getElementById('org-status-odometer').value = km != null ? km : '';
+        document.getElementById('org-status-next-date').value = next.date || '';
+        document.getElementById('org-status-next-km').value = next.km != null ? next.km : '';
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            const focusEl = statusFocusField === 'service'
+                ? document.getElementById('org-status-next-date')
+                : document.getElementById('org-status-odometer');
+            focusEl?.focus();
+        }, 80);
+    }
+
+    function closeStatusModal() {
+        const modal = document.getElementById('org-status-modal');
+        if (modal) modal.style.display = 'none';
+        editingStatusItemId = null;
+        statusFocusField = 'km';
+    }
+
+    async function saveStatusModal() {
+        if (!editingStatusItemId) return;
+        const payload = {
+            current_odometer: document.getElementById('org-status-odometer').value !== ''
+                ? parseInt(document.getElementById('org-status-odometer').value, 10) : null,
+            next_service_date: document.getElementById('org-status-next-date').value || null,
+            next_service_mileage: document.getElementById('org-status-next-km').value !== ''
+                ? parseInt(document.getElementById('org-status-next-km').value, 10) : null,
+        };
+        try {
+            const r = await fetch(`/api/organise/${editingStatusItemId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const res = await r.json();
+            if (!res.success) { alert(res.error || 'Failed to save'); return; }
+        } catch (_) {
+            alert('Network error — please try again.');
+            return;
+        }
+        closeStatusModal();
+        loadOrganise();
+    }
 
     window.organiseEdit = function (id) {
         const item = organiseItems.find(i => i.id === id);
@@ -1015,7 +1126,7 @@
                     serviceCache[itemId] = serviceCache[itemId].filter(s => s.id !== serviceId);
                 }
                 renderServicePanel(itemId);
-                updateCarSummaryStrip(itemId);
+                renderCarWidgets(itemId);
             })
             .catch(() => alert('Network error'));
     };
@@ -1103,10 +1214,20 @@
         document.getElementById('svc-modal-cancel')?.addEventListener('click', closeServiceModal);
         document.getElementById('svc-modal-save')?.addEventListener('click', saveServiceRecord);
 
+        document.getElementById('org-status-modal-close')?.addEventListener('click', closeStatusModal);
+        document.getElementById('org-status-modal-cancel')?.addEventListener('click', closeStatusModal);
+        document.getElementById('org-status-modal-save')?.addEventListener('click', saveStatusModal);
+
         const svcModal = document.getElementById('vehicle-service-modal');
         if (svcModal) {
             svcModal.addEventListener('click', function (e) {
                 if (e.target === svcModal) closeServiceModal();
+            });
+        }
+        const statusModal = document.getElementById('org-status-modal');
+        if (statusModal) {
+            statusModal.addEventListener('click', function (e) {
+                if (e.target === statusModal) closeStatusModal();
             });
         }
 
@@ -1148,6 +1269,7 @@
             if (e.key === 'Escape') {
                 closeModal();
                 closeServiceModal();
+                closeStatusModal();
                 closeCarPicker(null);
                 const lb = document.getElementById('org-lightbox');
                 if (lb) lb.style.display = 'none';
