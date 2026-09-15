@@ -28,7 +28,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260915b">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260915c">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -584,7 +584,7 @@ window.addEventListener('DOMContentLoaded', function() {
         window.PERSON_TOTAL_COMPLETED = {{ person_total_completed | tojson }};
     </script>
     <script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/organise.js') }}?v=20260903a"></script>
+    <script src="{{ url_for('static', filename='js/organise.js') }}?v=20260915a"></script>
     <script>
     // Show quiz as part of celebration overlay
     let quizShownToday = false;
@@ -6849,11 +6849,11 @@ function updateStreakDisplay(column, streakCount) {
     </h2>
     <div class="organise-body">
         <div class="organise-toolbar">
-            <p class="org-subtitle">Add each car once. Registration, insurance and other documents attach to that car so you can update them over time.</p>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                <button id="organise-add-btn" class="org-add-btn admin-only"><i class="fas fa-plus"></i> Add Item</button>
+            <p class="org-subtitle">Keep cars, documents and service details in one place. Tap a widget to update kilometres, services or renewals.</p>
+            <div class="org-toolbar-actions">
+                <button id="organise-add-btn" class="org-add-btn admin-only"><i class="fas fa-plus"></i> Add</button>
                 <div class="org-quick-wrap admin-only">
-                    <button id="org-quick-btn" class="org-quick-btn" type="button"><i class="fas fa-car"></i> Car template ▾</button>
+                    <button id="org-quick-btn" class="org-quick-btn" type="button"><i class="fas fa-car"></i> Templates</button>
                     <div id="org-quick-menu" class="org-quick-menu" style="display:none;">
                         <div class="org-quick-heading">Car</div>
                         <button class="org-quick-item" data-kind="vehicle" data-title="" data-icon="🚗">🚗 Add a car</button>
@@ -6928,13 +6928,16 @@ function updateStreakDisplay(column, streakCount) {
 
             <!-- Vehicle-specific fields (shown when adding/editing a car) -->
             <div id="org-vehicle-fields">
-                <label class="org-label" style="margin-top:10px;"><i class="fas fa-car" style="color:#38bdf8;"></i> Vehicle Details</label>
-                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
-                    <input id="org-input-vehicle-year" type="number" class="org-input" placeholder="Year" style="flex:0 0 85px;" min="1900" max="2099">
-                    <input id="org-input-vehicle-make" type="text" class="org-input" placeholder="Make (e.g. Toyota)" style="flex:1; min-width:90px;" maxlength="100">
-                    <input id="org-input-vehicle-model" type="text" class="org-input" placeholder="Model (e.g. Camry)" style="flex:1; min-width:90px;" maxlength="100">
+                <label class="org-label" style="margin-top:10px;"><i class="fas fa-car"></i> Vehicle details</label>
+                <div class="org-field-row">
+                    <input id="org-input-vehicle-year" type="number" class="org-input org-input-year" placeholder="Year" min="1900" max="2099">
+                    <input id="org-input-vehicle-make" type="text" class="org-input" placeholder="Make (e.g. Toyota)" maxlength="100">
+                    <input id="org-input-vehicle-model" type="text" class="org-input" placeholder="Model (e.g. Camry)" maxlength="100">
                 </div>
-                <input id="org-input-vehicle-rego" type="text" class="org-input" placeholder="Rego plate (e.g. ABC 123)" maxlength="20">
+                <div class="org-field-row">
+                    <input id="org-input-vehicle-rego" type="text" class="org-input" placeholder="Rego plate (e.g. ABC 123)" maxlength="20">
+                    <input id="org-input-odometer" type="number" class="org-input" placeholder="Current km" min="0">
+                </div>
             </div>
 
             <label class="org-label" style="margin-top:10px;">Icon</label>
@@ -6948,35 +6951,37 @@ function updateStreakDisplay(column, streakCount) {
             </div>
             <input id="org-input-icon" type="hidden">
 
-            <label class="org-label" style="margin-top:10px;">Provider / Company</label>
-            <input id="org-input-provider" type="text" class="org-input" placeholder="e.g. NRMA, Westpac" maxlength="200">
+            <div id="org-renewal-fields">
+                <label class="org-label" style="margin-top:10px;">Provider / Company</label>
+                <input id="org-input-provider" type="text" class="org-input" placeholder="e.g. NRMA, Westpac" maxlength="200">
 
-            <div style="display:flex; gap:12px; flex-wrap:wrap;">
-                <div style="flex:1; min-width:140px;">
-                    <label class="org-label">Due / Renewal Date</label>
-                    <input id="org-input-due-date" type="date" class="org-input">
+                <div class="org-field-row">
+                    <div class="org-field">
+                        <label class="org-label">Due / Renewal Date</label>
+                        <input id="org-input-due-date" type="date" class="org-input">
+                    </div>
+                    <div class="org-field">
+                        <label class="org-label">Last Done / Renewed</label>
+                        <input id="org-input-last-date" type="date" class="org-input">
+                    </div>
                 </div>
-                <div style="flex:1; min-width:140px;">
-                    <label class="org-label">Last Done / Renewed</label>
-                    <input id="org-input-last-date" type="date" class="org-input">
+
+                <div class="org-field-row">
+                    <div class="org-field">
+                        <label class="org-label">Cost ($)</label>
+                        <input id="org-input-cost" type="number" class="org-input" placeholder="0.00" min="0" step="0.01">
+                    </div>
+                    <div class="org-field">
+                        <label class="org-label">Remind me (days before)</label>
+                        <input id="org-input-reminder" type="number" class="org-input" value="30" min="1" max="365">
+                    </div>
                 </div>
+
+                <label class="org-label">
+                    <input id="org-input-paid" type="checkbox" style="margin-right:6px;">
+                    Paid / Done <span style="font-weight:400;color:var(--cr-text-secondary);">(hides reminders until you update the due date)</span>
+                </label>
             </div>
-
-            <div style="display:flex; gap:12px; flex-wrap:wrap;">
-                <div style="flex:1; min-width:120px;">
-                    <label class="org-label">Cost ($)</label>
-                    <input id="org-input-cost" type="number" class="org-input" placeholder="0.00" min="0" step="0.01">
-                </div>
-                <div style="flex:1; min-width:120px;">
-                    <label class="org-label">Remind me (days before)</label>
-                    <input id="org-input-reminder" type="number" class="org-input" value="30" min="1" max="365">
-                </div>
-            </div>
-
-            <label class="org-label">
-                <input id="org-input-paid" type="checkbox" style="margin-right:6px;">
-                Paid / Done <span style="font-weight:400;color:var(--cr-text-secondary);">(hides reminders until you update the due date)</span>
-            </label>
 
             <label class="org-label" style="margin-top:10px;">Photo</label>
             <div class="org-photo-upload-wrap">
@@ -7017,6 +7022,39 @@ function updateStreakDisplay(column, streakCount) {
         <div class="org-modal-body">
             <p class="org-field-hint" id="org-car-picker-hint">Choose the car this belongs to.</p>
             <div id="org-car-picker-list" class="org-car-picker-list"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Vehicle status (km / next service) -->
+<div id="org-status-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:9100; justify-content:center; align-items:center;">
+    <div class="org-modal-box" style="max-width:420px;">
+        <div class="org-modal-header">
+            <span id="org-status-modal-title" style="font-weight:700; font-size:1.1em;">Update vehicle</span>
+            <button id="org-status-modal-close" class="org-modal-close-btn" title="Close">&times;</button>
+        </div>
+        <div class="org-modal-body">
+            <p class="org-field-hint" id="org-status-modal-hint">Update kilometres or the next service target without logging a full service record.</p>
+            <div id="org-status-km-wrap">
+                <label class="org-label">Current kilometres</label>
+                <input id="org-status-odometer" type="number" class="org-input" placeholder="e.g. 85000" min="0">
+            </div>
+            <div id="org-status-service-wrap">
+                <div class="org-field-row">
+                    <div class="org-field">
+                        <label class="org-label">Next service date</label>
+                        <input id="org-status-next-date" type="date" class="org-input">
+                    </div>
+                    <div class="org-field">
+                        <label class="org-label">Next service (km)</label>
+                        <input id="org-status-next-km" type="number" class="org-input" placeholder="e.g. 90000" min="0">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="org-modal-footer">
+            <button id="org-status-modal-cancel" class="org-btn-secondary">Cancel</button>
+            <button id="org-status-modal-save" class="org-btn-primary">Save</button>
         </div>
     </div>
 </div>

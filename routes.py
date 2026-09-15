@@ -4655,6 +4655,34 @@ def update_name():
 
 # ── Organise API ──────────────────────────────────────────────────────────────
 
+def _optional_int(raw):
+    if raw in (None, ''):
+        return None
+    return int(raw)
+
+
+def _optional_date(raw):
+    value = str(raw or '').strip()
+    if not value:
+        return None
+    from datetime import date as _date
+    return _date.fromisoformat(value)
+
+
+def _bump_vehicle_odometer(item, mileage):
+    if mileage is None:
+        return
+    if item.current_odometer is None or mileage > item.current_odometer:
+        item.current_odometer = mileage
+
+
+def _apply_vehicle_next_service(item, next_date, next_mileage, overwrite=False):
+    if next_date is not None or overwrite:
+        item.next_service_date = next_date
+    if next_mileage is not None or overwrite:
+        item.next_service_mileage = next_mileage
+
+
 def _organise_parent_id(raw, exclude_id=None):
     """Validate a linked-car parent id. Returns int or None."""
     if raw in (None, '', 0, '0'):
@@ -4718,15 +4746,22 @@ def api_organise_create():
         vehicle_year_raw = data.get('vehicle_year')
         vehicle_year = int(vehicle_year_raw) if vehicle_year_raw not in (None, '') else None
         vehicle_rego = str(data.get('vehicle_rego', '') or '').strip()[:20] or None
+        current_odometer = _optional_int(data.get('current_odometer'))
+        next_service_date = _optional_date(data.get('next_service_date'))
+        next_service_mileage = _optional_int(data.get('next_service_mileage'))
         parent_id = _organise_parent_id(data.get('parent_id'))
         if parent_id:
             vehicle_make = vehicle_model = vehicle_year = vehicle_rego = None
+            current_odometer = next_service_date = next_service_mileage = None
         item = OrganiseItem(
             category=category, title=title, provider=provider, notes=notes,
             due_date=due_date, last_date=last_date, paid=paid, cost=cost,
             reminder_days=reminder_days, icon=icon,
             vehicle_make=vehicle_make, vehicle_model=vehicle_model,
             vehicle_year=vehicle_year, vehicle_rego=vehicle_rego,
+            current_odometer=current_odometer,
+            next_service_date=next_service_date,
+            next_service_mileage=next_service_mileage,
             parent_id=parent_id,
         )
         db.session.add(item)
@@ -4783,12 +4818,19 @@ def api_organise_update(item_id):
             item.vehicle_year = int(data['vehicle_year']) if data['vehicle_year'] not in (None, '') else None
         if 'vehicle_rego' in data:
             item.vehicle_rego = str(data['vehicle_rego'] or '').strip()[:20] or None
+        if 'current_odometer' in data:
+            item.current_odometer = _optional_int(data.get('current_odometer'))
+        if 'next_service_date' in data:
+            item.next_service_date = _optional_date(data.get('next_service_date'))
+        if 'next_service_mileage' in data:
+            item.next_service_mileage = _optional_int(data.get('next_service_mileage'))
         if 'parent_id' in data:
             parent_id = _organise_parent_id(data.get('parent_id'), exclude_id=item.id)
             item.parent_id = parent_id
             if parent_id:
                 item.vehicle_make = item.vehicle_model = None
                 item.vehicle_year = item.vehicle_rego = None
+                item.current_odometer = item.next_service_date = item.next_service_mileage = None
         db.session.commit()
         log_activity('organise_updated', f"Organise item '{item.title}' updated")
         return jsonify({'success': True, 'item': item.to_dict()})
@@ -4915,6 +4957,9 @@ def api_vehicle_services_create(item_id):
             next_service_mileage=next_service_mileage,
         )
         db.session.add(svc)
+        _bump_vehicle_odometer(item, mileage)
+        if next_service_date is not None or next_service_mileage is not None:
+            _apply_vehicle_next_service(item, next_service_date, next_service_mileage)
         db.session.commit()
         log_activity('vehicle_service_added', f"Service '{service_type}' added to '{item.title}'")
         return jsonify({'success': True, 'service': svc.to_dict()})
@@ -4928,12 +4973,13 @@ def api_vehicle_services_update(item_id, service_id):
     _guard = _adult_required()
     if _guard:
         return _guard
-    from models import VehicleService
+    from models import OrganiseItem, VehicleService
     svc = VehicleService.query.filter_by(id=service_id, organise_item_id=item_id).first()
     if not svc:
         return jsonify({'success': False, 'error': 'Service record not found'}), 404
     try:
         data = request.get_json() or {}
+        item = OrganiseItem.query.get(item_id)
         if 'service_type' in data:
             svc.service_type = str(data['service_type']).strip()[:200]
             if not svc.service_type:
@@ -4956,6 +5002,10 @@ def api_vehicle_services_update(item_id, service_id):
             svc.next_service_date = _date.fromisoformat(nsd) if nsd else None
         if 'next_service_mileage' in data:
             svc.next_service_mileage = int(data['next_service_mileage']) if data['next_service_mileage'] not in (None, '') else None
+        if item:
+            _bump_vehicle_odometer(item, svc.mileage)
+            if svc.next_service_date is not None or svc.next_service_mileage is not None:
+                _apply_vehicle_next_service(item, svc.next_service_date, svc.next_service_mileage)
         db.session.commit()
         log_activity('vehicle_service_updated', f"Service '{svc.service_type}' updated")
         return jsonify({'success': True, 'service': svc.to_dict()})
