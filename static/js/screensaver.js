@@ -4,8 +4,8 @@
  * backend, and can be dropped into any page via a single <script> tag.
  *
  * Gestures while showing:
- *   swipe left  → next photo
- *   swipe right → previous photo
+ *   swipe left  → next photo/video
+ *   swipe right → previous photo/video
  *   tap, vertical swipe, pinch, mouse move, wheel, other keys → exit
  */
 (function () {
@@ -40,6 +40,8 @@
     let ignoreInputUntil = 0;
     const CHORE_SUMMARY_REFRESH_MS = 2 * 60 * 1000; // keep per-person/calendar overlay reasonably fresh
     const SHOW_INPUT_GRACE_MS = 450; // ignore the click/tap that launched the overlay
+    const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v|ogv)$/i;
+    let skipFails = 0;
 
     function injectStylesheet() {
         if (document.getElementById('cr-screensaver-css')) return;
@@ -67,7 +69,7 @@
                     <div class="cr-ss-events" id="cr-ss-events"></div>
                 </div>
             </div>
-            <div class="cr-ss-hint">Swipe for next photo · Tap to exit</div>
+            <div class="cr-ss-hint">Swipe for next · Tap to exit</div>
         `;
         document.body.appendChild(overlayEl);
         layerEls = [document.getElementById('cr-ss-layer-0'), document.getElementById('cr-ss-layer-1')];
@@ -110,7 +112,6 @@
         if (absX > SWIPE_MIN_PX && absX > absY * 1.15) {
             gesture.type = 'swipe';
             showSlide(dx < 0 ? 1 : -1);
-            restartSlideTimer();
         } else if (absY > SWIPE_MIN_PX && absY > absX * 1.15) {
             gesture.type = 'exit';
             hideScreensaver();
@@ -194,13 +195,11 @@
         }
         if (e.key === 'ArrowRight') {
             showSlide(1);
-            restartSlideTimer();
             e.preventDefault();
             return;
         }
         if (e.key === 'ArrowLeft') {
             showSlide(-1);
-            restartSlideTimer();
             e.preventDefault();
             return;
         }
@@ -271,12 +270,77 @@
             .catch(() => {});
     }
 
+    function mediaKind(url) {
+        const path = String(url || '').split('?')[0].split('#')[0];
+        return VIDEO_EXT_RE.test(path) ? 'video' : 'image';
+    }
+
+    function pauseLayerVideos(layer) {
+        if (!layer) return;
+        layer.querySelectorAll('video').forEach(v => {
+            try { v.pause(); } catch (_) { /* ignore */ }
+        });
+    }
+
+    function clearLayerMedia(layer) {
+        if (!layer) return;
+        layer.style.backgroundImage = 'none';
+        layer.querySelectorAll('video').forEach(v => {
+            try { v.pause(); } catch (_) { /* ignore */ }
+            v.removeAttribute('src');
+            try { v.load(); } catch (_) { /* ignore */ }
+            v.remove();
+        });
+    }
+
+    function armSlideAdvance(kind, videoEl) {
+        clearTimeout(slideTimer);
+        slideTimer = null;
+        if (!showing) return;
+        const duration = Math.max((config && config.slide_duration) || 8, 3) * 1000;
+        const gen = slideGen;
+
+        const advance = () => {
+            if (gen !== slideGen || !showing) return;
+            if (document.hidden) {
+                slideTimer = setTimeout(advance, 1000);
+                return;
+            }
+            showSlide(1);
+        };
+
+        if (kind === 'video' && videoEl) {
+            let finished = false;
+            const started = Date.now();
+            const afterClip = () => {
+                if (finished || gen !== slideGen || !showing) return;
+                finished = true;
+                clearTimeout(slideTimer);
+                const wait = Math.max(0, duration - (Date.now() - started));
+                slideTimer = setTimeout(advance, wait);
+            };
+            videoEl.addEventListener('ended', afterClip, { once: true });
+            const clipMs = (videoEl.duration && isFinite(videoEl.duration) && videoEl.duration > 0)
+                ? videoEl.duration * 1000
+                : 5 * 60 * 1000;
+            slideTimer = setTimeout(afterClip, clipMs + 1500);
+            return;
+        }
+
+        slideTimer = setTimeout(advance, duration);
+    }
+
     function showSlide(step) {
         const photos = (config && config.photos) || [];
         const fallback = document.getElementById('cr-ss-fallback');
+        clearTimeout(slideTimer);
+        slideTimer = null;
         if (!photos.length) {
             if (fallback) fallback.style.display = '';
-            layerEls.forEach(l => l.classList.remove('cr-ss-active'));
+            layerEls.forEach(l => {
+                l.classList.remove('cr-ss-active');
+                clearLayerMedia(l);
+            });
             return;
         }
         if (fallback) fallback.style.display = 'none';
@@ -305,14 +369,23 @@
         const incoming = layerEls[nextLayerIdx];
         const outgoing = layerEls[activeLayerIdx];
         const transition = (config && config.transition) || 'kenburns';
+        const kind = mediaKind(url);
         const gen = ++slideGen;
 
-        const img = new Image();
-        img.onload = () => {
+        const skipBroken = () => {
             if (gen !== slideGen) return;
-            incoming.style.backgroundImage = `url("${url}")`;
+            skipFails += 1;
+            if (skipFails >= photos.length) return;
+            showSlide(step < 0 ? -1 : 1);
+        };
+
+        const activateIncoming = (videoEl) => {
+            if (gen !== slideGen) return;
+            skipFails = 0;
             incoming.className = 'cr-ss-layer';
-            if (transition === 'kenburns') {
+            incoming.style.transition = '';
+            incoming.style.animationDuration = '';
+            if (kind === 'image' && transition === 'kenburns') {
                 incoming.classList.add('cr-ss-kenburns');
                 incoming.style.animationDuration = `${Math.max(config.slide_duration + 1, 4)}s`;
             } else if (transition === 'slide') {
@@ -322,29 +395,59 @@
             }
             void incoming.offsetWidth;
             incoming.classList.add('cr-ss-active');
-            if (outgoing) outgoing.classList.remove('cr-ss-active', 'cr-ss-kenburns', 'cr-ss-slide', 'cr-ss-slide-prev');
+            if (outgoing) {
+                outgoing.classList.remove('cr-ss-active', 'cr-ss-kenburns', 'cr-ss-slide', 'cr-ss-slide-prev');
+                pauseLayerVideos(outgoing);
+                setTimeout(() => {
+                    if (outgoing !== layerEls[activeLayerIdx]) clearLayerMedia(outgoing);
+                }, 1400);
+            }
             activeLayerIdx = nextLayerIdx;
+            armSlideAdvance(kind, videoEl);
         };
-        img.src = url;
-    }
 
-    function restartSlideTimer() {
-        clearInterval(slideTimer);
-        const duration = Math.max((config && config.slide_duration) || 8, 3) * 1000;
-        slideTimer = setInterval(() => {
-            if (document.hidden) return;
-            showSlide(1);
-        }, duration);
+        clearLayerMedia(incoming);
+
+        if (kind === 'video') {
+            const video = document.createElement('video');
+            video.className = 'cr-ss-video';
+            video.muted = true;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.setAttribute('playsinline', '');
+            video.setAttribute('webkit-playsinline', '');
+            video.setAttribute('muted', '');
+            video.preload = 'auto';
+            video.src = url;
+            incoming.appendChild(video);
+            const onReady = () => {
+                if (gen !== slideGen) return;
+                activateIncoming(video);
+                video.play().catch(() => {});
+            };
+            video.addEventListener('loadeddata', onReady, { once: true });
+            video.addEventListener('error', skipBroken, { once: true });
+            return;
+        }
+
+        const img = new Image();
+        img.onload = () => {
+            if (gen !== slideGen) return;
+            incoming.style.backgroundImage = `url("${url}")`;
+            activateIncoming(null);
+        };
+        img.onerror = skipBroken;
+        img.src = url;
     }
 
     function startSlideshow() {
         buildOrder();
+        skipFails = 0;
         showSlide(1);
-        restartSlideTimer();
     }
 
     function stopSlideshow() {
-        clearInterval(slideTimer);
+        clearTimeout(slideTimer);
         slideTimer = null;
     }
 
@@ -376,7 +479,7 @@
         if (overlayEl) overlayEl.classList.remove('cr-ss-visible');
         layerEls.forEach(l => {
             if (l) {
-                l.style.backgroundImage = 'none';
+                clearLayerMedia(l);
                 l.className = 'cr-ss-layer';
             }
         });
@@ -422,8 +525,8 @@
         show: showScreensaver,
         hide: hideScreensaver,
         isActive: function () { return showing; },
-        next: function () { if (showing) { showSlide(1); restartSlideTimer(); } },
-        prev: function () { if (showing) { showSlide(-1); restartSlideTimer(); } },
+        next: function () { if (showing) showSlide(1); },
+        prev: function () { if (showing) showSlide(-1); },
         preview: function () {
             forcedPreview = true;
             fetchConfig().then(cfg => {

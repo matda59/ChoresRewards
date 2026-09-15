@@ -1,5 +1,12 @@
 from flask import Flask
 from extensions import db
+import mimetypes
+
+mimetypes.add_type('video/mp4', '.mp4')
+mimetypes.add_type('video/mp4', '.m4v')
+mimetypes.add_type('video/webm', '.webm')
+mimetypes.add_type('video/quicktime', '.mov')
+mimetypes.add_type('video/ogg', '.ogv')
 
 # Initialize Flask app
 app = Flask(__name__)

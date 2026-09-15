@@ -1266,12 +1266,15 @@ window.addEventListener('DOMContentLoaded', function() {
             padding: 8px;
             text-align: center;
         }
-        .dash-photo-slideshow img {
+        .dash-photo-slideshow img,
+        .dash-photo-slideshow video {
             position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
             opacity: 0; transition: opacity 1s ease;
             will-change: opacity;
+            background: #000;
         }
-        .dash-photo-slideshow img.dash-photo-active { opacity: 1; }
+        .dash-photo-slideshow img.dash-photo-active,
+        .dash-photo-slideshow video.dash-photo-active { opacity: 1; }
 
         .dash-note-add-btn {
             margin-left: auto;
@@ -1464,10 +1467,11 @@ window.addEventListener('DOMContentLoaded', function() {
             const btn = document.querySelector('#side-nav .side-nav-btn[data-target="' + target + '"]');
             if (btn) btn.click();
         }
-        // Lightweight photo slideshow — reuses the same photo pool as the screensaver.
+        // Lightweight photo/video slideshow — reuses the same media pool as the screensaver.
         (() => {
             const wrap = document.getElementById('dash-photo-slideshow');
             const card = document.getElementById('dash-photos-card');
+            const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v|ogv)$/i;
             function launchScreensaver(e) {
                 if (e) { e.preventDefault(); e.stopPropagation(); }
                 if (e && e.target && e.target.closest('.dash-tile-handle, .dash-tile-resize')) return;
@@ -1496,6 +1500,10 @@ window.addEventListener('DOMContentLoaded', function() {
             let activeImg = null;
             let nextImg = null;
 
+            function isVideoUrl(url) {
+                return VIDEO_EXT_RE.test(String(url || '').split('?')[0].split('#')[0]);
+            }
+
             function photosEqual(a, b) {
                 return a.length === b.length && a.every((url, i) => url === b[i]);
             }
@@ -1507,9 +1515,60 @@ window.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
+            function pauseMedia(el) {
+                if (el && el.tagName === 'VIDEO') {
+                    try { el.pause(); } catch (e) {}
+                }
+            }
+
+            function playMedia(el) {
+                if (el && el.tagName === 'VIDEO') {
+                    el.muted = true;
+                    el.loop = true;
+                    el.play().catch(() => {});
+                }
+            }
+
+            function createSlide(url) {
+                let el;
+                if (isVideoUrl(url)) {
+                    el = document.createElement('video');
+                    el.muted = true;
+                    el.loop = true;
+                    el.playsInline = true;
+                    el.setAttribute('playsinline', '');
+                    el.setAttribute('webkit-playsinline', '');
+                    el.setAttribute('muted', '');
+                    el.preload = 'auto';
+                } else {
+                    el = document.createElement('img');
+                    el.alt = '';
+                }
+                el.src = url;
+                return el;
+            }
+
+            function whenReady(el) {
+                return new Promise(resolve => {
+                    if (!el) { resolve(); return; }
+                    if (el.tagName === 'VIDEO') {
+                        if (el.readyState >= 2) { resolve(); return; }
+                        el.addEventListener('loadeddata', () => resolve(), { once: true });
+                        el.addEventListener('error', () => resolve(), { once: true });
+                        return;
+                    }
+                    if (el.complete && el.naturalWidth) { resolve(); return; }
+                    el.addEventListener('load', () => resolve(), { once: true });
+                    el.addEventListener('error', () => resolve(), { once: true });
+                });
+            }
+
             function showEmpty() {
                 stopRotate();
-                wrap.querySelectorAll('img').forEach(el => el.remove());
+                wrap.querySelectorAll('img, video').forEach(el => {
+                    pauseMedia(el);
+                    el.remove();
+                });
                 img1 = img2 = activeImg = nextImg = null;
                 if (document.getElementById('dash-photo-empty')) return;
                 const emptyMsg = document.createElement('p');
@@ -1523,15 +1582,22 @@ window.addEventListener('DOMContentLoaded', function() {
                 const emptyMsg = document.getElementById('dash-photo-empty');
                 if (emptyMsg) emptyMsg.remove();
                 if (img1 && img2) return;
-                img1 = document.createElement('img');
-                img2 = document.createElement('img');
-                img1.alt = '';
-                img2.alt = '';
+                img1 = createSlide(photos[0] || '');
+                img2 = createSlide(photos[1] || photos[0] || '');
                 img1.className = 'dash-photo-active';
                 wrap.appendChild(img1);
                 wrap.appendChild(img2);
                 activeImg = img1;
                 nextImg = img2;
+                playMedia(activeImg);
+            }
+
+            function replaceSlot(oldEl, url, className) {
+                const next = createSlide(url);
+                next.className = className || '';
+                if (oldEl && oldEl.parentNode) oldEl.parentNode.replaceChild(next, oldEl);
+                else wrap.appendChild(next);
+                return next;
             }
 
             function startRotate() {
@@ -1541,14 +1607,17 @@ window.addEventListener('DOMContentLoaded', function() {
                     if (!photos.length || !nextImg) return;
                     currentIdx = (currentIdx + 1) % photos.length;
                     const target = photos[currentIdx];
-                    nextImg.onload = () => {
-                        nextImg.classList.add('dash-photo-active');
+                    nextImg = replaceSlot(nextImg, target, '');
+                    const incoming = nextImg;
+                    whenReady(incoming).then(() => {
+                        if (nextImg !== incoming) return;
+                        incoming.classList.add('dash-photo-active');
                         activeImg.classList.remove('dash-photo-active');
-                        const temp = activeImg;
-                        activeImg = nextImg;
-                        nextImg = temp;
-                    };
-                    nextImg.src = target;
+                        pauseMedia(activeImg);
+                        playMedia(incoming);
+                        nextImg = activeImg;
+                        activeImg = incoming;
+                    });
                 }, 6000);
             }
 
@@ -1560,15 +1629,12 @@ window.addEventListener('DOMContentLoaded', function() {
                     showEmpty();
                     return;
                 }
+                wrap.querySelectorAll('img, video').forEach(el => {
+                    pauseMedia(el);
+                    el.remove();
+                });
+                img1 = img2 = activeImg = nextImg = null;
                 ensureImages();
-                if (activeImg) {
-                    activeImg.className = 'dash-photo-active';
-                    activeImg.src = photos[0];
-                }
-                if (nextImg) {
-                    nextImg.className = '';
-                    nextImg.removeAttribute('src');
-                }
                 startRotate();
             }
 

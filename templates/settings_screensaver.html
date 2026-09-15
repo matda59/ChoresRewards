@@ -162,7 +162,14 @@
             position: relative; border-radius: 10px; overflow: hidden; aspect-ratio: 1 / 1;
             border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04);
         }
-        .ss-photo-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .ss-photo-card img, .ss-photo-card video { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .ss-video-badge {
+            position: absolute; left: 6px; bottom: 6px; z-index: 1;
+            display: inline-flex; align-items: center; gap: 4px;
+            background: rgba(0,0,0,0.65); color: #fff; border-radius: 999px;
+            padding: 3px 8px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em;
+            pointer-events: none;
+        }
         .ss-photo-remove {
             position: absolute; top: 5px; right: 5px; width: 26px; height: 26px; border-radius: 50%;
             background: rgba(0,0,0,0.6); color: #fff; border: none; cursor: pointer;
@@ -254,7 +261,7 @@
                 <a href="{{ url_for('routes.settings_screensaver') }}"{% if request.endpoint == 'routes.settings_screensaver' %} class="active"{% endif %}><i class="fas fa-images"></i> Screensaver</a>
             </nav>
             <div class="settings-content">
-                <h3 class="section-title"><i class="fas fa-images"></i> Screensaver / Photo Slideshow</h3>
+                <h3 class="section-title"><i class="fas fa-images"></i> Screensaver / Photo &amp; Video Slideshow</h3>
 
                 <!-- Behavior settings -->
                 <section class="settings-section" id="screensaver-behavior-section">
@@ -263,7 +270,7 @@
                         <div class="ss-toggle-row">
                             <div>
                                 <label class="settings-field-label" style="margin-bottom:0.15rem;">Enable Screensaver</label>
-                                <div class="ss-field-hint">Launch a full-screen photo slideshow after a period of inactivity.</div>
+                                <div class="ss-field-hint">Launch a full-screen photo and video slideshow after a period of inactivity.</div>
                             </div>
                             <label class="ss-switch">
                                 <input type="checkbox" name="screensaver_enabled" {% if screensaver.screensaver_enabled == 'true' %}checked{% endif %}>
@@ -283,6 +290,7 @@
                             </div>
                             <div>
                                 <label class="settings-field-label" for="screensaver_slide_duration">Slide Duration</label>
+                                <div class="ss-field-hint" style="margin-bottom:0.35rem;">Photos use this timing. Videos play to the end, then wait out any leftover time.</div>
                                 <select id="screensaver_slide_duration" name="screensaver_slide_duration" class="modern-input" style="width:100%;">
                                     <option value="5" {% if screensaver.screensaver_slide_duration == '5' %}selected{% endif %}>5 seconds</option>
                                     <option value="8" {% if screensaver.screensaver_slide_duration == '8' %}selected{% endif %}>8 seconds</option>
@@ -337,14 +345,14 @@
 
                 <!-- Photo management -->
                 <section class="settings-section" id="screensaver-photos-section">
-                    <h4 class="section-title" style="font-size:1rem;"><i class="fas fa-photo-video"></i> Photos</h4>
-                    <p class="ss-field-hint" style="margin-top:0;">Upload photos to display during the screensaver. If no photos are uploaded, a subtle animated gradient is shown instead.</p>
-                    <p class="ss-field-hint" style="margin-top:0;">Copied files straight into the <code>uploads/screensaver</code> folder (e.g. via FTP)? Click "Scan Folder" to pick them up.</p>
+                    <h4 class="section-title" style="font-size:1rem;"><i class="fas fa-photo-video"></i> Photos &amp; Videos</h4>
+                    <p class="ss-field-hint" style="margin-top:0;">Upload photos and videos to display during the screensaver. Videos play muted (so they can autoplay) and run to the end before the next item. If nothing is uploaded, a subtle animated gradient is shown instead.</p>
+                    <p class="ss-field-hint" style="margin-top:0;">Supported: jpg, png, gif, webp, mp4, webm, mov. Copied files straight into the <code>uploads/screensaver</code> folder (e.g. via FTP)? Click "Scan Folder" to pick them up.</p>
                     <div class="ss-upload-row">
                         <label for="ss-photo-input" class="custom-file-label">
                             <i class="fas fa-folder-open"></i> Choose Files
                         </label>
-                        <input type="file" id="ss-photo-input" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+                        <input type="file" id="ss-photo-input" accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v,.ogv" multiple hidden>
                         <span class="ss-file-name" id="ss-file-selected-name"></span>
                         <button type="button" class="save-btn" id="ss-upload-btn"><i class="fas fa-upload" style="margin-right:6px;"></i>Upload</button>
                         <button type="button" class="btn-secondary-action" id="ss-rescan-btn"><i class="fas fa-magnifying-glass" style="margin-right:6px;"></i>Scan Folder</button>
@@ -353,7 +361,7 @@
                     <button type="button" class="ss-gallery-toggle" id="ss-gallery-toggle" aria-expanded="false" aria-controls="ss-photo-grid">
                         <span>
                             <i class="fas fa-chevron-right ss-gallery-chevron" aria-hidden="true"></i>
-                            <span id="ss-gallery-label">Show photos</span> (<span id="ss-photo-count">0</span>)
+                            <span id="ss-gallery-label">Show media</span> (<span id="ss-photo-count">0</span>)
                         </span>
                         <span class="ss-field-hint" id="ss-gallery-hint">Hidden until you open this — keeps the page fast</span>
                     </button>
@@ -375,7 +383,7 @@
 
         function updateCount() {
             countEl.textContent = String(photoUrls.length);
-            labelEl.textContent = galleryOpen ? 'Hide photos' : 'Show photos';
+            labelEl.textContent = galleryOpen ? 'Hide media' : 'Show media';
             const hint = document.getElementById('ss-gallery-hint');
             if (hint) hint.style.display = galleryOpen ? 'none' : '';
         }
@@ -394,24 +402,40 @@
             grid.classList.add('is-open');
             grid.innerHTML = '';
             if (!photoUrls.length) {
-                grid.innerHTML = '<div class="ss-empty-msg">No photos uploaded yet.</div>';
+                grid.innerHTML = '<div class="ss-empty-msg">No photos or videos uploaded yet.</div>';
                 return;
             }
             photoUrls.forEach(url => {
                 const card = document.createElement('div');
                 card.className = 'ss-photo-card';
-                const img = document.createElement('img');
-                img.loading = 'lazy';
-                img.decoding = 'async';
-                img.src = url;
-                img.alt = '';
+                const isVideo = /\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i.test(String(url).split('?')[0]);
+                let thumb;
+                if (isVideo) {
+                    thumb = document.createElement('video');
+                    thumb.muted = true;
+                    thumb.playsInline = true;
+                    thumb.setAttribute('playsinline', '');
+                    thumb.preload = 'metadata';
+                } else {
+                    thumb = document.createElement('img');
+                    thumb.alt = '';
+                    thumb.loading = 'lazy';
+                    thumb.decoding = 'async';
+                }
+                thumb.src = url;
                 const rm = document.createElement('button');
                 rm.type = 'button';
                 rm.className = 'ss-photo-remove';
                 rm.innerHTML = '<i class="fas fa-times"></i>';
-                rm.title = 'Delete photo';
+                rm.title = isVideo ? 'Delete video' : 'Delete photo';
                 rm.addEventListener('click', () => deletePhoto(url));
-                card.appendChild(img);
+                card.appendChild(thumb);
+                if (isVideo) {
+                    const badge = document.createElement('span');
+                    badge.className = 'ss-video-badge';
+                    badge.innerHTML = '<i class="fas fa-play"></i> Video';
+                    card.appendChild(badge);
+                }
                 card.appendChild(rm);
                 grid.appendChild(card);
             });
@@ -452,10 +476,10 @@
                     photoUrls = photoUrls.filter(u => u !== url);
                     renderGrid();
                 } else {
-                    alert(data.error || 'Failed to delete photo.');
+                    alert(data.error || 'Failed to delete file.');
                 }
             })
-            .catch(() => alert('Failed to delete photo.'));
+            .catch(() => alert('Failed to delete file.'));
         }
 
         document.getElementById('ss-upload-btn').addEventListener('click', () => {
@@ -483,7 +507,7 @@
                     btn.innerHTML = '<i class="fas fa-upload" style="margin-right:6px;"></i>Upload';
                     input.value = '';
                     fileNameEl.textContent = '';
-                    if (failed) alert(`${failed} of ${total} photo(s) failed to upload.`);
+                    if (failed) alert(`${failed} of ${total} file(s) failed to upload.`);
                     return;
                 }
                 const fd = new FormData();
@@ -509,7 +533,7 @@
                     if (data.success) {
                         photoUrls = data.photos;
                         renderGrid();
-                        alert(data.added ? `Found ${data.added} new photo(s).` : 'No new photos found in the folder.');
+                        alert(data.added ? `Found ${data.added} new file(s).` : 'No new photos or videos found in the folder.');
                     } else {
                         alert(data.error || 'Failed to scan folder.');
                     }
@@ -520,14 +544,14 @@
 
         document.getElementById('ss-clear-btn').addEventListener('click', () => {
             if (!photoUrls.length) return;
-            if (!confirm('Delete all screensaver photos? This cannot be undone.')) return;
+            if (!confirm('Delete all screensaver photos and videos? This cannot be undone.')) return;
             fetch('/api/screensaver/clear', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) { photoUrls = []; renderGrid(); }
-                    else { alert(data.error || 'Failed to clear photos.'); }
+                    else { alert(data.error || 'Failed to clear media.'); }
                 })
-                .catch(() => alert('Failed to clear photos.'));
+                .catch(() => alert('Failed to clear media.'));
         });
 
         document.getElementById('ss-preview-btn').addEventListener('click', () => {

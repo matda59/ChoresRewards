@@ -1248,7 +1248,9 @@ def api_extra_chores_claim():
 
 # ── Screensaver / Photo Slideshow ──────────────────────────────────────────────
 SCREENSAVER_UPLOAD_SUBDIR = 'screensaver'
-SCREENSAVER_ALLOWED_EXTS = ('.jpg', '.jpeg', '.png', '.gif', '.webp')
+SCREENSAVER_IMAGE_EXTS = ('.jpg', '.jpeg', '.png', '.gif', '.webp')
+SCREENSAVER_VIDEO_EXTS = ('.mp4', '.webm', '.mov', '.m4v', '.ogv')
+SCREENSAVER_ALLOWED_EXTS = SCREENSAVER_IMAGE_EXTS + SCREENSAVER_VIDEO_EXTS
 SCREENSAVER_TRANSITIONS = ('fade', 'crossfade', 'slide', 'kenburns', 'none')
 SCREENSAVER_ORDERS = ('sequential', 'shuffle')
 SCREENSAVER_DEFAULTS = {
@@ -1281,7 +1283,7 @@ def _save_screensaver_photos(photos):
 
 
 def _sync_screensaver_photos():
-    """Drop missing files from the saved list and pick up new images in the folder."""
+    """Drop missing files from the saved list and pick up new images/videos in the folder."""
     upload_folder = _screensaver_upload_folder()
     photos = _get_screensaver_photos()
     kept = []
@@ -1449,9 +1451,9 @@ def api_screensaver_upload():
         photos.append({'filename': unique_filename, 'uploaded_at': datetime.utcnow().isoformat()})
         added += 1
     if not added:
-        return jsonify({'success': False, 'error': 'No valid image files were uploaded (jpg, png, gif, webp only)'}), 400
+        return jsonify({'success': False, 'error': 'No valid files were uploaded (jpg, png, gif, webp, mp4, webm, mov)'}), 400
     _save_screensaver_photos(photos)
-    log_activity('settings_updated', f'{added} screensaver photo(s) uploaded')
+    log_activity('settings_updated', f'{added} screensaver media file(s) uploaded')
     return jsonify({'success': True, 'photos': _screensaver_photo_urls(photos), 'added': added})
 
 
@@ -1467,7 +1469,7 @@ def api_screensaver_delete():
     photos = _get_screensaver_photos()
     remaining = [p for p in photos if p.get('filename') != filename]
     if len(remaining) == len(photos):
-        return jsonify({'success': False, 'error': 'Photo not found'}), 404
+        return jsonify({'success': False, 'error': 'File not found'}), 404
     _save_screensaver_photos(remaining)
     path = os.path.join(_screensaver_upload_folder(), filename)
     if os.path.exists(path):
@@ -1480,7 +1482,7 @@ def api_screensaver_delete():
 
 @routes_bp.route('/api/screensaver/rescan', methods=['POST'])
 def api_screensaver_rescan():
-    """Pick up image files that were dropped directly into the screensaver upload
+    """Pick up image/video files that were dropped directly into the screensaver upload
     folder (e.g. via FTP/file manager) instead of through the upload endpoint,
     so they show up in the slideshow without needing a uuid-prefixed filename."""
     _guard = _adult_required()
@@ -1490,7 +1492,7 @@ def api_screensaver_rescan():
     photos = _sync_screensaver_photos()
     added = sum(1 for p in photos if p.get('filename') not in before)
     if added:
-        log_activity('settings_updated', f'{added} screensaver photo(s) found by folder scan')
+        log_activity('settings_updated', f'{added} screensaver media file(s) found by folder scan')
     return jsonify({'success': True, 'photos': _screensaver_photo_urls(photos), 'added': added})
 
 
@@ -1509,7 +1511,7 @@ def api_screensaver_clear():
             except OSError:
                 pass
     _save_screensaver_photos([])
-    log_activity('settings_updated', 'All screensaver photos were cleared')
+    log_activity('settings_updated', 'All screensaver media files were cleared')
     return jsonify({'success': True, 'photos': []})
 
 
