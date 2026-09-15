@@ -18,6 +18,13 @@
     ];
 
     const pie = document.getElementById('visual-timer-pie');
+    const miniPie = document.getElementById('visual-timer-mini-pie');
+    const miniDigits = document.getElementById('visual-timer-mini-digits');
+    const overlay = document.getElementById('visual-timer-overlay');
+    const openBtn = document.getElementById('visual-timer-open');
+    const closeBtn = document.getElementById('visual-timer-close');
+    const backdrop = document.getElementById('visual-timer-backdrop');
+    const timerPanel = document.getElementById('dashboard-timer-panel');
     const hand = document.getElementById('visual-timer-hand');
     const ticks = document.getElementById('visual-timer-ticks');
     const digits = document.getElementById('visual-timer-digits');
@@ -200,10 +207,15 @@
         const remaining = remainingNow();
         const fraction = state.durationMs > 0 ? remaining / state.durationMs : 0;
         const color = currentColor();
+        const ending = state.running && remaining > 0 && remaining <= COUNTDOWN_SECONDS * 1000;
 
         if (pie) {
             pie.setAttribute('d', piePath(fraction));
             pie.setAttribute('fill', color.fill);
+        }
+        if (miniPie) {
+            miniPie.setAttribute('d', piePath(fraction));
+            miniPie.setAttribute('fill', color.fill);
         }
         if (hand) {
             const tip = handPoint(fraction);
@@ -212,30 +224,44 @@
             hand.setAttribute('stroke', color.fill);
             hand.style.opacity = remaining > 0 ? '1' : '0';
         }
-        face.style.setProperty('--vt-fill', color.fill);
-        face.style.setProperty('--vt-glow', color.glow);
+        if (face) {
+            face.style.setProperty('--vt-fill', color.fill);
+            face.style.setProperty('--vt-glow', color.glow);
+            face.classList.toggle('is-running', state.running);
+            face.classList.toggle('is-ending', ending);
+            face.classList.toggle('is-finished', state.finished);
+        }
+        if (timerPanel) {
+            timerPanel.style.setProperty('--vt-fill', color.fill);
+            timerPanel.style.setProperty('--vt-glow', color.glow);
+            timerPanel.classList.toggle('is-running', state.running);
+            timerPanel.classList.toggle('is-ending', ending);
+            timerPanel.classList.toggle('is-finished', state.finished);
+        }
 
-        const ending = state.running && remaining > 0 && remaining <= COUNTDOWN_SECONDS * 1000;
-        face.classList.toggle('is-running', state.running);
-        face.classList.toggle('is-ending', ending);
-        face.classList.toggle('is-finished', state.finished);
+        const clock = formatTime(remaining);
+        if (digits) digits.textContent = clock;
+        if (miniDigits) miniDigits.textContent = clock;
+        if (statusEl) {
+            if (state.finished) statusEl.textContent = "Time's up!";
+            else if (state.running && ending) statusEl.textContent = 'Almost done…';
+            else if (state.running) statusEl.textContent = 'Running';
+            else if (remaining < state.durationMs && remaining > 0) statusEl.textContent = 'Paused';
+            else statusEl.textContent = 'Pick a time';
+        }
 
-        digits.textContent = formatTime(remaining);
-        if (state.finished) statusEl.textContent = "Time's up!";
-        else if (state.running && ending) statusEl.textContent = 'Almost done…';
-        else if (state.running) statusEl.textContent = 'Running';
-        else if (remaining < state.durationMs && remaining > 0) statusEl.textContent = 'Paused';
-        else statusEl.textContent = 'Pick a time';
-
-        startBtn.disabled = state.running || state.durationMs <= 0;
-        pauseBtn.disabled = !state.running;
-        startBtn.innerHTML = remaining > 0 && remaining < state.durationMs && !state.running
-            ? '<i class="fas fa-play"></i> Resume'
-            : '<i class="fas fa-play"></i> Start';
-
-        colorWrap.querySelectorAll('.visual-timer-color').forEach((btn) => {
-            btn.classList.toggle('is-selected', btn.dataset.color === state.colorId);
-        });
+        if (startBtn) {
+            startBtn.disabled = state.running || state.durationMs <= 0;
+            startBtn.innerHTML = remaining > 0 && remaining < state.durationMs && !state.running
+                ? '<i class="fas fa-play"></i> Resume'
+                : '<i class="fas fa-play"></i> Start';
+        }
+        if (pauseBtn) pauseBtn.disabled = !state.running;
+        if (colorWrap) {
+            colorWrap.querySelectorAll('.visual-timer-color').forEach((btn) => {
+                btn.classList.toggle('is-selected', btn.dataset.color === state.colorId);
+            });
+        }
         syncPresetSelection();
     }
 
@@ -263,6 +289,7 @@
         }
         persist();
         render();
+        openTimer();
     }
 
     function tick() {
@@ -381,6 +408,34 @@
         }
         setDuration(Math.min(180, minutes) * 60 * 1000);
         customInput.value = '';
+    });
+
+    function openTimer() {
+        if (window.DashboardLayout && window.DashboardLayout.isArranging()) return;
+        if (!overlay) return;
+        overlay.hidden = false;
+        overlay.classList.add('is-open');
+        document.body.classList.add('visual-timer-open');
+        if (closeBtn) closeBtn.focus();
+    }
+
+    function closeTimer() {
+        if (!overlay) return;
+        overlay.hidden = true;
+        overlay.classList.remove('is-open');
+        document.body.classList.remove('visual-timer-open');
+    }
+
+    if (openBtn) {
+        openBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openTimer();
+        });
+    }
+    if (closeBtn) closeBtn.addEventListener('click', closeTimer);
+    if (backdrop) backdrop.addEventListener('click', closeTimer);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && overlay && !overlay.hidden) closeTimer();
     });
 
     startBtn.addEventListener('click', startTimer);

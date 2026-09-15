@@ -28,7 +28,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260915a">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260915b">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -949,8 +949,14 @@ window.addEventListener('DOMContentLoaded', function() {
 
     <!-- Dashboard Section (landing overview — not collapsible, always the first thing shown) -->
     <section class="rewards-section dashboard-section" id="dashboard-section">
-        <h2 class="section-title">
+        <h2 class="section-title dashboard-section-title">
             <i class="fas fa-gauge-high" style="color:#38bdf8;"></i> <span>Today at a Glance</span>
+            <span class="dash-layout-actions">
+                <button type="button" class="dash-arrange-btn" id="dash-arrange-btn" title="Rearrange and resize dashboard cards">
+                    <i class="fas fa-up-down-left-right"></i> Arrange
+                </button>
+                <button type="button" class="dash-layout-reset-btn" id="dash-layout-reset-btn" hidden>Reset layout</button>
+            </span>
         </h2>
 
         <!-- Urgent Renewal Banner / Dashboard Ticker (dynamically shown if rego, insurance or bill is due in <= 7 days or overdue) -->
@@ -971,10 +977,13 @@ window.addEventListener('DOMContentLoaded', function() {
             </div>
         </div>
 
-        <div class="dashboard-grid">
+        <div class="dashboard-grid" id="dashboard-grid">
             <!-- Today's Tasks -->
-            <div class="dashboard-card" onclick="goToSection('kanban')">
-                <h3 class="dashboard-card-title"><i class="fas fa-list-check" style="color:#4ade80;"></i> Today's Tasks</h3>
+            <div class="dashboard-card dash-tile" data-dash-id="tasks" data-dash-nav="kanban" style="--dash-cols:4;--dash-rows:12">
+                <h3 class="dashboard-card-title">
+                    <button type="button" class="dash-tile-handle" title="Drag to move" aria-label="Move Today's Tasks"><i class="fas fa-grip-vertical"></i></button>
+                    <i class="fas fa-list-check" style="color:#4ade80;"></i> Today's Tasks
+                </h3>
                 {% for person in family | sort(attribute='order') %}
                     {% set person_chores = chores | selectattr("assigned_to_id", "equalto", person.id) | list %}
                     {% set incomplete = person_chores | rejectattr("completed") | list %}
@@ -1006,14 +1015,18 @@ window.addEventListener('DOMContentLoaded', function() {
                         </span>
                     </div>
                 {% endfor %}
+                <div class="dash-tile-resize" title="Resize"></div>
             </div>
 
             <!-- Meals Today -->
             {% set dash_plan_today = meal_planner_plan.get(current_date.isoformat(), {}) %}
             {% set dash_lunch = dash_plan_today.get('lunch', '') | trim %}
             {% set dash_dinner = dash_plan_today.get('dinner', '') | trim %}
-            <div class="dashboard-card" onclick="goToSection('meal-planner-section')">
-                <h3 class="dashboard-card-title"><i class="fas fa-utensils" style="color:#fb923c;"></i> Meals Today</h3>
+            <div class="dashboard-card dash-tile" data-dash-id="meals" data-dash-nav="meal-planner-section" style="--dash-cols:4;--dash-rows:8">
+                <h3 class="dashboard-card-title">
+                    <button type="button" class="dash-tile-handle" title="Drag to move" aria-label="Move Meals Today"><i class="fas fa-grip-vertical"></i></button>
+                    <i class="fas fa-utensils" style="color:#fb923c;"></i> Meals Today
+                </h3>
                 {% if dash_lunch %}
                 <div class="dash-meal-row"><span class="dash-meal-label">Lunch</span><span>{{ dash_lunch }}</span></div>
                 {% endif %}
@@ -1023,12 +1036,16 @@ window.addEventListener('DOMContentLoaded', function() {
                 {% if not dash_lunch and not dash_dinner %}
                 <p class="dash-empty-hint">No meals planned for today yet.</p>
                 {% endif %}
+                <div class="dash-tile-resize" title="Resize"></div>
             </div>
 
             <!-- Upcoming Events -->
             {% if google_calendar_feature_enabled and google_calendar_enabled %}
-            <div class="dashboard-card" onclick="goToSection('events-section')">
-                <h3 class="dashboard-card-title"><i class="fas fa-calendar-alt" style="color:#60a5fa;"></i> Upcoming Events</h3>
+            <div class="dashboard-card dash-tile" data-dash-id="events" data-dash-nav="events-section" style="--dash-cols:4;--dash-rows:8">
+                <h3 class="dashboard-card-title">
+                    <button type="button" class="dash-tile-handle" title="Drag to move" aria-label="Move Upcoming Events"><i class="fas fa-grip-vertical"></i></button>
+                    <i class="fas fa-calendar-alt" style="color:#60a5fa;"></i> Upcoming Events
+                </h3>
                 {% if google_calendar_events | length == 0 %}
                 <p class="dash-empty-hint">No upcoming events.</p>
                 {% else %}
@@ -1039,13 +1056,17 @@ window.addEventListener('DOMContentLoaded', function() {
                     </div>
                     {% endfor %}
                 {% endif %}
+                <div class="dash-tile-resize" title="Resize"></div>
             </div>
             {% endif %}
 
             <!-- Top Rewards -->
             {% set dash_top_rewards = (rewards | selectattr('completed', 'equalto', False) | list) | sort(attribute='points_required', reverse=True) %}
-            <div class="dashboard-card" onclick="goToSection('rewards-section')">
-                <h3 class="dashboard-card-title"><i class="fas fa-trophy" style="color:#a78bfa;"></i> Top Rewards</h3>
+            <div class="dashboard-card dash-tile" data-dash-id="rewards" data-dash-nav="rewards-section" style="--dash-cols:4;--dash-rows:9">
+                <h3 class="dashboard-card-title">
+                    <button type="button" class="dash-tile-handle" title="Drag to move" aria-label="Move Top Rewards"><i class="fas fa-grip-vertical"></i></button>
+                    <i class="fas fa-trophy" style="color:#a78bfa;"></i> Top Rewards
+                </h3>
                 {% if dash_top_rewards | length == 0 %}
                 <p class="dash-empty-hint">No rewards yet.</p>
                 {% else %}
@@ -1063,24 +1084,59 @@ window.addEventListener('DOMContentLoaded', function() {
                     </div>
                     {% endfor %}
                 {% endif %}
+                <div class="dash-tile-resize" title="Resize"></div>
             </div>
 
             <!-- Family Photos slideshow — tap to start the full-screen screensaver -->
-            <div class="dashboard-card dashboard-card-photos" id="dash-photos-card" title="Tap to start slideshow">
-                <h3 class="dashboard-card-title"><i class="fas fa-images" style="color:#f472b6;"></i> Family Photos</h3>
+            <div class="dashboard-card dashboard-card-photos dash-tile" id="dash-photos-card" data-dash-id="photos" title="Tap to start slideshow" style="--dash-cols:4;--dash-rows:12">
+                <h3 class="dashboard-card-title">
+                    <button type="button" class="dash-tile-handle" title="Drag to move" aria-label="Move Family Photos"><i class="fas fa-grip-vertical"></i></button>
+                    <i class="fas fa-images" style="color:#f472b6;"></i> Family Photos
+                </h3>
                 <div class="dash-photo-slideshow" id="dash-photo-slideshow">
                     <p class="dash-empty-hint" id="dash-photo-empty">No photos yet — add some in Settings &rarr; Screensaver.</p>
                 </div>
+                <div class="dash-tile-resize" title="Resize"></div>
             </div>
 
+            <!-- Compact visual timer — tap to expand -->
+            <div class="dashboard-card dashboard-card-timer dash-tile" id="dashboard-timer-panel" data-dash-id="timer" style="--dash-cols:2;--dash-rows:8">
+                <h3 class="dashboard-card-title">
+                    <button type="button" class="dash-tile-handle" title="Drag to move" aria-label="Move Visual Timer"><i class="fas fa-grip-vertical"></i></button>
+                    <i class="fas fa-hourglass-half" style="color:#f97316;"></i> Timer
+                </h3>
+                <button type="button" class="visual-timer-launcher" id="visual-timer-open" title="Open timer" aria-label="Open visual timer">
+                    <svg class="visual-timer-mini-svg" viewBox="0 0 220 220" aria-hidden="true">
+                        <circle class="visual-timer-disc" cx="110" cy="110" r="100"></circle>
+                        <path id="visual-timer-mini-pie" class="visual-timer-pie" d=""></path>
+                        <circle class="visual-timer-hub" cx="110" cy="110" r="10"></circle>
+                    </svg>
+                    <span class="visual-timer-mini-digits" id="visual-timer-mini-digits">05:00</span>
+                    <span class="visual-timer-mini-hint">Tap to open</span>
+                </button>
+                <div class="dash-tile-resize" title="Resize"></div>
+            </div>
+
+            <!-- Sticky Notes -->
+            <div class="dashboard-card dashboard-card-photos dashboard-card-notes dash-tile" id="dashboard-notes-panel" data-dash-id="notes" style="--dash-cols:12;--dash-rows:16">
+                <h3 class="dashboard-card-title">
+                    <button type="button" class="dash-tile-handle" title="Drag to move" aria-label="Move Sticky Notes"><i class="fas fa-grip-vertical"></i></button>
+                    <i class="fas fa-note-sticky" style="color:#fbbf24;"></i> Sticky Notes
+                    <button type="button" class="dash-note-add-btn" id="dash-note-add-btn" title="Add note"><i class="fas fa-plus"></i></button>
+                </h3>
+                <div class="dash-notes-grid" id="dash-notes-grid"></div>
+                <div class="dash-tile-resize" title="Resize"></div>
+            </div>
         </div>
 
-        <!-- Kids visual countdown timer (Time Timer style pie) -->
-        <div class="dashboard-card dashboard-card-timer" id="dashboard-timer-panel">
-            <h3 class="dashboard-card-title">
-                <i class="fas fa-hourglass-half" style="color:#f97316;"></i> Visual Timer
-            </h3>
-            <div class="visual-timer" id="visual-timer">
+        <div class="visual-timer-overlay" id="visual-timer-overlay" hidden>
+            <div class="visual-timer-overlay-backdrop" id="visual-timer-backdrop"></div>
+            <div class="visual-timer-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="visual-timer-dialog-title">
+                <div class="visual-timer-overlay-head">
+                    <h3 id="visual-timer-dialog-title"><i class="fas fa-hourglass-half" style="color:#f97316;"></i> Visual Timer</h3>
+                    <button type="button" class="visual-timer-close-btn" id="visual-timer-close" aria-label="Close timer"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="visual-timer" id="visual-timer">
                 <div class="visual-timer-face-col">
                     <div class="visual-timer-face-wrap" id="visual-timer-face">
                         <svg class="visual-timer-svg" viewBox="0 0 220 220" role="img" aria-labelledby="visual-timer-digits">
@@ -1131,23 +1187,16 @@ window.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Sticky Notes — its own resizable full-width panel -->
-        <div class="dashboard-card dashboard-card-photos dashboard-card-notes" id="dashboard-notes-panel">
-            <h3 class="dashboard-card-title">
-                <i class="fas fa-note-sticky" style="color:#fbbf24;"></i> Sticky Notes
-                <button type="button" class="dash-note-add-btn" id="dash-note-add-btn" title="Add note"><i class="fas fa-plus"></i></button>
-            </h3>
-            <div class="dash-notes-grid" id="dash-notes-grid"></div>
-            <div class="dash-notes-resize-hint"><i class="fas fa-up-down-left-right"></i></div>
+            </div>
         </div>
     </section>
 
     <style>
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            grid-auto-rows: 18px;
+            grid-auto-flow: dense;
             gap: 16px;
             margin-top: 4px;
         }
@@ -1162,11 +1211,13 @@ window.addEventListener('DOMContentLoaded', function() {
         }
         .dashboard-card:hover { transform: translateY(-2px); }
         .dashboard-card-photos,
-        .dashboard-card-timer { cursor: default; }
+        .dashboard-card-timer,
+        .dash-tile { cursor: default; }
         .dashboard-card-photos:hover,
-        .dashboard-card-timer:hover { transform: none; }
+        .dashboard-card-timer:hover,
+        .dash-tile:hover { transform: none; }
         .dashboard-card-photos:not(.dashboard-card-notes) { cursor: pointer; }
-        .dashboard-card-photos:not(.dashboard-card-notes):hover { transform: translateY(-2px); }
+        .dashboard-card-photos:not(.dashboard-card-notes):hover { transform: none; }
         .dashboard-card-title {
             margin: 0 0 10px;
             font-size: 1rem;
@@ -1203,8 +1254,9 @@ window.addEventListener('DOMContentLoaded', function() {
         .dash-photo-slideshow {
             position: relative;
             width: 100%;
-            min-height: 120px;
-            aspect-ratio: 16 / 9;
+            min-height: 0;
+            flex: 1;
+            aspect-ratio: auto;
             border-radius: 10px;
             overflow: hidden;
             background: var(--cr-subtle-panel-border);
@@ -1376,17 +1428,17 @@ window.addEventListener('DOMContentLoaded', function() {
             border-color: rgba(30,41,59,0.75);
         }
 
-        /* Sticky Notes panel — full-width, resizable rectangle */
+        /* Sticky Notes panel — fills its dashboard tile */
         .dashboard-card-notes {
             position: relative;
-            margin-top: 16px;
+            margin-top: 0;
             display: flex;
             flex-direction: column;
-            height: 380px;
-            min-height: 220px;
-            max-height: 80vh;
-            resize: vertical;
-            overflow: auto;
+            height: auto;
+            min-height: 0;
+            max-height: none;
+            resize: none;
+            overflow: hidden;
         }
         .dashboard-card-notes .dash-notes-grid {
             flex: 1;
@@ -1403,7 +1455,7 @@ window.addEventListener('DOMContentLoaded', function() {
             pointer-events: none;
         }
         @media (min-width: 600px) and (max-width: 1024px) {
-            .dashboard-card-notes { height: 440px; min-height: 280px; }
+            .dashboard-card-notes { height: auto; min-height: 0; }
         }
     </style>
 
@@ -1418,6 +1470,8 @@ window.addEventListener('DOMContentLoaded', function() {
             const card = document.getElementById('dash-photos-card');
             function launchScreensaver(e) {
                 if (e) { e.preventDefault(); e.stopPropagation(); }
+                if (e && e.target && e.target.closest('.dash-tile-handle, .dash-tile-resize')) return;
+                if (window.DashboardLayout && window.DashboardLayout.isArranging()) return;
                 if (window.ChoresScreensaver && typeof window.ChoresScreensaver.preview === 'function') {
                     window.ChoresScreensaver.preview();
                 }
@@ -1688,7 +1742,8 @@ window.addEventListener('DOMContentLoaded', function() {
             load();
         })();
     </script>
-    <script src="{{ url_for('static', filename='js/visual_timer.js') }}?v=20260915a"></script>
+    <script src="{{ url_for('static', filename='js/visual_timer.js') }}?v=20260915b"></script>
+    <script src="{{ url_for('static', filename='js/dashboard_layout.js') }}?v=20260915b"></script>
 
     <!-- Notes Kanban Section -->
     <section class="notes-kanban-section collapsible-section collapsed" id="notes-kanban-section">
