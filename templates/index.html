@@ -1087,14 +1087,20 @@ window.addEventListener('DOMContentLoaded', function() {
                 <div class="dash-tile-resize" title="Resize"></div>
             </div>
 
-            <!-- Family Photos slideshow — tap to start the full-screen screensaver -->
-            <div class="dashboard-card dashboard-card-photos dash-tile" id="dash-photos-card" data-dash-id="photos" title="Tap to start slideshow" style="--dash-cols:4;--dash-rows:12">
+            <!-- Family Photos slideshow — arrows browse in-widget; tap the photo for full-screen -->
+            <div class="dashboard-card dashboard-card-photos dash-tile" id="dash-photos-card" data-dash-id="photos" title="Tap a photo for full-screen slideshow" style="--dash-cols:4;--dash-rows:12">
                 <h3 class="dashboard-card-title">
                     <button type="button" class="dash-tile-handle" title="Drag to move" aria-label="Move Family Photos"><i class="fas fa-grip-vertical"></i></button>
                     <i class="fas fa-images" style="color:#f472b6;"></i> Family Photos
                 </h3>
                 <div class="dash-photo-slideshow" id="dash-photo-slideshow">
                     <p class="dash-empty-hint" id="dash-photo-empty">No photos yet — add some in Settings &rarr; Screensaver.</p>
+                    <button type="button" class="dash-photo-nav dash-photo-nav-prev" id="dash-photo-prev" hidden aria-label="Previous photo">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button type="button" class="dash-photo-nav dash-photo-nav-next" id="dash-photo-next" hidden aria-label="Next photo">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
                 <div class="dash-tile-resize" title="Resize"></div>
             </div>
@@ -1272,9 +1278,47 @@ window.addEventListener('DOMContentLoaded', function() {
             opacity: 0; transition: opacity 1s ease;
             will-change: opacity;
             background: #000;
+            z-index: 0;
         }
         .dash-photo-slideshow img.dash-photo-active,
         .dash-photo-slideshow video.dash-photo-active { opacity: 1; }
+        .dash-photo-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 3;
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            min-height: 36px;
+            padding: 0;
+            margin: 0;
+            border: none;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+            gap: 0;
+            opacity: 0.92;
+        }
+        .dash-photo-nav:hover,
+        .dash-photo-nav:focus {
+            background: rgba(0, 0, 0, 0.72);
+            color: #fff;
+            transform: translateY(-50%);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+            opacity: 1;
+        }
+        .dash-photo-nav[hidden] { display: none; }
+        .dash-photo-nav-prev { left: 8px; }
+        .dash-photo-nav-next { right: 8px; }
 
         .dash-note-add-btn {
             margin-left: auto;
@@ -1471,10 +1515,12 @@ window.addEventListener('DOMContentLoaded', function() {
         (() => {
             const wrap = document.getElementById('dash-photo-slideshow');
             const card = document.getElementById('dash-photos-card');
+            const prevBtn = document.getElementById('dash-photo-prev');
+            const nextBtn = document.getElementById('dash-photo-next');
             const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v|ogv)$/i;
             function launchScreensaver(e) {
                 if (e) { e.preventDefault(); e.stopPropagation(); }
-                if (e && e.target && e.target.closest('.dash-tile-handle, .dash-tile-resize')) return;
+                if (e && e.target && e.target.closest('.dash-tile-handle, .dash-tile-resize, .dash-photo-nav')) return;
                 if (window.DashboardLayout && window.DashboardLayout.isArranging()) return;
                 if (window.ChoresScreensaver && typeof window.ChoresScreensaver.preview === 'function') {
                     window.ChoresScreensaver.preview();
@@ -1483,11 +1529,12 @@ window.addEventListener('DOMContentLoaded', function() {
             if (card) {
                 card.addEventListener('click', launchScreensaver);
                 card.addEventListener('keydown', (e) => {
+                    if (e.target && e.target.closest('.dash-photo-nav')) return;
                     if (e.key === 'Enter' || e.key === ' ') { launchScreensaver(e); }
                 });
                 if (!card.hasAttribute('tabindex')) card.setAttribute('tabindex', '0');
                 card.setAttribute('role', 'button');
-                card.setAttribute('aria-label', 'Start family photo slideshow');
+                card.setAttribute('aria-label', 'Family photos. Tap a photo for full-screen, or use the arrows to browse.');
             }
             if (!wrap) return;
 
@@ -1499,6 +1546,8 @@ window.addEventListener('DOMContentLoaded', function() {
             let img2 = null;
             let activeImg = null;
             let nextImg = null;
+            let navBusy = false;
+            let pendingNav = null;
 
             function isVideoUrl(url) {
                 return VIDEO_EXT_RE.test(String(url || '').split('?')[0].split('#')[0]);
@@ -1563,8 +1612,16 @@ window.addEventListener('DOMContentLoaded', function() {
                 });
             }
 
+            function setNavVisible(visible) {
+                [prevBtn, nextBtn].forEach(btn => {
+                    if (!btn) return;
+                    btn.hidden = !visible;
+                });
+            }
+
             function showEmpty() {
                 stopRotate();
+                setNavVisible(false);
                 wrap.querySelectorAll('img, video').forEach(el => {
                     pauseMedia(el);
                     el.remove();
@@ -1587,6 +1644,8 @@ window.addEventListener('DOMContentLoaded', function() {
                 img1.className = 'dash-photo-active';
                 wrap.appendChild(img1);
                 wrap.appendChild(img2);
+                if (prevBtn) wrap.appendChild(prevBtn);
+                if (nextBtn) wrap.appendChild(nextBtn);
                 activeImg = img1;
                 nextImg = img2;
                 playMedia(activeImg);
@@ -1600,25 +1659,44 @@ window.addEventListener('DOMContentLoaded', function() {
                 return next;
             }
 
+            function goTo(idx, restart) {
+                if (!photos.length || !nextImg) return;
+                const n = photos.length;
+                const next = ((idx % n) + n) % n;
+                if (navBusy) {
+                    pendingNav = { idx: next, restart: !!restart };
+                    return;
+                }
+                if (next === currentIdx) return;
+                currentIdx = next;
+                const target = photos[currentIdx];
+                nextImg = replaceSlot(nextImg, target, '');
+                const incoming = nextImg;
+                navBusy = true;
+                whenReady(incoming).then(() => {
+                    if (nextImg !== incoming) { navBusy = false; return; }
+                    incoming.classList.add('dash-photo-active');
+                    if (activeImg) {
+                        activeImg.classList.remove('dash-photo-active');
+                        pauseMedia(activeImg);
+                    }
+                    playMedia(incoming);
+                    nextImg = activeImg;
+                    activeImg = incoming;
+                    navBusy = false;
+                    if (pendingNav) {
+                        const queued = pendingNav;
+                        pendingNav = null;
+                        goTo(queued.idx, queued.restart);
+                    }
+                });
+                if (restart) startRotate();
+            }
+
             function startRotate() {
                 stopRotate();
                 if (photos.length < 2 || !nextImg) return;
-                rotateTimer = setInterval(() => {
-                    if (!photos.length || !nextImg) return;
-                    currentIdx = (currentIdx + 1) % photos.length;
-                    const target = photos[currentIdx];
-                    nextImg = replaceSlot(nextImg, target, '');
-                    const incoming = nextImg;
-                    whenReady(incoming).then(() => {
-                        if (nextImg !== incoming) return;
-                        incoming.classList.add('dash-photo-active');
-                        activeImg.classList.remove('dash-photo-active');
-                        pauseMedia(activeImg);
-                        playMedia(incoming);
-                        nextImg = activeImg;
-                        activeImg = incoming;
-                    });
-                }, 6000);
+                rotateTimer = setInterval(() => goTo(currentIdx + 1, false), 6000);
             }
 
             function applyPhotos(nextPhotos) {
@@ -1635,8 +1713,17 @@ window.addEventListener('DOMContentLoaded', function() {
                 });
                 img1 = img2 = activeImg = nextImg = null;
                 ensureImages();
+                setNavVisible(photos.length > 1);
                 startRotate();
             }
+
+            function onNavClick(step, e) {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                if (window.DashboardLayout && window.DashboardLayout.isArranging()) return;
+                goTo(currentIdx + step, true);
+            }
+            if (prevBtn) prevBtn.addEventListener('click', (e) => onNavClick(-1, e));
+            if (nextBtn) nextBtn.addEventListener('click', (e) => onNavClick(1, e));
 
             function refreshPhotos() {
                 fetch('/api/screensaver/config', { cache: 'no-store' })
