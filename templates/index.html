@@ -4534,6 +4534,27 @@ function deleteReward(rewardId) {
         return map;
     }
 
+    function uncheckMealIngredients(mealKey) {
+        const prefix = `meal::${mealKey}::`;
+        Object.keys(shoppingChecked).forEach(k => {
+            if (k.startsWith(prefix)) shoppingChecked[k] = false;
+        });
+        (mealIngredients[mealKey] || []).forEach(ing => {
+            shoppingChecked[`${prefix}${ing.name.toLowerCase()}`] = false;
+        });
+    }
+
+    function addMealToShoppingRun(mealKey) {
+        if (!shoppingActive.includes(mealKey)) shoppingActive.push(mealKey);
+        Object.keys(shoppingHidden).forEach(sid => {
+            shoppingHidden[sid] = shoppingHidden[sid].filter(k => k !== mealKey);
+        });
+        uncheckMealIngredients(mealKey);
+        renderIngredientsLibrary();
+        renderShoppingList();
+        debouncedSave();
+    }
+
     let saveCheckedTimer = null;
     function debouncedSave() {
         clearTimeout(saveCheckedTimer);
@@ -5587,20 +5608,12 @@ function deleteReward(rewardId) {
                 cartBtn.className = 'meal-card-action-btn meal-card-btn--planned';
                 cartBtn.title = "In this week's meal plan — click to also add to shopping run";
                 cartBtn.innerHTML = '<i class="fas fa-calendar-check"></i>';
-                cartBtn.addEventListener('click', () => {
-                    if (!shoppingActive.includes(mealKey)) shoppingActive.push(mealKey);
-                    Object.keys(shoppingHidden).forEach(sid => { shoppingHidden[sid] = shoppingHidden[sid].filter(k => k !== mealKey); });
-                    renderIngredientsLibrary(); renderShoppingList(); debouncedSave();
-                });
+                cartBtn.addEventListener('click', () => addMealToShoppingRun(mealKey));
             } else {
                 cartBtn.className = 'meal-card-action-btn';
                 cartBtn.title = 'Add to shopping run';
                 cartBtn.innerHTML = '<i class="fas fa-cart-plus"></i>';
-                cartBtn.addEventListener('click', () => {
-                    if (!shoppingActive.includes(mealKey)) shoppingActive.push(mealKey);
-                    Object.keys(shoppingHidden).forEach(sid => { shoppingHidden[sid] = shoppingHidden[sid].filter(k => k !== mealKey); });
-                    renderIngredientsLibrary(); renderShoppingList(); debouncedSave();
-                });
+                cartBtn.addEventListener('click', () => addMealToShoppingRun(mealKey));
             }
             hdr.appendChild(cartBtn);
             const delBtn = document.createElement('button');
