@@ -155,10 +155,35 @@
         currentOrderIdx = -1;
     }
 
+    function shouldHoldForTimer() {
+        const vt = window.ChoresVisualTimer;
+        if (vt && typeof vt.shouldHoldScreensaver === 'function') {
+            try { return !!vt.shouldHoldScreensaver(); } catch (_) { /* ignore */ }
+        }
+        if (!document.getElementById('dashboard-timer-panel') && !document.getElementById('visual-timer')) {
+            return false;
+        }
+        if (document.body.classList.contains('visual-timer-open')) return true;
+        const overlay = document.getElementById('visual-timer-overlay');
+        if (overlay && !overlay.hidden) return true;
+        try {
+            const saved = JSON.parse(localStorage.getItem('visualTimerState') || '{}');
+            return !!(saved && saved.running);
+        } catch (_) {
+            return false;
+        }
+    }
+
     function resetIdleTimer() {
         clearTimeout(idleTimer);
         if (!config || !config.enabled) return;
+        if (shouldHoldForTimer()) return;
         idleTimer = setTimeout(showScreensaver, config.idle_timeout * 1000);
+    }
+
+    function syncIdle() {
+        if (showing && shouldHoldForTimer()) hideScreensaver();
+        if (!showing) resetIdleTimer();
     }
 
     function onActivity(e) {
@@ -454,6 +479,7 @@
     function showScreensaver() {
         if (showing) return;
         if (!forcedPreview && (!config || !config.enabled)) return;
+        if (!forcedPreview && shouldHoldForTimer()) return;
         buildOverlay();
         showing = true;
         gesture = null;
@@ -525,6 +551,7 @@
         show: showScreensaver,
         hide: hideScreensaver,
         isActive: function () { return showing; },
+        syncIdle: syncIdle,
         next: function () { if (showing) showSlide(1); },
         prev: function () { if (showing) showSlide(-1); },
         preview: function () {

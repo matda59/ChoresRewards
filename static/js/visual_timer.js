@@ -290,6 +290,7 @@
         persist();
         render();
         openTimer();
+        notifyScreensaverHold();
     }
 
     function tick() {
@@ -343,6 +344,7 @@
         persist();
         render();
         startLoop();
+        notifyScreensaverHold();
     }
 
     function pauseTimer() {
@@ -356,6 +358,7 @@
         }
         persist();
         render();
+        notifyScreensaverHold();
     }
 
     function resetTimer() {
@@ -371,6 +374,7 @@
         }
         persist();
         render();
+        notifyScreensaverHold();
     }
 
     function buildColors() {
@@ -410,6 +414,16 @@
         customInput.value = '';
     });
 
+    function notifyScreensaverHold() {
+        if (window.ChoresScreensaver && typeof window.ChoresScreensaver.syncIdle === 'function') {
+            window.ChoresScreensaver.syncIdle();
+        }
+    }
+
+    function isTimerOpen() {
+        return !!(overlay && !overlay.hidden);
+    }
+
     function openTimer() {
         if (window.DashboardLayout && window.DashboardLayout.isArranging()) return;
         if (!overlay) return;
@@ -417,6 +431,7 @@
         overlay.classList.add('is-open');
         document.body.classList.add('visual-timer-open');
         if (closeBtn) closeBtn.focus();
+        notifyScreensaverHold();
     }
 
     function closeTimer() {
@@ -424,6 +439,7 @@
         overlay.hidden = true;
         overlay.classList.remove('is-open');
         document.body.classList.remove('visual-timer-open');
+        notifyScreensaverHold();
     }
 
     if (openBtn) {
@@ -451,4 +467,11 @@
     restore();
     render();
     if (state.running) startLoop();
+    notifyScreensaverHold();
+
+    window.ChoresVisualTimer = {
+        isRunning: function () { return !!state.running; },
+        isOpen: isTimerOpen,
+        shouldHoldScreensaver: function () { return isTimerOpen() || !!state.running; }
+    };
 })();
