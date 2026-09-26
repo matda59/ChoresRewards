@@ -8,6 +8,7 @@
     const STORAGE_KEY = 'dashboardLayoutV1';
     const GRID_COLS = 12;
     const ROW_UNIT = 18;
+    const MINIMISED_ROWS = 3;
     const DEFAULT_ORDER = ['tasks', 'meals', 'events', 'rewards', 'photos', 'timer', 'play', 'notes'];
     const DEFAULTS = {
         tasks: { cols: 4, rows: 12 },
@@ -16,7 +17,7 @@
         rewards: { cols: 4, rows: 9 },
         photos: { cols: 4, rows: 12 },
         timer: { cols: 2, rows: 8 },
-        play: { cols: 4, rows: 9 },
+        play: { cols: 4, rows: 11 },
         notes: { cols: 12, rows: 16 }
     };
     const MIN_SIZE = {
@@ -26,7 +27,7 @@
         rewards: { cols: 2, rows: 7 },
         photos: { cols: 2, rows: 8 },
         timer: { cols: 2, rows: 6 },
-        play: { cols: 2, rows: 7 },
+        play: { cols: 2, rows: 8 },
         notes: { cols: 3, rows: 10 }
     };
 
@@ -69,21 +70,62 @@
         tiles().forEach((el) => {
             const id = el.dataset.dashId;
             layout.order.push(id);
+            const expanded = expandedSize(el);
             layout.tiles[id] = {
-                cols: Number(el.style.getPropertyValue('--dash-cols')) || (DEFAULTS[id] || {}).cols || 4,
-                rows: Number(el.style.getPropertyValue('--dash-rows')) || (DEFAULTS[id] || {}).rows || 8
+                cols: expanded.cols,
+                rows: expanded.rows,
+                minimised: el.classList.contains('is-minimised')
             };
         });
         return layout;
     }
 
-    function applySize(el, size) {
+    function applySize(el, size, opts) {
         const id = el.dataset.dashId;
         const mins = minFor(id);
+        const minimised = !!(opts && opts.minimised);
         const cols = clamp(Math.round(size.cols), mins.cols, GRID_COLS);
-        const rows = clamp(Math.round(size.rows), mins.rows, 50);
+        const rows = clamp(Math.round(size.rows), minimised ? MINIMISED_ROWS : mins.rows, 50);
         el.style.setProperty('--dash-cols', String(cols));
         el.style.setProperty('--dash-rows', String(rows));
+    }
+
+    function expandedSize(el) {
+        const id = el.dataset.dashId;
+        const fallback = DEFAULTS[id] || { cols: 4, rows: 8 };
+        const cols = Number(el.dataset.expandedCols);
+        const rows = Number(el.dataset.expandedRows);
+        return {
+            cols: cols || fallback.cols,
+            rows: rows || fallback.rows
+        };
+    }
+
+    function updateMinButton(el) {
+        const btn = el.querySelector('.dash-tile-min');
+        if (!btn) return;
+        const minimised = el.classList.contains('is-minimised');
+        const label = minimised ? 'Expand' : 'Minimise';
+        btn.title = label;
+        btn.setAttribute('aria-label', label);
+        btn.innerHTML = minimised
+            ? '<i class="fas fa-chevron-down"></i>'
+            : '<i class="fas fa-minus"></i>';
+    }
+
+    function setMinimised(el, on) {
+        const expanded = expandedSize(el);
+        el.dataset.expandedCols = String(expanded.cols);
+        el.dataset.expandedRows = String(expanded.rows);
+        el.classList.toggle('is-minimised', !!on);
+        applySize(el, on ? { cols: expanded.cols, rows: MINIMISED_ROWS } : expanded, { minimised: !!on });
+        updateMinButton(el);
+    }
+
+    function toggleMinimised(el) {
+        if (!el) return;
+        setMinimised(el, !el.classList.contains('is-minimised'));
+        saveLayout(currentLayout());
     }
 
     function applyLayout(layout) {
@@ -104,7 +146,35 @@
         });
         tiles().forEach((el) => {
             const id = el.dataset.dashId;
-            applySize(el, (layout.tiles && layout.tiles[id]) || DEFAULTS[id] || { cols: 4, rows: 8 });
+            const saved = (layout.tiles && layout.tiles[id]) || {};
+            const fallback = DEFAULTS[id] || { cols: 4, rows: 8 };
+            const size = {
+                cols: saved.cols || fallback.cols,
+                rows: saved.rows || fallback.rows
+            };
+            el.dataset.expandedCols = String(size.cols);
+            el.dataset.expandedRows = String(size.rows);
+            const minimised = !!saved.minimised;
+            el.classList.toggle('is-minimised', minimised);
+            applySize(el, minimised ? { cols: size.cols, rows: MINIMISED_ROWS } : size, { minimised: minimised });
+            updateMinButton(el);
+        });
+    }
+
+    function ensureMinButtons() {
+        tiles().forEach((el) => {
+            const title = el.querySelector('.dashboard-card-title');
+            if (!title || title.querySelector('.dash-tile-min')) return;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'dash-tile-min';
+            btn.innerHTML = '<i class="fas fa-minus"></i>';
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleMinimised(el);
+            });
+            title.appendChild(btn);
         });
     }
 
@@ -124,6 +194,7 @@
         isArranging: () => arranging
     };
 
+    ensureMinButtons();
     applyLayout(loadLayout());
 
     if (arrangeBtn) {
@@ -137,6 +208,15 @@
     }
 
     grid.addEventListener('click', (e) => {
+        if (e.target.closest('.dash-tile-min')) return;
+        const anyTile = e.target.closest('.dash-tile');
+        if (anyTile && grid.contains(anyTile) && anyTile.classList.contains('is-minimised')) {
+            if (arranging || drag || resize) return;
+            if (e.target.closest('.dash-tile-handle, .dash-tile-resize')) return;
+            e.preventDefault();
+            toggleMinimised(anyTile);
+            return;
+        }
         if (arranging || drag || resize) return;
         if (e.target.closest('.dash-tile-handle, .dash-tile-resize, .dash-note-add-btn, .visual-timer-launcher, .play-launch')) return;
         const tile = e.target.closest('.dash-tile[data-dash-nav]');
@@ -151,7 +231,7 @@
     }
 
     function startResize(e, tile) {
-        if (!arranging) return;
+        if (!arranging || tile.classList.contains('is-minimised')) return;
         e.preventDefault();
         e.stopPropagation();
         const id = tile.dataset.dashId;
@@ -178,7 +258,14 @@
 
     function endResize() {
         if (!resize) return;
-        resize.tile.classList.remove('is-resizing');
+        const tile = resize.tile;
+        tile.classList.remove('is-resizing');
+        if (!tile.classList.contains('is-minimised')) {
+            const cols = Number(tile.style.getPropertyValue('--dash-cols'));
+            const rows = Number(tile.style.getPropertyValue('--dash-rows'));
+            if (cols) tile.dataset.expandedCols = String(cols);
+            if (rows) tile.dataset.expandedRows = String(rows);
+        }
         resize = null;
         saveLayout(currentLayout());
     }

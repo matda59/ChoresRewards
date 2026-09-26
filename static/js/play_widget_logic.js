@@ -193,6 +193,159 @@
         };
     }
 
+    function fillChoices(answer, preferred, rng) {
+        const choices = [answer];
+        preferred.forEach((n) => {
+            if (choices.length >= 4) return;
+            if (!Number.isInteger(n) || n < 0 || n > 999 || choices.indexOf(n) !== -1) return;
+            choices.push(n);
+        });
+        let extra = 1;
+        while (choices.length < 4 && extra < 40) {
+            const n = answer + extra;
+            extra += 1;
+            if (n <= 999 && choices.indexOf(n) === -1) choices.push(n);
+        }
+        return shuffle(choices, rng);
+    }
+
+    function makeStepPattern(streak, rng, sign) {
+        const steps = streak >= 6 ? [2, 3, 4, 5, 6, 8, 10] : [2, 3, 5, 10];
+        const step = pick(rng, steps);
+        const start = sign > 0
+            ? randInt(rng, 1, streak >= 6 ? 24 : 12)
+            : randInt(rng, step * 4 + 2, step * 4 + 24);
+        const sequence = [0, 1, 2, 3].map((i) => start + sign * i * step);
+        const answer = start + sign * 4 * step;
+        return {
+            sequence: sequence,
+            answer: answer,
+            choices: fillChoices(answer, [
+                answer + step,
+                answer - step,
+                answer + sign * step * 2,
+                sequence[3],
+                answer + 1,
+                answer - 1
+            ], rng),
+            kind: sign > 0 ? 'add' : 'sub',
+            step: step,
+            key: sequence.join(',')
+        };
+    }
+
+    function makeMulPattern(streak, rng) {
+        const factor = streak >= 6 && rng() < 0.35 ? 3 : 2;
+        const start = randInt(rng, 1, factor === 2 ? 5 : 3);
+        const sequence = [start];
+        while (sequence.length < 4) sequence.push(sequence[sequence.length - 1] * factor);
+        const answer = sequence[3] * factor;
+        return {
+            sequence: sequence,
+            answer: answer,
+            choices: fillChoices(answer, [
+                answer + factor,
+                answer - factor,
+                sequence[3] + sequence[3],
+                answer + start,
+                sequence[3]
+            ], rng),
+            kind: 'mul',
+            step: factor,
+            key: sequence.join(',')
+        };
+    }
+
+    function makeSquares(rng) {
+        const start = randInt(rng, 1, 5);
+        const sequence = [0, 1, 2, 3].map((i) => (start + i) * (start + i));
+        const answer = (start + 4) * (start + 4);
+        return {
+            sequence: sequence,
+            answer: answer,
+            choices: fillChoices(answer, [
+                answer + 1,
+                answer - 1,
+                (start + 5) * (start + 5),
+                sequence[3] + (start + 3)
+            ], rng),
+            kind: 'square',
+            step: start,
+            key: sequence.join(',')
+        };
+    }
+
+    function makePattern(streak, rng) {
+        const bag = ['add', 'add', 'sub', 'mul'];
+        if (streak >= 4) bag.push('square');
+        if (streak >= 8) bag.push('mul', 'square');
+        const kind = pick(rng, bag);
+        if (kind === 'square') return makeSquares(rng);
+        if (kind === 'mul') return makeMulPattern(streak, rng);
+        if (kind === 'sub') return makeStepPattern(streak, rng, -1);
+        return makeStepPattern(streak, rng, 1);
+    }
+
+    function nextPattern(streak, rng, previousKey) {
+        const random = typeof rng === 'function' ? rng : Math.random;
+        const safeStreak = Math.max(0, Number(streak) || 0);
+        let round = makePattern(safeStreak, random);
+        for (let i = 0; i < 12 && previousKey && round.key === previousKey; i += 1) {
+            round = makePattern(safeStreak, random);
+        }
+        return round;
+    }
+
+    function pickShapeRound(rng) {
+        const random = typeof rng === 'function' ? rng : Math.random;
+        const shapes = shuffle(SHAPES, random);
+        const colors = shuffle(FIND_COLORS, random).slice(0, shapes.length);
+        const target = pick(random, shapes);
+        return {
+            target: target,
+            choices: shapes.map((shape, index) => ({ shape: shape, color: colors[index] }))
+        };
+    }
+
+    const MEMORY_PAIRS = [
+        { id: 'red', name: 'red', hex: '#ef4444', shape: 'circle' },
+        { id: 'yellow', name: 'yellow', hex: '#facc15', shape: 'star' },
+        { id: 'blue', name: 'blue', hex: '#3b82f6', shape: 'heart' },
+        { id: 'green', name: 'green', hex: '#22c55e', shape: 'square' }
+    ];
+
+    function memoryDeck(mode, rng) {
+        const random = typeof rng === 'function' ? rng : Math.random;
+        const cards = [];
+        if (mode === 'bonds') {
+            [[1, 9], [2, 8], [3, 7], [4, 6]].forEach((pair, index) => {
+                pair.forEach((value, side) => {
+                    cards.push({
+                        uid: 'b' + index + '-' + side,
+                        pair: String(index),
+                        kind: 'bonds',
+                        label: String(value),
+                        value: value
+                    });
+                });
+            });
+        } else {
+            MEMORY_PAIRS.forEach((paint) => {
+                [0, 1].forEach((side) => {
+                    cards.push({
+                        uid: paint.id + '-' + side,
+                        pair: paint.id,
+                        kind: 'colours',
+                        label: paint.name,
+                        hex: paint.hex,
+                        shape: paint.shape
+                    });
+                });
+            });
+        }
+        return shuffle(cards, random);
+    }
+
     return {
         PAINTS: PAINTS,
         FIND_COLORS: FIND_COLORS,
@@ -200,6 +353,9 @@
         SHAPES: SHAPES,
         nextMathQuestion: nextMathQuestion,
         mixPaints: mixPaints,
-        pickFindRound: pickFindRound
+        pickFindRound: pickFindRound,
+        nextPattern: nextPattern,
+        pickShapeRound: pickShapeRound,
+        memoryDeck: memoryDeck
     };
 });

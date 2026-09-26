@@ -28,7 +28,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260926a">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260926c">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -1130,7 +1130,7 @@ window.addEventListener('DOMContentLoaded', function() {
             </div>
 
             <!-- Play — maths for older kids, colours for little ones -->
-            <div class="dashboard-card dashboard-card-play dash-tile" id="dashboard-play-panel" data-dash-id="play" style="--dash-cols:4;--dash-rows:9">
+            <div class="dashboard-card dashboard-card-play dash-tile" id="dashboard-play-panel" data-dash-id="play" style="--dash-cols:4;--dash-rows:11">
                 <h3 class="dashboard-card-title">
                     <button type="button" class="dash-tile-handle" title="Drag to move" aria-label="Move Play"><i class="fas fa-grip-vertical"></i></button>
                     <i class="fas fa-star" style="color:#fbbf24;"></i> Play
@@ -1148,6 +1148,14 @@ window.addEventListener('DOMContentLoaded', function() {
                             <i style="background:#22c55e"></i>
                         </span>
                         <span class="play-launch-label">Colours</span>
+                    </button>
+                    <button type="button" class="play-launch play-launch-patterns" id="play-open-patterns" aria-label="Play patterns">
+                        <span class="play-launch-mark play-launch-mark-sm" aria-hidden="true">2 4 6</span>
+                        <span class="play-launch-label">Patterns</span>
+                    </button>
+                    <button type="button" class="play-launch play-launch-memory" id="play-open-memory" aria-label="Play memory">
+                        <span class="play-launch-cards" aria-hidden="true"><i></i><i></i></span>
+                        <span class="play-launch-label">Memory</span>
                     </button>
                 </div>
                 <div class="dash-tile-resize" title="Resize"></div>
@@ -1258,6 +1266,7 @@ window.addEventListener('DOMContentLoaded', function() {
                     <div class="play-modes" role="tablist" aria-label="Colour game">
                         <button type="button" class="play-mode is-selected" data-colour-mode="find">Find it</button>
                         <button type="button" class="play-mode" data-colour-mode="mix">Mix it</button>
+                        <button type="button" class="play-mode" data-colour-mode="shapes">Shapes</button>
                     </div>
                     <div id="play-find">
                         <p class="play-find-kicker">Tap this colour</p>
@@ -1279,6 +1288,32 @@ window.addEventListener('DOMContentLoaded', function() {
                         <p class="play-mix-caption" id="play-mix-caption">Pick two colours</p>
                         <div class="play-paintbox" id="play-paintbox" role="group" aria-label="Paint colours"></div>
                     </div>
+                    <div id="play-shapes" hidden>
+                        <p class="play-find-kicker">Tap this shape</p>
+                        <div class="play-find-target-row">
+                            <span class="play-shape-preview" id="play-shape-preview" aria-hidden="true"></span>
+                            <span class="play-find-word" id="play-shape-word">star</span>
+                        </div>
+                        <div class="play-find-grid" id="play-shape-grid"></div>
+                        <p class="play-feedback" id="play-shape-feedback" aria-live="polite"></p>
+                    </div>
+                </div>
+
+                <div id="play-patterns" hidden>
+                    <p class="play-find-kicker">What comes next?</p>
+                    <div class="play-pattern" id="play-pattern" aria-live="polite"></div>
+                    <div class="play-choices" id="play-pattern-choices"></div>
+                    <p class="play-feedback" id="play-pattern-feedback" aria-live="polite"></p>
+                </div>
+
+                <div id="play-memory" hidden>
+                    <div class="play-modes" role="tablist" aria-label="Memory type">
+                        <button type="button" class="play-mode is-selected" data-memory-mode="colours">Colours</button>
+                        <button type="button" class="play-mode" data-memory-mode="bonds">Number bonds</button>
+                    </div>
+                    <div class="play-memory-grid" id="play-memory-grid"></div>
+                    <p class="play-feedback" id="play-memory-feedback" aria-live="polite"></p>
+                    <button type="button" class="play-again" id="play-memory-again" hidden>Play again</button>
                 </div>
             </div>
         </div>
@@ -1610,7 +1645,8 @@ window.addEventListener('DOMContentLoaded', function() {
             const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v|ogv)$/i;
             function launchScreensaver(e) {
                 if (e) { e.preventDefault(); e.stopPropagation(); }
-                if (e && e.target && e.target.closest('.dash-tile-handle, .dash-tile-resize, .dash-photo-nav')) return;
+                if (e && e.target && e.target.closest('.dash-tile-handle, .dash-tile-resize, .dash-photo-nav, .dash-tile-min')) return;
+                if (card && card.classList.contains('is-minimised')) return;
                 if (window.DashboardLayout && window.DashboardLayout.isArranging()) return;
                 if (window.ChoresScreensaver && typeof window.ChoresScreensaver.preview === 'function') {
                     window.ChoresScreensaver.preview();
@@ -1985,10 +2021,10 @@ window.addEventListener('DOMContentLoaded', function() {
             load();
         })();
     </script>
-    <script src="{{ url_for('static', filename='js/play_widget_logic.js') }}?v=20260926a"></script>
-    <script src="{{ url_for('static', filename='js/play_widget.js') }}?v=20260926b"></script>
+    <script src="{{ url_for('static', filename='js/play_widget_logic.js') }}?v=20260926c"></script>
+    <script src="{{ url_for('static', filename='js/play_widget.js') }}?v=20260926c"></script>
     <script src="{{ url_for('static', filename='js/visual_timer.js') }}?v=20260919a"></script>
-    <script src="{{ url_for('static', filename='js/dashboard_layout.js') }}?v=20260926a"></script>
+    <script src="{{ url_for('static', filename='js/dashboard_layout.js') }}?v=20260926c"></script>
 
     <!-- Notes Kanban Section -->
     <section class="notes-kanban-section collapsible-section collapsed" id="notes-kanban-section">

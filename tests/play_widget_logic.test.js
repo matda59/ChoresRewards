@@ -95,4 +95,70 @@ for (let streak = 0; streak < 8; streak += 1) {
     }
 }
 
+function followsPattern(round) {
+    const sequence = round.sequence;
+    if (round.kind === 'add' || round.kind === 'sub') {
+        const step = sequence[1] - sequence[0];
+        return sequence[2] - sequence[1] === step
+            && sequence[3] - sequence[2] === step
+            && round.answer - sequence[3] === step
+            && round.answer >= 0;
+    }
+    if (round.kind === 'mul') {
+        return sequence[1] / sequence[0] === round.step
+            && sequence[2] / sequence[1] === round.step
+            && sequence[3] / sequence[2] === round.step
+            && round.answer / sequence[3] === round.step;
+    }
+    if (round.kind === 'square') {
+        const roots = sequence.map((n) => Math.round(Math.sqrt(n)));
+        return roots.every((root, index) => root * root === sequence[index])
+            && roots[1] === roots[0] + 1
+            && round.answer === (roots[3] + 1) * (roots[3] + 1);
+    }
+    return false;
+}
+
+for (let streak = 0; streak < 12; streak += 1) {
+    const rng = mulberry32(400 + streak);
+    let prev = '';
+    const seen = {};
+    for (let n = 0; n < 30; n += 1) {
+        const round = logic.nextPattern(streak, rng, prev);
+        assert.ok(followsPattern(round), JSON.stringify(round));
+        assert.strictEqual(round.choices.length, 4);
+        assert.strictEqual(new Set(round.choices).size, 4);
+        assert.ok(round.choices.indexOf(round.answer) !== -1);
+        assert.notStrictEqual(round.key, prev);
+        seen[round.kind] = true;
+        if (streak < 4) assert.notStrictEqual(round.kind, 'square');
+        prev = round.key;
+    }
+    if (streak >= 8) assert.ok(seen.add && seen.mul);
+}
+
+for (let n = 0; n < 20; n += 1) {
+    const round = logic.pickShapeRound(mulberry32(20 + n));
+    const shapes = round.choices.map((choice) => choice.shape);
+    assert.strictEqual(shapes.length, 6);
+    assert.strictEqual(new Set(shapes).size, 6);
+    assert.ok(shapes.indexOf(round.target) !== -1);
+}
+
+['colours', 'bonds'].forEach((mode) => {
+    const deck = logic.memoryDeck(mode, mulberry32(7));
+    assert.strictEqual(deck.length, 8);
+    const pairs = {};
+    deck.forEach((card) => {
+        pairs[card.pair] = (pairs[card.pair] || 0) + 1;
+        assert.ok(card.uid && card.label);
+    });
+    assert.strictEqual(Object.keys(pairs).length, 4);
+    Object.keys(pairs).forEach((pair) => assert.strictEqual(pairs[pair], 2));
+    if (mode === 'bonds') {
+        const values = deck.map((card) => card.value).sort((a, b) => a - b);
+        assert.deepStrictEqual(values, [1, 2, 3, 4, 6, 7, 8, 9]);
+    }
+});
+
 console.log('play widget logic ok');
