@@ -1020,6 +1020,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
             <!-- Meals Today -->
             {% set dash_plan_today = meal_planner_plan.get(current_date.isoformat(), {}) %}
+            {% set dash_breakfast = dash_plan_today.get('breakfast', '') | trim %}
             {% set dash_lunch = dash_plan_today.get('lunch', '') | trim %}
             {% set dash_dinner = dash_plan_today.get('dinner', '') | trim %}
             <div class="dashboard-card dash-tile" data-dash-id="meals" data-dash-nav="meal-planner-section" style="--dash-cols:4;--dash-rows:8">
@@ -1027,13 +1028,16 @@ window.addEventListener('DOMContentLoaded', function() {
                     <button type="button" class="dash-tile-handle" title="Drag to move" aria-label="Move Meals Today"><i class="fas fa-grip-vertical"></i></button>
                     <i class="fas fa-utensils" style="color:#fb923c;"></i> Meals Today
                 </h3>
+                {% if dash_breakfast %}
+                <div class="dash-meal-row"><span class="dash-meal-label">Breakfast</span><span class="dash-meal-name">{{ dash_breakfast }}</span></div>
+                {% endif %}
                 {% if dash_lunch %}
-                <div class="dash-meal-row"><span class="dash-meal-label">Lunch</span><span>{{ dash_lunch }}</span></div>
+                <div class="dash-meal-row"><span class="dash-meal-label">Lunch</span><span class="dash-meal-name">{{ dash_lunch }}</span></div>
                 {% endif %}
                 {% if dash_dinner %}
-                <div class="dash-meal-row"><span class="dash-meal-label">Dinner</span><span>{{ dash_dinner }}</span></div>
+                <div class="dash-meal-row"><span class="dash-meal-label">Dinner</span><span class="dash-meal-name">{{ dash_dinner }}</span></div>
                 {% endif %}
-                {% if not dash_lunch and not dash_dinner %}
+                {% if not dash_breakfast and not dash_lunch and not dash_dinner %}
                 <p class="dash-empty-hint">No meals planned for today yet.</p>
                 {% endif %}
                 <div class="dash-tile-resize" title="Resize"></div>
@@ -1253,7 +1257,10 @@ window.addEventListener('DOMContentLoaded', function() {
             font-size: 0.85em; color: var(--cr-text-primary);
         }
         .dash-meal-row:last-child, .dash-event-row:last-child, .dash-reward-row:last-child { border-bottom: none; }
-        .dash-meal-label, .dash-event-time { flex-shrink: 0; font-weight: 700; color: var(--cr-text-secondary); font-size: 0.85em; min-width: 52px; }
+        .dash-meal-label, .dash-event-time { flex-shrink: 0; font-weight: 700; color: var(--cr-text-secondary); font-size: 0.85em; }
+        .dash-meal-label { min-width: 5.8em; }
+        .dash-event-time { min-width: 52px; }
+        .dash-meal-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .dash-empty-hint { color: var(--cr-text-secondary); font-size: 0.85em; font-style: italic; }
         .dash-reward-thumb { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--cr-subtle-panel-border); }
         .dash-reward-points { margin-left: auto; font-weight: 700; color: #fbbf24; font-size: 0.85em; white-space: nowrap; }
