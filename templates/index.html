@@ -3799,10 +3799,10 @@ function deleteReward(rewardId) {
                                 <span>Weekly</span>
                             </label>
                         </div>
-                        <select class="meal-picker-select">
-                            <option value="">— pick a suggestion —</option>
-                        </select>
-                        <input type="text" class="meal-picker-input" placeholder="or type something…" value="{{ cell_value }}" maxlength="120">
+                        <input type="text" class="meal-picker-input" placeholder="Search meals, or type anything…" value="{{ cell_value }}" maxlength="120"
+                               role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off">
+                        <div class="meal-picker-hint">↑↓ then Enter · Esc closes</div>
+                        <div class="meal-picker-results" role="listbox"></div>
                         <div class="meal-picker-btns">
                             <button type="button" class="meal-picker-ok">✓ Set</button>
                             <button type="button" class="meal-picker-clear">Clear</button>
@@ -3968,7 +3968,12 @@ function deleteReward(rewardId) {
     // ── Inline picker ─────────────────────────────────────────────────────────
     function closePicker() {
         if (!openPickerSlot) return;
-        openPickerSlot.querySelector('.meal-inline-picker').style.display = 'none';
+        const picker = openPickerSlot.querySelector('.meal-inline-picker');
+        picker.style.display = 'none';
+        picker.style.marginLeft = '';
+        picker.style.marginRight = '';
+        picker.querySelector('.meal-picker-input')?.setAttribute('aria-expanded', 'false');
+        pickerActiveIndex = -1;
         openPickerSlot.querySelector('.meal-slot-row').classList.remove('meal-slot-picker-open');
         openPickerSlot = null;
     }
@@ -3978,57 +3983,189 @@ function deleteReward(rewardId) {
         if (openPickerSlot) closePicker();
         const picker = slot.querySelector('.meal-inline-picker');
         const pickerInput = picker.querySelector('.meal-picker-input');
-        const pickerSelect = picker.querySelector('.meal-picker-select');
         const pickerRecurring = picker.querySelector('.meal-picker-recurring');
         const slotRecurring = slot.querySelector('.meal-recurring-input');
         const current = normalizeText(slot.querySelector('.meal-input')?.value);
         if (pickerInput) pickerInput.value = current;
         if (pickerRecurring && slotRecurring) pickerRecurring.checked = slotRecurring.checked;
-        populatePickerSelect(pickerSelect, current);
         picker.style.display = '';
         slot.querySelector('.meal-slot-row').classList.add('meal-slot-picker-open');
         openPickerSlot = slot;
-        // focus the select if there are suggestions, otherwise the text input
-        if (suggestions.length && pickerSelect) pickerSelect.focus();
-        else pickerInput?.focus();
+        widenPicker(picker);
+        renderPickerResults(picker);
+        pickerInput?.focus();
+        pickerInput?.select();
     }
 
-    function populatePickerSelect(select, current) {
-        if (!select) return;
-        select.innerHTML = '<option value="">— pick from library or suggestions —</option>';
-        // Library meals group
-        const libMeals = Object.keys(window.mealIngredients || {}).sort();
-        if (libMeals.length) {
-            const grp = document.createElement('optgroup');
-            grp.label = '📚 Meal Library';
-            libMeals.forEach(k => {
-                const opt = document.createElement('option');
-                opt.value = k;
-                opt.textContent = (getMealEmoji(k) || '🍽️') + ' ' + k.charAt(0).toUpperCase() + k.slice(1);
-                if (k === current?.toLowerCase()) opt.selected = true;
-                grp.appendChild(opt);
-            });
-            select.appendChild(grp);
+    // A day column is ~150-200px wide, which truncates most meal names. The
+    // picker is position:relative with a solid background and a z-index, so the
+    // open one can bleed sideways over its neighbour without changing the grid
+    // track (a negative margin, not a width). It has to bleed inward for the
+    // right-hand columns: .meal-week-display is a horizontal scroll container,
+    // and widening past its right edge would start it scrolling.
+    function widenPicker(picker) {
+        const box = picker.getBoundingClientRect();
+        const gridBox = plannerGrid.getBoundingClientRect();
+        const BLEED = 110;
+        if (box.width >= 260) return;
+        if (box.right + BLEED <= gridBox.right) picker.style.marginRight = -BLEED + 'px';
+        else if (box.left - BLEED >= gridBox.left) picker.style.marginLeft = -BLEED + 'px';
+    }
+
+    // ── Picker search ─────────────────────────────────────────────────────────
+    // The picker used to be a flat <select> listing the whole meal library plus
+    // every suggestion. That is fine with five meals and a long scroll once the
+    // library grows, which is exactly where a wall tablet is worst. Same
+    // candidates, filtered as you type.
+    let pickerActiveIndex = -1;
+
+    function pickerOptions() {
+        const library = window.mealIngredients || {};
+        const images = window.mealImages || {};
+        const opts = Object.keys(library).sort().map(k => ({
+            value: k,
+            label: k.charAt(0).toUpperCase() + k.slice(1),
+            image: images[k] || '',
+            suggestion: false
+        }));
+        const seen = new Set(opts.map(o => o.value.toLowerCase()));
+        suggestions.forEach(sug => {
+            if (seen.has(sug.toLowerCase())) return;
+            opts.push({ value: sug, label: sug, image: images[sug.toLowerCase()] || '', suggestion: true });
+        });
+        return opts;
+    }
+
+    // Ranked so that a prefix beats a word start beats a substring beats a
+    // loose subsequence -- "chil" should put "pork chili" above a meal that
+    // merely contains those letters in order. Subsequence needs 3+ characters:
+    // below that nearly everything matches and the list is noise.
+    function scoreMeal(q, value) {
+        const t = (value || '').toLowerCase();
+        if (!q) return 1;
+        if (t === q) return 1000;
+        if (t.startsWith(q)) return 900 - t.length * 0.01;
+        const words = t.split(/[^a-z0-9]+/);
+        for (let i = 0; i < words.length; i++) {
+            if (words[i] && words[i].startsWith(q)) return 800 - i - t.length * 0.01;
         }
-        // Suggestions group
-        if (suggestions.length) {
-            const grp = document.createElement('optgroup');
-            grp.label = '💡 Suggestions';
-            suggestions.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s;
-                opt.textContent = s;
-                if (s === current) opt.selected = true;
-                grp.appendChild(opt);
-            });
-            select.appendChild(grp);
+        const at = t.indexOf(q);
+        if (at > -1) return 700 - at - t.length * 0.01;
+        if (q.length < 3) return null;
+        let ti = 0, gaps = 0, started = false;
+        for (const ch of q) {
+            const found = t.indexOf(ch, ti);
+            if (found < 0) return null;
+            if (started) gaps += found - ti; else started = true;
+            ti = found + 1;
         }
-        if (!libMeals.length && !suggestions.length) {
-            const opt = document.createElement('option');
-            opt.disabled = true;
-            opt.textContent = 'No meals or suggestions yet — add some below';
-            select.appendChild(opt);
+        return 500 - gaps - t.length * 0.01;
+    }
+
+    function pickerRows(picker) {
+        return Array.from(picker.querySelectorAll('.meal-picker-result'));
+    }
+
+    function setPickerActive(picker, i) {
+        const rows = pickerRows(picker);
+        rows.forEach(r => r.classList.remove('meal-picker-result-active'));
+        pickerActiveIndex = (i >= 0 && i < rows.length) ? i : -1;
+        const row = rows[pickerActiveIndex];
+        if (row) {
+            row.classList.add('meal-picker-result-active');
+            row.scrollIntoView({ block: 'nearest' });
         }
+    }
+
+    function movePickerActive(picker, delta) {
+        const rows = pickerRows(picker);
+        if (!rows.length) return;
+        let next = pickerActiveIndex + delta;
+        if (next < 0) next = rows.length - 1;
+        if (next >= rows.length) next = 0;
+        setPickerActive(picker, next);
+    }
+
+    function pickerResultIcon(value) {
+        const span = document.createElement('span');
+        span.className = 'meal-picker-result-icon';
+        span.textContent = getMealEmoji(value);
+        return span;
+    }
+
+    function renderPickerResults(picker) {
+        if (!picker) return;
+        const input = picker.querySelector('.meal-picker-input');
+        const list = picker.querySelector('.meal-picker-results');
+        if (!input || !list) return;
+
+        const typed = normalizeText(input.value);
+        const q = typed.toLowerCase();
+        const matches = pickerOptions()
+            .map(o => ({ o, score: scoreMeal(q, o.value) }))
+            .filter(m => m.score !== null)
+            .sort((a, b) => b.score - a.score || a.o.value.localeCompare(b.o.value))
+            .slice(0, 40);
+
+        list.innerHTML = '';
+        matches.forEach(({ o }) => {
+            const row = document.createElement('div');
+            row.className = 'meal-picker-result';
+            row.setAttribute('role', 'option');
+            row.dataset.value = o.value;
+            if (o.image) {
+                const img = document.createElement('img');
+                img.className = 'meal-picker-result-img';
+                img.src = o.image;
+                img.alt = '';
+                // A meal whose photo has gone away should still be pickable.
+                img.addEventListener('error', () => img.replaceWith(pickerResultIcon(o.value)));
+                row.appendChild(img);
+            } else {
+                row.appendChild(pickerResultIcon(o.value));
+            }
+            const label = document.createElement('span');
+            label.className = 'meal-picker-result-label';
+            label.textContent = o.label;
+            row.appendChild(label);
+            if (o.suggestion) {
+                const tag = document.createElement('span');
+                tag.className = 'meal-picker-result-tag';
+                tag.textContent = 'suggestion';
+                row.appendChild(tag);
+            }
+            list.appendChild(row);
+        });
+
+        // Free text stays first class -- "Going out to eat" is a valid dinner.
+        if (typed && !matches.some(m => m.o.value.toLowerCase() === q)) {
+            const row = document.createElement('div');
+            row.className = 'meal-picker-result meal-picker-result-free';
+            row.setAttribute('role', 'option');
+            row.dataset.value = typed;
+            const icon = document.createElement('span');
+            icon.className = 'meal-picker-result-icon';
+            icon.textContent = '✏️';
+            row.appendChild(icon);
+            const label = document.createElement('span');
+            label.className = 'meal-picker-result-label';
+            label.textContent = `Use “${typed}”`;
+            row.appendChild(label);
+            list.appendChild(row);
+        }
+
+        if (!list.children.length) {
+            const empty = document.createElement('div');
+            empty.className = 'meal-picker-empty';
+            empty.textContent = 'No meals or suggestions yet — add some below';
+            list.appendChild(empty);
+        }
+
+        input.setAttribute('aria-expanded', list.children.length ? 'true' : 'false');
+        // Highlight the best match so Enter takes it, but only once something
+        // has been typed: with an empty box nothing is highlighted, so Enter on
+        // an empty slot cannot silently set whatever happens to sort first.
+        setPickerActive(picker, q && matches.length ? 0 : -1);
     }
 
     function confirmPicker(slot) {
@@ -4056,12 +4193,18 @@ function deleteReward(rewardId) {
     plannerGrid.querySelectorAll('.meal-slot').forEach(slot => {
         slot.querySelector('.meal-edit-btn')?.addEventListener('click', e => { e.stopPropagation(); openPicker(slot); });
         const picker = slot.querySelector('.meal-inline-picker');
-        const pickerSelect = picker?.querySelector('.meal-picker-select');
         const pickerInput = picker?.querySelector('.meal-picker-input');
-        // selecting from dropdown fills the text input
-        pickerSelect?.addEventListener('change', () => {
-            if (pickerSelect.value && pickerInput) pickerInput.value = pickerSelect.value;
+        // Picking a result fills the text input and commits in one tap: the
+        // value written is the raw library key, never the prettified label,
+        // because that string IS the meal's identity everywhere else.
+        picker?.querySelector('.meal-picker-results')?.addEventListener('click', e => {
+            const row = e.target.closest('.meal-picker-result');
+            if (!row) return;
+            e.stopPropagation();
+            if (pickerInput) pickerInput.value = row.dataset.value;
+            confirmPicker(slot);
         });
+        pickerInput?.addEventListener('input', () => renderPickerResults(picker));
         picker?.querySelector('.meal-picker-ok')?.addEventListener('click', () => confirmPicker(slot));
         picker?.querySelector('.meal-picker-clear')?.addEventListener('click', () => {
             const cur = normalizeText(slot.querySelector('.meal-input')?.value);
@@ -4070,7 +4213,20 @@ function deleteReward(rewardId) {
         });
         picker?.querySelector('.meal-picker-cancel')?.addEventListener('click', closePicker);
         pickerInput?.addEventListener('keydown', e => {
-            if (e.key === 'Enter') { e.preventDefault(); confirmPicker(slot); }
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                movePickerActive(picker, e.key === 'ArrowDown' ? 1 : -1);
+                return;
+            }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                // Nothing highlighted (empty box, or no match) means the typed
+                // text is the meal, which is how free text keeps working.
+                const active = pickerRows(picker)[pickerActiveIndex];
+                if (active && pickerInput) pickerInput.value = active.dataset.value;
+                confirmPicker(slot);
+                return;
+            }
             if (e.key === 'Escape') { e.preventDefault(); closePicker(); }
         });
     });
@@ -4196,9 +4352,7 @@ function deleteReward(rewardId) {
                 suggestions.splice(parseInt(btn.dataset.index, 10), 1);
                 renderSuggestionList();
                 if (openPickerSlot) {
-                    const sel = openPickerSlot.querySelector('.meal-picker-select');
-                    const cur = normalizeText(openPickerSlot.querySelector('.meal-input')?.value);
-                    populatePickerSelect(sel, cur);
+                    renderPickerResults(openPickerSlot.querySelector('.meal-inline-picker'));
                 }
             });
         });
@@ -4210,9 +4364,7 @@ function deleteReward(rewardId) {
         suggestions.push(v); suggestions.sort((a, b) => a.localeCompare(b));
         renderSuggestionList();
         if (openPickerSlot) {
-            const sel = openPickerSlot.querySelector('.meal-picker-select');
-            const cur = normalizeText(openPickerSlot.querySelector('.meal-input')?.value);
-            populatePickerSelect(sel, cur);
+            renderPickerResults(openPickerSlot.querySelector('.meal-inline-picker'));
         }
         if (suggestionInput) { suggestionInput.value = ''; suggestionInput.focus(); }
     });
