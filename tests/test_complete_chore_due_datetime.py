@@ -1,7 +1,9 @@
 """Completing a chore with a due time must succeed and must not corrupt points."""
 
+import os
+import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -155,3 +157,92 @@ def test_chore_without_deadline_still_awards_points(client):
     assert resp.get_json()['success'] is True
     assert resp.get_json()['overdue'] is False
     assert _points(person_id) == 5
+
+
+def _with_container_tz(tz_name):
+    """Point date.today() and astimezone() at a zone for one test."""
+    previous = os.environ.get('TZ')
+    os.environ['TZ'] = tz_name
+    time.tzset()
+    return previous
+
+
+def _restore_container_tz(previous):
+    if previous is None:
+        os.environ.pop('TZ', None)
+    else:
+        os.environ['TZ'] = previous
+    time.tzset()
+
+
+def test_date_only_deadline_uses_container_day_not_utc_day(client, monkeypatch):
+    """8:30pm in Los Angeles is already the next UTC date, but the chore is still due today."""
+    import routes as routes_mod
+
+    previous = _with_container_tz('America/Los_Angeles')
+    try:
+        with app.app_context():
+            AppSetting.set('timezone', 'America/Los_Angeles')
+        person_id, name = client.add_person()
+        chore_id = client.add_chore(person_id, name, due_date=date(2026, 9, 26))
+
+        frozen = datetime(2026, 9, 27, 3, 30, tzinfo=timezone.utc)
+
+        class _FrozenClock(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                if tz is None:
+                    return frozen.replace(tzinfo=None)
+                return frozen.astimezone(tz)
+
+        monkeypatch.setattr(routes_mod, 'datetime', _FrozenClock)
+
+        resp = client.post('/complete_chore', json={'chore_id': chore_id})
+        body = resp.get_json()
+
+        assert resp.status_code == 200
+        assert body['success'] is True
+        assert body['overdue'] is False
+        assert body['points_awarded'] == 5
+        assert _completed(chore_id) is True
+        assert _points(person_id) == 5
+    finally:
+        with app.app_context():
+            AppSetting.set('timezone', 'UTC')
+        _restore_container_tz(previous)
+
+
+def test_date_only_deadline_is_overdue_the_next_local_morning(client, monkeypatch):
+    import routes as routes_mod
+
+    previous = _with_container_tz('America/Los_Angeles')
+    try:
+        with app.app_context():
+            AppSetting.set('timezone', 'America/Los_Angeles')
+        person_id, name = client.add_person(points=10)
+        chore_id = client.add_chore(person_id, name, due_date=date(2026, 9, 26))
+
+        # 1:00am Pacific the next day.
+        frozen = datetime(2026, 9, 27, 8, 0, tzinfo=timezone.utc)
+
+        class _FrozenClock(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                if tz is None:
+                    return frozen.replace(tzinfo=None)
+                return frozen.astimezone(tz)
+
+        monkeypatch.setattr(routes_mod, 'datetime', _FrozenClock)
+
+        resp = client.post('/complete_chore', json={'chore_id': chore_id})
+        body = resp.get_json()
+
+        assert resp.status_code == 200
+        assert body['success'] is True
+        assert body['overdue'] is True
+        assert body['points_awarded'] == 0
+        assert _points(person_id) == 10
+    finally:
+        with app.app_context():
+            AppSetting.set('timezone', 'UTC')
+        _restore_container_tz(previous)

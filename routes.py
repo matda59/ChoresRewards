@@ -3040,6 +3040,11 @@ def _chore_is_overdue(chore, when_utc):
     how `date_completed` is stored. Both sides are compared as aware UTC
     instants. Comparing a naive deadline to an aware clock raises TypeError
     and rolls back the completion.
+
+    A date-only deadline is the calendar day `date.today()` stored, so it
+    follows the container timezone. Comparing it to the UTC date treats the
+    chore as overdue on the evening it is due wherever local time is behind
+    UTC, and the completion then saves with no points.
     """
     if when_utc.tzinfo is None:
         when_utc = when_utc.replace(tzinfo=timezone.utc)
@@ -3053,7 +3058,7 @@ def _chore_is_overdue(chore, when_utc):
         return when_utc > due.astimezone(timezone.utc)
 
     if chore.due_date:
-        return when_utc.date() > chore.due_date
+        return when_utc.astimezone().date() > chore.due_date
 
     return False
 
