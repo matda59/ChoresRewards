@@ -1,6 +1,8 @@
 from flask import Flask
 from extensions import db
 import mimetypes
+import os
+import secrets
 
 mimetypes.add_type('video/mp4', '.mp4')
 mimetypes.add_type('video/mp4', '.m4v')
@@ -10,7 +12,60 @@ mimetypes.add_type('video/ogg', '.ogv')
 
 # Initialize Flask app
 app = Flask(__name__)
-app.secret_key = '22342342356655676787899787654323456789876543212345678901234567890'  # Set a secret key for session management
+
+
+def _load_secret_key(flask_app):
+    """Return the Flask session signing key, without publishing it.
+
+    The key used to be a literal in this file. Because it is committed here,
+    every deployment of ChoresRewards shared the same one, and anyone could
+    forge a signed session cookie for any instance. Now:
+
+      1. CR_SECRET_KEY / SECRET_KEY from the environment, if set. This is what
+         you want when running more than one process or container, since they
+         all have to agree on the key.
+      2. Otherwise a random key generated on first boot and persisted in the
+         instance folder, next to the database. Existing installs keep working
+         with no configuration, and sessions survive restarts.
+
+    Generating without persisting would log everyone out on every restart, so
+    the file is written atomically and re-read afterwards: with several workers
+    starting at once, whichever wins os.replace is the key they all use.
+    """
+    env_key = os.environ.get('CR_SECRET_KEY') or os.environ.get('SECRET_KEY')
+    if env_key:
+        return env_key
+
+    os.makedirs(flask_app.instance_path, exist_ok=True)
+    key_path = os.path.join(flask_app.instance_path, 'secret_key')
+    try:
+        with open(key_path, 'r', encoding='utf-8') as fh:
+            existing = fh.read().strip()
+        if existing:
+            return existing
+    except OSError:
+        pass
+
+    generated = secrets.token_hex(32)
+    tmp_path = '{}.{}.tmp'.format(key_path, os.getpid())
+    try:
+        with open(tmp_path, 'w', encoding='utf-8') as fh:
+            fh.write(generated)
+        os.chmod(tmp_path, 0o600)
+        os.replace(tmp_path, key_path)
+        with open(key_path, 'r', encoding='utf-8') as fh:
+            return fh.read().strip() or generated
+    except OSError:
+        # Read-only instance folder: still better than a published constant,
+        # at the cost of sessions not surviving a restart.
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        return generated
+
+
+app.secret_key = _load_secret_key(app)
 # Configure SQLite database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -43,25 +98,6 @@ from routes import routes_bp
 # Main route: pass quiz_questions to template
 
 app.register_blueprint(routes_bp)
-
-# TEMPORARY DEBUG ROUTE: View chores with 'sat' in the title and their days_of_week
-@app.route('/debug/satchores')
-def debug_satchores():
-    from flask import Markup
-    from models import Chore
-    from extensions import db
-    chores = Chore.query.filter(Chore.title.ilike('%sat%')).all()
-    rows = []
-    for c in chores:
-        rows.append(f"<tr><td>{c.id}</td><td>{c.title}</td><td>{c.days_of_week}</td><td>{c.is_daily}</td><td>{c.due_date}</td><td>{c.assigned_to}</td><td>{c.completed}</td></tr>")
-    table = """
-    <table border='1' style='border-collapse:collapse;'>
-        <tr><th>ID</th><th>Title</th><th>days_of_week</th><th>is_daily</th><th>due_date</th><th>assigned_to</th><th>completed</th></tr>
-        {} 
-    </table>
-    <p>Remove this route after debugging!</p>
-    """.format('\n'.join(rows))
-    return Markup(table)
 
 # Create database tables
 with app.app_context():
