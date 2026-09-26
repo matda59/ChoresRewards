@@ -10584,6 +10584,20 @@ body.dash-layout-dragging {
     gap: 10px;
 }
 
+.play-memory-grid[data-size="medium"] .play-mem-card,
+.play-memory-grid[data-size="high"] .play-mem-card {
+    min-height: 56px;
+}
+
+.play-memory-grid[data-size="high"] .play-mem-card {
+    min-height: 48px;
+}
+
+.play-memory-grid[data-size="medium"] .play-mem-card svg,
+.play-memory-grid[data-size="high"] .play-mem-card svg {
+    height: 48px;
+}
+
 .play-mem-card {
     aspect-ratio: 3 / 4;
     min-height: 72px;

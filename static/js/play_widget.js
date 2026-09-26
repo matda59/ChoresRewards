@@ -42,9 +42,10 @@
         mathsMode: 'times',
         colourMode: 'find',
         memoryMode: 'colours',
+        memorySize: 'small',
         streaks: { add: 0, times: 0, mix: 0, find: 0, shapes: 0, patterns: 0 },
         best: { add: 0, times: 0, mix: 0, find: 0, shapes: 0, patterns: 0 },
-        memoryBest: { colours: 0, bonds: 0 },
+        memoryBest: {},
         question: null,
         typed: '',
         misses: 0,
@@ -79,9 +80,14 @@
                 });
             }
             if (saved && saved.memoryBest) {
-                ['colours', 'bonds'].forEach((key) => {
+                Object.keys(saved.memoryBest).forEach((key) => {
                     const n = Number(saved.memoryBest[key]);
                     if (Number.isFinite(n) && n > 0) state.memoryBest[key] = Math.floor(n);
+                });
+                ['colours', 'bonds'].forEach((mode) => {
+                    const legacy = state.memoryBest[mode];
+                    const sized = mode + '-small';
+                    if (legacy && !state.memoryBest[sized]) state.memoryBest[sized] = legacy;
                 });
             }
             if (saved && (saved.mathsMode === 'add' || saved.mathsMode === 'times' || saved.mathsMode === 'mix')) {
@@ -93,6 +99,9 @@
             if (saved && (saved.memoryMode === 'colours' || saved.memoryMode === 'bonds')) {
                 state.memoryMode = saved.memoryMode;
             }
+            if (saved && (saved.memorySize === 'small' || saved.memorySize === 'medium' || saved.memorySize === 'high')) {
+                state.memorySize = saved.memorySize;
+            }
         } catch (e) { /* keep defaults */ }
     }
 
@@ -103,7 +112,8 @@
                 memoryBest: state.memoryBest,
                 mathsMode: state.mathsMode,
                 colourMode: state.colourMode,
-                memoryMode: state.memoryMode
+                memoryMode: state.memoryMode,
+                memorySize: state.memorySize
             }));
         } catch (e) { /* ignore */ }
     }
@@ -231,7 +241,7 @@
     function renderScore() {
         if (!scoreEl) return;
         if (state.game === 'memory') {
-            const best = state.memoryBest[state.memoryMode] || 0;
+            const best = state.memoryBest[memoryBestKey()] || 0;
             const parts = [];
             if (state.memoryMoves) parts.push(state.memoryMoves + (state.memoryMoves === 1 ? ' move' : ' moves'));
             if (best) parts.push('best ' + best);
@@ -289,7 +299,12 @@
         setModes('[data-maths-mode]', 'data-maths-mode', state.mathsMode);
         setModes('[data-colour-mode]', 'data-colour-mode', state.colourMode);
         setModes('[data-memory-mode]', 'data-memory-mode', state.memoryMode);
+        setModes('[data-memory-size]', 'data-memory-size', state.memorySize);
         renderScore();
+    }
+
+    function memoryBestKey() {
+        return state.memoryMode + '-' + state.memorySize;
     }
 
     function renderTyped() {
@@ -709,13 +724,16 @@
         if (feedback) feedback.textContent = 'Not that one';
     }
 
-    function startMemory(mode) {
+    function startMemory(mode, size) {
         clearTimer();
         silence();
-        state.memoryMode = mode === 'bonds' ? 'bonds' : 'colours';
+        if (mode) state.memoryMode = mode === 'bonds' ? 'bonds' : 'colours';
+        if (size === 'small' || size === 'medium' || size === 'high') state.memorySize = size;
         saveBest();
         setModes('[data-memory-mode]', 'data-memory-mode', state.memoryMode);
-        state.memoryCards = logic.memoryDeck(state.memoryMode, Math.random);
+        setModes('[data-memory-size]', 'data-memory-size', state.memorySize);
+        state.memoryCards = logic.memoryDeck(state.memoryMode, state.memorySize, Math.random);
+        state.memoryGoal = state.memoryCards.length / 2;
         state.memoryUp = [];
         state.memoryLock = false;
         state.memoryMoves = 0;
@@ -723,9 +741,12 @@
         if (memoryAgainBtn) memoryAgainBtn.hidden = true;
         const feedback = document.getElementById('play-memory-feedback');
         if (feedback) {
-            feedback.textContent = state.memoryMode === 'bonds'
-                ? 'Find two numbers that make 10'
-                : 'Find the matching pictures';
+            if (state.memoryMode === 'bonds') {
+                const sum = state.memoryCards[0] ? state.memoryCards[0].sum : 10;
+                feedback.textContent = 'Find two numbers that make ' + sum;
+            } else {
+                feedback.textContent = 'Find the matching pictures';
+            }
         }
         renderMemory();
         renderScore();
@@ -734,6 +755,7 @@
     function renderMemory() {
         const grid = document.getElementById('play-memory-grid');
         if (!grid) return;
+        grid.dataset.size = state.memorySize;
         grid.innerHTML = '';
         state.memoryCards.forEach((card) => {
             const btn = document.createElement('button');
@@ -772,8 +794,9 @@
             state.memoryMatched += 1;
             playRight();
             if (first.kind === 'bonds') {
-                if (feedback) feedback.textContent = first.value + ' and ' + second.value + ' make 10!';
-                say(first.value + ' and ' + second.value + ' make 10');
+                const sum = first.sum || 10;
+                if (feedback) feedback.textContent = first.value + ' and ' + second.value + ' make ' + sum + '!';
+                say(first.value + ' and ' + second.value + ' make ' + sum);
             } else {
                 const label = first.label.charAt(0).toUpperCase() + first.label.slice(1);
                 if (feedback) feedback.textContent = label + '!';
@@ -782,7 +805,7 @@
             }
             renderScore();
             renderMemory();
-            if (state.memoryMatched === 4) finishMemory();
+            if (state.memoryMatched === state.memoryGoal) finishMemory();
             return;
         }
         state.memoryLock = true;
@@ -800,11 +823,11 @@
 
     function finishMemory() {
         const feedback = document.getElementById('play-memory-feedback');
-        const best = state.memoryBest[state.memoryMode] || 0;
+        const best = state.memoryBest[memoryBestKey()] || 0;
         const moves = state.memoryMoves;
         let message = 'You found them all!';
         if (!best || moves < best) {
-            state.memoryBest[state.memoryMode] = moves;
+            state.memoryBest[memoryBestKey()] = moves;
             saveBest();
             if (best) message = 'New best!';
         }
@@ -829,7 +852,7 @@
         if (game === 'maths') newMathsQuestion();
         else if (game === 'colours') showColourMode(state.colourMode);
         else if (game === 'patterns') newPattern();
-        else if (game === 'memory') startMemory(state.memoryMode);
+        else if (game === 'memory') startMemory(state.memoryMode, state.memorySize);
         if (closeBtn) closeBtn.focus();
         notifyScreensaver();
     }
@@ -872,7 +895,7 @@
     if (openColoursBtn) openColoursBtn.addEventListener('click', (e) => { e.stopPropagation(); openPlay('colours'); });
     if (openPatternsBtn) openPatternsBtn.addEventListener('click', (e) => { e.stopPropagation(); openPlay('patterns'); });
     if (openMemoryBtn) openMemoryBtn.addEventListener('click', (e) => { e.stopPropagation(); openPlay('memory'); });
-    if (memoryAgainBtn) memoryAgainBtn.addEventListener('click', () => startMemory(state.memoryMode));
+    if (memoryAgainBtn) memoryAgainBtn.addEventListener('click', () => startMemory(state.memoryMode, state.memorySize));
     if (closeBtn) closeBtn.addEventListener('click', closePlay);
     if (backdrop) backdrop.addEventListener('click', closePlay);
     document.addEventListener('keydown', onKeyDown);
@@ -901,7 +924,15 @@
         btn.addEventListener('click', () => {
             const mode = btn.getAttribute('data-memory-mode');
             if (!mode || mode === state.memoryMode) return;
-            startMemory(mode);
+            startMemory(mode, state.memorySize);
+        });
+    });
+
+    overlay.querySelectorAll('[data-memory-size]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const size = btn.getAttribute('data-memory-size');
+            if (!size || size === state.memorySize) return;
+            startMemory(state.memoryMode, size);
         });
     });
 

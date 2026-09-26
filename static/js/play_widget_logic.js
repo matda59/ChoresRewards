@@ -307,30 +307,51 @@
         };
     }
 
-    const MEMORY_PAIRS = [
+    const MEMORY_COLOURS = [
         { id: 'red', name: 'red', hex: '#ef4444', shape: 'circle' },
+        { id: 'orange', name: 'orange', hex: '#f97316', shape: 'square' },
         { id: 'yellow', name: 'yellow', hex: '#facc15', shape: 'star' },
-        { id: 'blue', name: 'blue', hex: '#3b82f6', shape: 'heart' },
-        { id: 'green', name: 'green', hex: '#22c55e', shape: 'square' }
+        { id: 'green', name: 'green', hex: '#22c55e', shape: 'heart' },
+        { id: 'blue', name: 'blue', hex: '#3b82f6', shape: 'diamond' },
+        { id: 'purple', name: 'purple', hex: '#a855f7', shape: 'triangle' },
+        { id: 'pink', name: 'pink', hex: '#f472b6', shape: 'heart' },
+        { id: 'brown', name: 'brown', hex: '#92400e', shape: 'square' }
     ];
 
-    function memoryDeck(mode, rng) {
-        const random = typeof rng === 'function' ? rng : Math.random;
+    const MEMORY_BOND_LEVELS = {
+        small: { sum: 10, pairs: [[1, 9], [2, 8], [3, 7], [4, 6]] },
+        medium: { sum: 10, pairs: [[0, 10], [1, 9], [2, 8], [3, 7], [4, 6], [5, 5]] },
+        high: { sum: 20, pairs: [[1, 19], [2, 18], [3, 17], [4, 16], [5, 15], [6, 14], [7, 13], [8, 12]] }
+    };
+
+    function memoryPairCount(size) {
+        if (size === 'high') return 8;
+        if (size === 'medium') return 6;
+        return 4;
+    }
+
+    function memoryDeck(mode, size, rng) {
+        const random = typeof rng === 'function' ? rng : (typeof size === 'function' ? size : Math.random);
+        const level = size === 'medium' || size === 'high' ? size : 'small';
+        const count = memoryPairCount(level);
         const cards = [];
         if (mode === 'bonds') {
-            [[1, 9], [2, 8], [3, 7], [4, 6]].forEach((pair, index) => {
+            const pack = MEMORY_BOND_LEVELS[level];
+            pack.pairs.forEach((pair, index) => {
                 pair.forEach((value, side) => {
                     cards.push({
                         uid: 'b' + index + '-' + side,
                         pair: String(index),
                         kind: 'bonds',
                         label: String(value),
-                        value: value
+                        value: value,
+                        sum: pack.sum
                     });
                 });
             });
         } else {
-            MEMORY_PAIRS.forEach((paint) => {
+            const paints = shuffle(MEMORY_COLOURS, random).slice(0, count);
+            paints.forEach((paint) => {
                 [0, 1].forEach((side) => {
                     cards.push({
                         uid: paint.id + '-' + side,

@@ -145,20 +145,33 @@ for (let n = 0; n < 20; n += 1) {
     assert.ok(shapes.indexOf(round.target) !== -1);
 }
 
+const memoryCards = { small: 8, medium: 12, high: 16 };
 ['colours', 'bonds'].forEach((mode) => {
-    const deck = logic.memoryDeck(mode, mulberry32(7));
-    assert.strictEqual(deck.length, 8);
-    const pairs = {};
-    deck.forEach((card) => {
-        pairs[card.pair] = (pairs[card.pair] || 0) + 1;
-        assert.ok(card.uid && card.label);
+    Object.keys(memoryCards).forEach((size) => {
+        const deck = logic.memoryDeck(mode, size, mulberry32(7 + memoryCards[size]));
+        assert.strictEqual(deck.length, memoryCards[size], mode + ' ' + size);
+        const pairs = {};
+        deck.forEach((card) => {
+            pairs[card.pair] = pairs[card.pair] || [];
+            pairs[card.pair].push(card);
+            assert.ok(card.uid && card.label);
+        });
+        assert.strictEqual(Object.keys(pairs).length, memoryCards[size] / 2);
+        Object.keys(pairs).forEach((pair) => {
+            assert.strictEqual(pairs[pair].length, 2);
+            if (mode === 'bonds') {
+                assert.strictEqual(pairs[pair][0].value + pairs[pair][1].value, pairs[pair][0].sum);
+            }
+        });
+        if (mode === 'colours') {
+            const pictures = deck.map((card) => card.pair);
+            assert.strictEqual(new Set(pictures).size, memoryCards[size] / 2);
+        }
     });
-    assert.strictEqual(Object.keys(pairs).length, 4);
-    Object.keys(pairs).forEach((pair) => assert.strictEqual(pairs[pair], 2));
-    if (mode === 'bonds') {
-        const values = deck.map((card) => card.value).sort((a, b) => a - b);
-        assert.deepStrictEqual(values, [1, 2, 3, 4, 6, 7, 8, 9]);
-    }
 });
+const smallBonds = logic.memoryDeck('bonds', 'small', mulberry32(3));
+assert.strictEqual(smallBonds[0].sum, 10);
+assert.strictEqual(logic.memoryDeck('bonds', 'high', mulberry32(4))[0].sum, 20);
+assert.strictEqual(logic.memoryDeck('colours', mulberry32(9)).length, 8);
 
 console.log('play widget logic ok');

@@ -28,7 +28,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260926c">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260926d">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -1311,6 +1311,11 @@ window.addEventListener('DOMContentLoaded', function() {
                         <button type="button" class="play-mode is-selected" data-memory-mode="colours">Colours</button>
                         <button type="button" class="play-mode" data-memory-mode="bonds">Number bonds</button>
                     </div>
+                    <div class="play-modes" role="tablist" aria-label="Number of cards">
+                        <button type="button" class="play-mode is-selected" data-memory-size="small">Small</button>
+                        <button type="button" class="play-mode" data-memory-size="medium">Medium</button>
+                        <button type="button" class="play-mode" data-memory-size="high">High</button>
+                    </div>
                     <div class="play-memory-grid" id="play-memory-grid"></div>
                     <p class="play-feedback" id="play-memory-feedback" aria-live="polite"></p>
                     <button type="button" class="play-again" id="play-memory-again" hidden>Play again</button>
@@ -2021,8 +2026,8 @@ window.addEventListener('DOMContentLoaded', function() {
             load();
         })();
     </script>
-    <script src="{{ url_for('static', filename='js/play_widget_logic.js') }}?v=20260926c"></script>
-    <script src="{{ url_for('static', filename='js/play_widget.js') }}?v=20260926c"></script>
+    <script src="{{ url_for('static', filename='js/play_widget_logic.js') }}?v=20260926d"></script>
+    <script src="{{ url_for('static', filename='js/play_widget.js') }}?v=20260926d"></script>
     <script src="{{ url_for('static', filename='js/visual_timer.js') }}?v=20260919a"></script>
     <script src="{{ url_for('static', filename='js/dashboard_layout.js') }}?v=20260926c"></script>
 
