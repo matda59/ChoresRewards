@@ -8526,11 +8526,31 @@ function toggleCompletedChores(btn) {
 
 
 // Reward celebration overlay
-function showRewardCelebration(personName, pointsSpent) {
+function showRewardCelebration(personName, pointsSpent, rewardTitle) {
     const overlay = document.getElementById('reward-celebration-overlay');
     const message = document.getElementById('reward-celebration-message');
     if (overlay && message) {
-        message.innerHTML = `<span style='font-size:2em;'>🏆</span> ${personName} redeemed a reward!<br><span style='font-size:1.5em;'>-${pointsSpent} points</span>`;
+        const name = (personName || 'Someone').trim() || 'Someone';
+        const title = (rewardTitle || '').trim();
+        const headline = title ? `${name} redeemed ${title}!` : `${name} redeemed a reward!`;
+        message.textContent = '';
+        const trophy = document.createElement('span');
+        trophy.style.fontSize = '2em';
+        trophy.textContent = '🏆 ';
+        message.appendChild(trophy);
+        message.appendChild(document.createTextNode(headline));
+        const spent = Number(pointsSpent);
+        if (pointsSpent !== '' && pointsSpent != null && Number.isFinite(spent)) {
+            message.appendChild(document.createElement('br'));
+            const amountEl = document.createElement('span');
+            amountEl.style.fontSize = '1.5em';
+            const formatted = (typeof formatPointsValue === 'function')
+                ? formatPointsValue(spent, window.REWARD_SYSTEM)
+                : String(spent);
+            const suffix = window.REWARD_SYSTEM === 'cash' ? '' : ' points';
+            amountEl.textContent = `-${formatted}${suffix}`;
+            message.appendChild(amountEl);
+        }
         overlay.style.display = 'flex';
         // Play sound effect
         try {
@@ -8971,10 +8991,12 @@ function doRedeemReward(rewardId) {
         if (data.success) {
             // Show reward celebration overlay and animation instead of immediate reload
             const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
-            const rewardTitle = rewardElem ? (rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : '') : '';
+            const rewardTitle = rewardElem
+                ? (rewardElem.getAttribute('data-title') || (rewardElem.querySelector('.reward-title-modern')?.textContent || '')).trim()
+                : '';
+            const pointsSpent = rewardElem ? rewardElem.getAttribute('data-points') : '';
             const assignedTo = rewardElem ? rewardElem.getAttribute('data-assigned-to') : '';
-            // Show celebration with points spent
-            showRewardCelebration(assignedTo, rewardTitle ? `-${rewardTitle}` : '');
+            showRewardCelebration(assignedTo, pointsSpent, rewardTitle);
             // Reload page after celebration animation duration (3.5s + buffer)
             setTimeout(() => {
                 window.location.reload();
