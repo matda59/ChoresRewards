@@ -578,7 +578,7 @@
                     <div class="table-container">
                         <div class="chores-card-list" id="all-chores-tbody">
                             {% for chore in all_chores if not chore.completed or chore.is_daily %}
-                            <div class="chore-card" id="chore-row-{{ chore.id }}" data-chore-icon="{{ chore.icon or '' }}">
+                            <div class="chore-card" id="chore-row-{{ chore.id }}" data-chore-icon="{{ chore.icon or '' }}" data-days="{{ chore.days_of_week or '' }}">
                                 <div class="chore-card-main">
                                     <div class="chore-card-title-area">
                                         <span class="chore-title">{{ chore.title }}</span>
@@ -1360,6 +1360,11 @@
         const editChoreError = document.getElementById('editChoreError');
         const cancelEditChoreBtn = document.getElementById('cancelEditChoreBtn');
 
+        const DAY_ABBREVIATIONS = {
+            monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu',
+            friday: 'Fri', saturday: 'Sat', sunday: 'Sun'
+        };
+
         // Open modal and populate fields
         async function editChore(choreId) {
             const row = document.getElementById(`chore-row-${choreId}`);
@@ -1370,15 +1375,13 @@
             const title = row.querySelector('.chore-title').textContent.trim();
             const assignedTo = row.querySelector('.chore-assigned-to').textContent.trim();
             const points = row.querySelector('.chore-points').textContent.trim();
-            // Get days of week from the table cell (as string)
-            let daysCell = row.querySelector('.chore-days');
-            let daysOfWeek = [];
-            if (daysCell) {
-                let text = daysCell.textContent.trim();
-                if (text && text !== 'Daily' && text !== '-') {
-                    daysOfWeek = text.split(',').map(s => s.trim());
-                }
-            }
+            // Days come from the row's data attribute, not from the rendered chip:
+            // the chip shows abbreviations ("Mon, Thu") while the checkbox values
+            // are full day names, so matching against it never ticked anything.
+            const daysOfWeek = (row.dataset.days || '')
+                .split(',')
+                .map(s => s.trim().toLowerCase())
+                .filter(Boolean);
 
             editChoreIdInput.value = choreId;
             editChoreTitleInput.value = title;
@@ -1389,7 +1392,7 @@
             editChorePointsInput.value = points;
             // Set days of week checkboxes
             document.querySelectorAll('.edit-chore-day-checkbox').forEach(cb => {
-                cb.checked = daysOfWeek.includes(cb.value);
+                cb.checked = daysOfWeek.includes(cb.value.toLowerCase());
             });
             // Set icon/emoji
             const icon = row.dataset.choreIcon || '';
@@ -1483,6 +1486,14 @@
                         row.querySelector('.chore-assigned-to').textContent = assignedTo;
                         row.querySelector('.chore-points').textContent = points;
                         row.dataset.choreIcon = icon;
+                        const normalisedDays = daysOfWeek.map(d => d.trim().toLowerCase());
+                        row.dataset.days = normalisedDays.join(',');
+                        const daysChip = row.querySelector('.chore-days');
+                        if (daysChip) {
+                            daysChip.textContent = normalisedDays.length
+                                ? normalisedDays.map(d => DAY_ABBREVIATIONS[d] || d).join(', ')
+                                : '-';
+                        }
                     }
                     editChoreModal.style.display = 'none';
                     alert('Chore updated successfully');
