@@ -578,19 +578,44 @@ def _build_meal_week_days(week_start):
     ]
 
 
+_BUILTIN_STORE_ICONS = {
+    'aldi': '/static/images/rewards/store_aldi.svg',
+    'woolworths': '/static/images/rewards/store_woolworths.svg',
+}
+_ALLOWED_STORE_ICON_PATHS = frozenset(_BUILTIN_STORE_ICONS.values())
+_DEFAULT_SHOPPING_STORES = [
+    {'id': 'aldi', 'name': 'Aldi', 'icon': _BUILTIN_STORE_ICONS['aldi']},
+    {'id': 'woolworths', 'name': 'Woolworths', 'icon': _BUILTIN_STORE_ICONS['woolworths']},
+]
+
+
+def _clean_store_icon(icon, store_id=''):
+    """Keep a store icon that still renders after it is saved.
+
+    Emoji stay short. The Aldi and Woolworths logos are local SVG paths,
+    much longer than 16 characters. Cutting every icon to 16 characters
+    turned those paths into "/static/images/", so the logos broke the next
+    time any store was renamed, added, or deleted.
+    """
+    text = str(icon or '').strip()
+    if text in _ALLOWED_STORE_ICON_PATHS:
+        return text
+    if text.startswith('/'):
+        return _BUILTIN_STORE_ICONS.get(str(store_id or ''), '🛒')
+    return text[:16] or '🛒'
+
+
 def _get_shopping_stores():
     try:
         raw = _json.loads(AppSetting.get('shopping_stores_json', '[]'))
     except Exception:
         raw = []
     stores = raw if isinstance(raw, list) else []
-    defaults = [{'id': 'aldi', 'name': 'Aldi', 'icon': '/static/images/rewards/store_aldi.svg'}, {'id': 'woolworths', 'name': 'Woolworths', 'icon': '/static/images/rewards/store_woolworths.svg'}]
     if not stores:
-        stores = [dict(store) for store in defaults]
-    # Ensure all stores have an icon field
+        stores = [dict(store) for store in _DEFAULT_SHOPPING_STORES]
     for s in stores:
-        if isinstance(s, dict) and 'icon' not in s:
-            s['icon'] = '🛒'
+        if isinstance(s, dict):
+            s['icon'] = _clean_store_icon(s.get('icon', '🛒'), s.get('id', ''))
     return stores
 
 
@@ -2416,7 +2441,7 @@ def api_shopping_stores():
                 continue
             store_id = re.sub(r'[^a-z0-9\-]', '', str(s.get('id', '')).strip().lower())[:50]
             name = str(s.get('name', '')).strip()[:80]
-            icon = str(s.get('icon', '🛒')).strip()[:16] or '🛒'
+            icon = _clean_store_icon(s.get('icon', '🛒'), store_id)
             if not store_id or not name or store_id in seen_ids:
                 continue
             cleaned.append({'id': store_id, 'name': name, 'icon': icon})
