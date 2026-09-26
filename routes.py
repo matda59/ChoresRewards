@@ -523,9 +523,61 @@ def _merge_meal_plan_with_recurring(raw_plan, recurring_plan, week_start):
                 merged[day_key][meal_type] = recurring_value[:120]
 
         for meal_type, value in overrides.get(day_key, {}).items():
-            merged[day_key][meal_type] = value
+            # A saved blank is not a plan. The planner used to store one for
+            # every untouched slot, and that blank then hid the weekly meal.
+            if str(value or '').strip():
+                merged[day_key][meal_type] = value
 
     return merged
+
+
+def _meal_overrides_to_store(plan_for_week, recurring_plan, week_start):
+    """Persist only this week's one-off meals.
+
+    Blank slots and slots that match the weekly repeat are left out, so the
+    repeat keeps showing and can still be renamed later.
+    """
+    stored = {}
+    for offset in range(7):
+        current_day = week_start + timedelta(days=offset)
+        day_key = current_day.isoformat()
+        weekday_key = MEAL_WEEKDAY_KEYS[current_day.weekday()]
+        source = plan_for_week.get(day_key, {})
+        if not isinstance(source, dict):
+            continue
+        day_out = {}
+        recurring_day = recurring_plan.get(weekday_key, {}) if isinstance(recurring_plan, dict) else {}
+        for meal_type in MEAL_TYPES:
+            value = str(source.get(meal_type, '') or '').strip()[:120]
+            recurring_entry = recurring_day.get(meal_type, {}) if isinstance(recurring_day, dict) else {}
+            recurring_value = ''
+            if isinstance(recurring_entry, dict) and recurring_entry.get('enabled'):
+                recurring_value = str(recurring_entry.get('value', '') or '').strip()
+            if value and value != recurring_value:
+                day_out[meal_type] = value
+        if day_out:
+            stored[day_key] = day_out
+    return stored
+
+
+def _drop_blank_stored_meals(stored_plan):
+    """Remove empty meal strings left by older saves."""
+    if not isinstance(stored_plan, dict):
+        return {}
+    cleaned_plan = {}
+    for day_key, meals in stored_plan.items():
+        if not isinstance(meals, dict):
+            continue
+        cleaned_day = {}
+        for meal_type, value in meals.items():
+            if meal_type not in MEAL_TYPES:
+                continue
+            text = str(value or '').strip()[:120]
+            if text:
+                cleaned_day[meal_type] = text
+        if cleaned_day:
+            cleaned_plan[day_key] = cleaned_day
+    return cleaned_plan
 
 
 def _get_meal_planner_data(week_start):
@@ -1899,9 +1951,12 @@ def api_meal_planner():
         if not isinstance(full_stored_plan, dict):
             full_stored_plan = {}
         week_data = _normalize_meal_plan(input_plan, week_start)
-        full_stored_plan.update(week_data)
-
         normalized_recurring = _normalize_meal_recurring(input_recurring)
+        for offset in range(7):
+            full_stored_plan.pop((week_start + timedelta(days=offset)).isoformat(), None)
+        full_stored_plan.update(_meal_overrides_to_store(week_data, normalized_recurring, week_start))
+        full_stored_plan = _drop_blank_stored_meals(full_stored_plan)
+
         AppSetting.set('meal_planner_plan_json', _json.dumps(full_stored_plan))
         AppSetting.set('meal_planner_recurring_json', _json.dumps(normalized_recurring))
         log_activity('settings_updated', 'Meal planner was updated')
