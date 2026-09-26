@@ -2636,10 +2636,12 @@ window.addEventListener('DOMContentLoaded', function() {
         <div class="rewards-grid">
             {% for reward in rewards %}
             {% if not reward.completed %}
+            {% set reward_person = reward.person if reward.person is not none else get_person_by_name(reward.assigned_to) %}
+            {% set reward_assignee = reward_person.name if reward_person else reward.assigned_to %}
             <div class="reward-card"
                  data-reward-id="{{ reward.id }}"
-                 data-assigned-to="{{ reward.assigned_to }}"
-                 data-assigned-to-id="{{ get_person_by_name(reward.assigned_to).id }}"
+                 data-assigned-to="{{ reward_assignee }}"
+                 data-assigned-to-id="{{ reward.assigned_to_id or (reward_person.id if reward_person else '') }}"
                  data-title="{{ reward.title | e }}"
                  data-points="{{ reward.points_required }}"
                  data-description="{{ (reward.description or '') | e }}"
@@ -2709,16 +2711,16 @@ window.addEventListener('DOMContentLoaded', function() {
                     {% endif %}
                     <div class="reward-meta">
                         <div class="reward-assignee">
-                        <img src="{{ url_for('static', filename='uploads/' + get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to) and get_person_by_name(reward.assigned_to).avatar else 'default_avatar.png') }}" 
-                                 alt="{{ reward.assigned_to }}" 
+                        <img src="{{ url_for('static', filename='uploads/' + reward_person.avatar if reward_person and reward_person.avatar else 'default_avatar.png') }}" 
+                                 alt="{{ reward_assignee }}" 
                                  class="assignee-avatar"
                                  onerror="this.onerror=null;this.src='/static/default_avatar.png';"
-                                 title="{{ reward.assigned_to }}">
-                            <span class="assignee-name">{{ reward.assigned_to }}</span>
+                                 title="{{ reward_assignee }}">
+                            <span class="assignee-name">{{ reward_assignee }}</span>
                         </div>
                     </div>
                     {# Progress Bar for Reward #}
-                    {% set person = get_person_by_name(reward.assigned_to) %}
+                    {% set person = reward_person %}
                     {% if person %}
                         {% set current_points = person.points + person.bonus_points %}
                         {% set percent = (current_points / reward.points_required * 100) if reward.points_required > 0 else 0 %}
@@ -7117,7 +7119,9 @@ function updateStreakDisplay(column, streakCount) {
     <div id="redeemed-rewards-container" class="completed-rewards-container">
         {% for reward in rewards %}
         {% if reward.completed %}
-        <div class="reward-card" style="opacity:0.7; position:relative;" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward.assigned_to }}" data-assigned-to-id="{{ get_person_by_name(reward.assigned_to).id }}">
+        {% set reward_person = reward.person if reward.person is not none else get_person_by_name(reward.assigned_to) %}
+        {% set reward_assignee = reward_person.name if reward_person else reward.assigned_to %}
+        <div class="reward-card" style="opacity:0.7; position:relative;" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward_assignee }}" data-assigned-to-id="{{ reward.assigned_to_id or (reward_person.id if reward_person else '') }}">
             {% if reward.image_url %}
             <div class="reward-image-container">
                 <img src="{{ reward.image_url }}" alt="{{ reward.title }}" class="reward-image">
@@ -7164,12 +7168,12 @@ function updateStreakDisplay(column, streakCount) {
                 {% endif %}
                 <div class="reward-meta">
                     <div class="reward-assignee">
-                        <img src="{{ url_for('static', filename='uploads/' + get_person_by_name(reward.assigned_to).avatar if get_person_by_name(reward.assigned_to) and get_person_by_name(reward.assigned_to).avatar else 'default_avatar.png') }}" 
-                             alt="{{ reward.assigned_to }}" 
+                        <img src="{{ url_for('static', filename='uploads/' + reward_person.avatar if reward_person and reward_person.avatar else 'default_avatar.png') }}" 
+                             alt="{{ reward_assignee }}" 
                              class="assignee-avatar"
                              onerror="this.onerror=null;this.src='/static/default_avatar.png';"
-                             title="{{ reward.assigned_to }}">
-                        <span class="assignee-name">{{ reward.assigned_to }}</span>
+                             title="{{ reward_assignee }}">
+                        <span class="assignee-name">{{ reward_assignee }}</span>
                     </div>
                 </div>
                 <div class="reward-actions-modern" style="margin-top:8px;">
