@@ -6198,11 +6198,12 @@ function deleteReward(rewardId) {
                 {% endif %}
             {% endfor %}
             {% set total_today = filtered_incomplete_chores|length + completed_chores|length %}
+            {% set done_today = completed_chores|length %}
             {% set remaining = filtered_incomplete_chores|length %}
             {% if total_today > 0 %}
-            {% set pct = ((remaining / total_today) * 100)|round|int %}
-            <div class="chore-progress-wrap">
-                <div class="chore-progress-bar-container">
+            {% set pct = ((done_today / total_today) * 100)|round|int %}
+            <div class="chore-progress-wrap" data-done="{{ done_today }}" data-total="{{ total_today }}">
+                <div class="chore-progress-bar-container" title="{{ done_today }} of {{ total_today }} done">
                     <div class="chore-progress-bar-fill" style="width:{{ pct }}%;"></div>
                 </div>
                 <div class="chore-progress-label">{{ remaining }} left</div>
@@ -7736,26 +7737,48 @@ function injectNewChoreCard(resp, formData) {
     }
     list.insertAdjacentHTML('beforeend', cardHtml);
 
-    // Update progress bar
-    const incomplete = column.querySelectorAll('.incomplete-chores-list .chore').length;
-    const completed = column.querySelectorAll('.completed-chores-list .chore.completed').length;
-    const total = incomplete + completed;
-    const pct = total > 0 ? Math.round((incomplete / total) * 100) : 0;
-    const fill = column.querySelector('.chore-progress-bar-fill');
-    const label = column.querySelector('.chore-progress-label');
-    if (fill) { fill.style.width = pct + '%'; }
-    if (label) { label.textContent = incomplete + ' left'; }
-    if (!fill && total > 0) {
+    updateChoreProgress(column, 0, 1);
+    refreshEarnMorePrompt(column);
+}
+
+function updateChoreProgress(column, doneDelta, totalDelta) {
+    if (!column) return;
+    let wrap = column.querySelector('.chore-progress-wrap');
+    let done = wrap ? parseInt(wrap.dataset.done || '0', 10) : 0;
+    let total = wrap ? parseInt(wrap.dataset.total || '0', 10) : 0;
+    if (!Number.isFinite(done)) done = 0;
+    if (!Number.isFinite(total)) total = 0;
+    done = Math.max(0, done + (doneDelta || 0));
+    total = Math.max(0, total + (totalDelta || 0));
+    if (done > total) done = total;
+    const remaining = Math.max(0, total - done);
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    if (total === 0) {
+        if (wrap) wrap.remove();
+        return;
+    }
+
+    if (!wrap) {
         const streakDiv = column.querySelector('.streak-display');
         const insertTarget = streakDiv || column.querySelector('.chores-to-do-header');
-        if (insertTarget) {
-            insertTarget.insertAdjacentHTML('beforebegin', `<div class="chore-progress-wrap">
-                <div class="chore-progress-bar-container"><div class="chore-progress-bar-fill" style="width:${pct}%;"></div></div>
-                <div class="chore-progress-label">${incomplete} left</div>
+        if (!insertTarget) return;
+        insertTarget.insertAdjacentHTML('beforebegin', `<div class="chore-progress-wrap" data-done="0" data-total="0">
+                <div class="chore-progress-bar-container"><div class="chore-progress-bar-fill" style="width:0%;"></div></div>
+                <div class="chore-progress-label">0 left</div>
             </div>`);
-        }
+        wrap = column.querySelector('.chore-progress-wrap');
+        if (!wrap) return;
     }
-    refreshEarnMorePrompt(column);
+
+    wrap.dataset.done = String(done);
+    wrap.dataset.total = String(total);
+    const bar = wrap.querySelector('.chore-progress-bar-container');
+    const fill = wrap.querySelector('.chore-progress-bar-fill');
+    const label = wrap.querySelector('.chore-progress-label');
+    if (bar) bar.title = done + ' of ' + total + ' done';
+    if (fill) fill.style.width = pct + '%';
+    if (label) label.textContent = remaining + ' left';
 }
 
 function personAgeForId(personId) {
@@ -7952,6 +7975,7 @@ function completeChore(choreId) {
                 const col = choreElem.closest('.column');
                 if (col) updateStreakDisplay(col, data.current_streak);
             }
+            if (column) updateChoreProgress(column, 1, 0);
             // Remove the completed chore from the DOM after animation
             setTimeout(() => {
                 if (choreElem) {
@@ -8013,7 +8037,10 @@ function undoChoreCompletion(choreId, choreElemClone, parentList, column) {
             } else {
                 window.location.reload();
             }
-            if (column) refreshEarnMorePrompt(column);
+            if (column) {
+                updateChoreProgress(column, -1, 0);
+                refreshEarnMorePrompt(column);
+            }
             if (window.showToast) showToast('Chore marked incomplete', 'info', 2500);
         } else {
             if (window.showToast) showToast(data.error || 'Could not undo chore', 'error');
