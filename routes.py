@@ -3042,6 +3042,19 @@ def _completion_instant_utc(chore):
     return completed.astimezone(timezone.utc)
 
 
+def _person_for_assignment(assigned_to_id, assigned_to):
+    """Resolve the family member a chore or reward is assigned to.
+
+    ``assigned_to`` is a copy of the person's name. Renaming used to leave that
+    copy unchanged, so a name lookup missed them and the completion rolled back.
+    The id is the stable link.
+    """
+    person = Person.query.get(assigned_to_id) if assigned_to_id else None
+    if person is None and assigned_to:
+        person = Person.query.filter_by(name=assigned_to).first()
+    return person
+
+
 @routes_bp.route('/complete_chore', methods=['POST'])
 def complete_chore():
     if not session.get('authenticated', False):
@@ -3064,11 +3077,15 @@ def complete_chore():
         now_local = now_utc.astimezone(_app_timezone())
         chore.date_completed = now_local.replace(tzinfo=None)  # Store as naive local time
 
-        person = Person.query.filter_by(name=chore.assigned_to).first()
+        person = _person_for_assignment(chore.assigned_to_id, chore.assigned_to)
+        if person and chore.assigned_to != person.name:
+            chore.assigned_to = person.name
 
         points_awarded = 0
         bonus_awarded = 0
         overdue = False
+        new_badges = []
+        current_streak = 0
         if person:
             now = datetime.now(timezone.utc)
             overdue = _chore_is_overdue(chore, now)
@@ -3117,6 +3134,8 @@ def complete_chore():
                     user_name=chore.assigned_to
                 )
                 new_badges, current_streak = [], 0
+        else:
+            db.session.commit()
 
         completed, total = Chore.calculate_weekly_progress(chore.assigned_to)
 
@@ -3164,7 +3183,9 @@ def undo_complete_chore():
         chore.completed = False
         chore.date_completed = None
 
-        person = Person.query.filter_by(name=chore.assigned_to).first()
+        person = _person_for_assignment(chore.assigned_to_id, chore.assigned_to)
+        if person and chore.assigned_to != person.name:
+            chore.assigned_to = person.name
         if person and awarded_points:
             person.points = _round_points(max(0, person.points - chore.points))
             db.session.commit()
@@ -4665,27 +4686,43 @@ def update_name():
         person = Person.query.get(person_id)
         if not person:
             return jsonify({'success': False, 'error': 'Person not found'}), 404
-        
+
+        taken = Person.query.filter(Person.id != person.id, Person.name == new_name).first()
+        if taken:
+            return jsonify({'success': False, 'error': 'That name is already used by someone else'}), 400
+
         old_name = person.name
         person.name = new_name
+        # Chores and rewards store the name as well as the person id. Leaving
+        # the copy stale makes completion look up nobody and roll back, and
+        # makes reward redemption read the points column for a name that no
+        # longer exists.
+        if old_name != new_name:
+            Chore.query.filter(
+                (Chore.assigned_to_id == person.id) | (Chore.assigned_to == old_name)
+            ).update({Chore.assigned_to: new_name}, synchronize_session=False)
+            Reward.query.filter(
+                (Reward.assigned_to_id == person.id) | (Reward.assigned_to == old_name)
+            ).update({Reward.assigned_to: new_name}, synchronize_session=False)
         db.session.commit()
-        
+
         # Log the activity
         log_activity(
             'name_updated',
             f"Name was changed from '{old_name}' to '{new_name}'",
             user_name=new_name
         )
-        
+
         return jsonify({
             'success': True,
             'message': f'Name updated successfully',
             'new_name': new_name
         })
-        
+
     except Exception as e:
         db.session.rollback()
         log_activity('system_error', f"Error updating name: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 
 # ── Organise API ──────────────────────────────────────────────────────────────
