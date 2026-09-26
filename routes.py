@@ -578,19 +578,45 @@ def _build_meal_week_days(week_start):
     ]
 
 
+# Bundled store logos. A save used to keep only the first 16 characters of an
+# icon, and both of these paths start with that exact prefix, so the next
+# rename, add, or icon change stored "/static/images/" and the logo broke.
+_STORE_LOGO_RE = re.compile(r'^/static/images/rewards/[a-z0-9_]+\.svg$')
+_STORE_LOGO_BY_ID = {
+    'aldi': '/static/images/rewards/store_aldi.svg',
+    'woolworths': '/static/images/rewards/store_woolworths.svg',
+}
+_TRUNCATED_STORE_LOGO = '/static/images/'
+
+
+def _clean_store_icon(icon, store_id=''):
+    """Keep a bundled logo path, or a short emoji. Restore logos a short save cut off."""
+    store_id = str(store_id or '').strip().lower()
+    raw = '🛒' if icon is None else str(icon).strip() or '🛒'
+    if _STORE_LOGO_RE.fullmatch(raw) and len(raw) <= 80:
+        return raw
+    if raw == _TRUNCATED_STORE_LOGO and store_id in _STORE_LOGO_BY_ID:
+        return _STORE_LOGO_BY_ID[store_id]
+    if raw.startswith('/'):
+        return '🛒'
+    return raw[:16]
+
+
 def _get_shopping_stores():
     try:
         raw = _json.loads(AppSetting.get('shopping_stores_json', '[]'))
     except Exception:
         raw = []
     stores = raw if isinstance(raw, list) else []
-    defaults = [{'id': 'aldi', 'name': 'Aldi', 'icon': '/static/images/rewards/store_aldi.svg'}, {'id': 'woolworths', 'name': 'Woolworths', 'icon': '/static/images/rewards/store_woolworths.svg'}]
+    defaults = [
+        {'id': 'aldi', 'name': 'Aldi', 'icon': _STORE_LOGO_BY_ID['aldi']},
+        {'id': 'woolworths', 'name': 'Woolworths', 'icon': _STORE_LOGO_BY_ID['woolworths']},
+    ]
     if not stores:
         stores = [dict(store) for store in defaults]
-    # Ensure all stores have an icon field
     for s in stores:
-        if isinstance(s, dict) and 'icon' not in s:
-            s['icon'] = '🛒'
+        if isinstance(s, dict):
+            s['icon'] = _clean_store_icon(s.get('icon'), s.get('id', ''))
     return stores
 
 
@@ -2416,7 +2442,7 @@ def api_shopping_stores():
                 continue
             store_id = re.sub(r'[^a-z0-9\-]', '', str(s.get('id', '')).strip().lower())[:50]
             name = str(s.get('name', '')).strip()[:80]
-            icon = str(s.get('icon', '🛒')).strip()[:16] or '🛒'
+            icon = _clean_store_icon(s.get('icon'), store_id)
             if not store_id or not name or store_id in seen_ids:
                 continue
             cleaned.append({'id': store_id, 'name': name, 'icon': icon})
