@@ -2998,6 +2998,50 @@ def check_and_award_badges(person, completed_dt):
     return ([{'key': k, **BADGE_DEFINITIONS[k]} for k in newly_earned], current_streak)
 
 
+def _app_timezone():
+    """Timezone for naive chore deadlines and completion timestamps."""
+    tz_name = AppSetting.get('timezone', 'UTC') or 'UTC'
+    try:
+        return ZoneInfo(tz_name)
+    except Exception:
+        return ZoneInfo('UTC')
+
+
+def _chore_is_overdue(chore, when_utc):
+    """Return True when `when_utc` is after the chore's deadline.
+
+    A naive `due_datetime` is a wall time in the app timezone, which is also
+    how `date_completed` is stored. Both sides are compared as aware UTC
+    instants. Comparing a naive deadline to an aware clock raises TypeError
+    and rolls back the completion.
+    """
+    if when_utc.tzinfo is None:
+        when_utc = when_utc.replace(tzinfo=timezone.utc)
+    else:
+        when_utc = when_utc.astimezone(timezone.utc)
+
+    if chore.due_datetime:
+        due = chore.due_datetime
+        if due.tzinfo is None:
+            due = due.replace(tzinfo=_app_timezone())
+        return when_utc > due.astimezone(timezone.utc)
+
+    if chore.due_date:
+        return when_utc.date() > chore.due_date
+
+    return False
+
+
+def _completion_instant_utc(chore):
+    """UTC instant of a stored completion, or None if it was not recorded."""
+    completed = chore.date_completed
+    if completed is None:
+        return None
+    if completed.tzinfo is None:
+        completed = completed.replace(tzinfo=_app_timezone())
+    return completed.astimezone(timezone.utc)
+
+
 @routes_bp.route('/complete_chore', methods=['POST'])
 def complete_chore():
     if not session.get('authenticated', False):
@@ -3016,11 +3060,8 @@ def complete_chore():
 
         chore.completed = True
         # Store date_completed in the app's configured timezone
-        from zoneinfo import ZoneInfo
-        tz_name = AppSetting.get('timezone', 'UTC')
-        app_tz = ZoneInfo(tz_name)
         now_utc = datetime.now(timezone.utc)
-        now_local = now_utc.astimezone(app_tz)
+        now_local = now_utc.astimezone(_app_timezone())
         chore.date_completed = now_local.replace(tzinfo=None)  # Store as naive local time
 
         person = Person.query.filter_by(name=chore.assigned_to).first()
@@ -3030,24 +3071,7 @@ def complete_chore():
         overdue = False
         if person:
             now = datetime.now(timezone.utc)
-            # Check if overdue for chores with due_datetime or due_date
-            if chore.due_datetime:
-                # Use the app's configured timezone for naive datetimes
-                from datetime import timezone as dt_timezone
-                from zoneinfo import ZoneInfo
-                tz_name = AppSetting.get('timezone', 'UTC')
-                app_tz = ZoneInfo(tz_name)
-                if chore.due_datetime.tzinfo is None:
-                    # Interpret as app's timezone
-                    local_dt = chore.due_datetime.replace(tzinfo=app_tz)
-                else:
-                    local_dt = chore.due_datetime
-                due_utc = local_dt.astimezone(dt_timezone.utc)
-                overdue = now > due_utc.replace(tzinfo=None)
-            elif chore.due_date:
-                overdue = now.date() > chore.due_date
-            else:
-                overdue = False
+            overdue = _chore_is_overdue(chore, now)
 
             if not overdue:
                 person.points = _round_points(person.points + chore.points)
@@ -3132,11 +3156,16 @@ def undo_complete_chore():
         if not chore.completed:
             return jsonify({'success': False, 'error': 'Chore is not completed'}), 400
 
+        # Overdue completions award nothing. Undo must not take points that
+        # were never given — the toast still offers Undo in that case.
+        completed_at = _completion_instant_utc(chore)
+        awarded_points = not _chore_is_overdue(chore, completed_at) if completed_at else True
+
         chore.completed = False
         chore.date_completed = None
 
         person = Person.query.filter_by(name=chore.assigned_to).first()
-        if person:
+        if person and awarded_points:
             person.points = _round_points(max(0, person.points - chore.points))
             db.session.commit()
             log_activity(
@@ -3146,6 +3175,12 @@ def undo_complete_chore():
             )
         else:
             db.session.commit()
+            if person:
+                log_activity(
+                    'chore_undone',
+                    f"Chore '{chore.title}' was undone. No points were deducted because it was completed overdue.",
+                    user_name=chore.assigned_to
+                )
 
         completed, total = Chore.calculate_weekly_progress(chore.assigned_to)
         return jsonify({
