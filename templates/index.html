@@ -28,7 +28,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260915c">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260926a">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -57,6 +57,8 @@
                                         var timer = JSON.parse(localStorage.getItem('visualTimerState') || '{}');
                                         if (timer && timer.running) return;
                                     } catch (e) {}
+                                    if (document.body.classList.contains('play-widget-open')) return;
+                                    if (document.body.classList.contains('visual-timer-open')) return;
                                     window.location.reload();
                                 }, 30 * 60 * 1000); // 30 minutes in milliseconds
                                 </script>
@@ -1127,6 +1129,30 @@ window.addEventListener('DOMContentLoaded', function() {
                 <div class="dash-tile-resize" title="Resize"></div>
             </div>
 
+            <!-- Play — maths for older kids, colours for little ones -->
+            <div class="dashboard-card dashboard-card-play dash-tile" id="dashboard-play-panel" data-dash-id="play" style="--dash-cols:4;--dash-rows:9">
+                <h3 class="dashboard-card-title">
+                    <button type="button" class="dash-tile-handle" title="Drag to move" aria-label="Move Play"><i class="fas fa-grip-vertical"></i></button>
+                    <i class="fas fa-star" style="color:#fbbf24;"></i> Play
+                </h3>
+                <div class="play-launch-row">
+                    <button type="button" class="play-launch play-launch-maths" id="play-open-maths" aria-label="Play maths">
+                        <span class="play-launch-mark" aria-hidden="true">×</span>
+                        <span class="play-launch-label">Maths</span>
+                    </button>
+                    <button type="button" class="play-launch play-launch-colours" id="play-open-colours" aria-label="Play colours">
+                        <span class="play-launch-swatches" aria-hidden="true">
+                            <i style="background:#ef4444"></i>
+                            <i style="background:#facc15"></i>
+                            <i style="background:#3b82f6"></i>
+                            <i style="background:#22c55e"></i>
+                        </span>
+                        <span class="play-launch-label">Colours</span>
+                    </button>
+                </div>
+                <div class="dash-tile-resize" title="Resize"></div>
+            </div>
+
             <!-- Sticky Notes -->
             <div class="dashboard-card dashboard-card-photos dashboard-card-notes dash-tile" id="dashboard-notes-panel" data-dash-id="notes" style="--dash-cols:12;--dash-rows:16">
                 <h3 class="dashboard-card-title">
@@ -1197,6 +1223,63 @@ window.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
             </div>
+            </div>
+        </div>
+
+        <div class="play-overlay" id="play-overlay" hidden>
+            <div class="play-overlay-backdrop" id="play-backdrop"></div>
+            <div class="play-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="play-dialog-title">
+                <div class="play-overlay-head">
+                    <h3 id="play-dialog-title"><i class="fas fa-star" style="color:#fbbf24;"></i> <span id="play-title-text">Play</span></h3>
+                    <p class="play-score" id="play-score" hidden></p>
+                    <button type="button" class="play-close-btn" id="play-close" aria-label="Close"><i class="fas fa-xmark"></i></button>
+                </div>
+
+                <div id="play-maths" hidden>
+                    <div class="play-modes" role="tablist" aria-label="Maths type">
+                        <button type="button" class="play-mode is-selected" data-maths-mode="add">Add &amp; take</button>
+                        <button type="button" class="play-mode" data-maths-mode="times">Times</button>
+                        <button type="button" class="play-mode" data-maths-mode="mix">Mix</button>
+                    </div>
+                    <div class="play-maths-body">
+                        <div class="play-equation-col">
+                            <div class="play-equation" id="play-equation" aria-live="polite">
+                                <span id="play-eq-prompt">24 + 17</span>
+                                <span class="play-eq-equals">=</span>
+                                <span id="play-eq-answer" class="play-eq-answer">?</span>
+                            </div>
+                            <p class="play-feedback" id="play-maths-feedback" aria-live="polite"></p>
+                        </div>
+                        <div class="play-keypad" id="play-keypad" role="group" aria-label="Number pad"></div>
+                    </div>
+                </div>
+
+                <div id="play-colours" hidden>
+                    <div class="play-modes" role="tablist" aria-label="Colour game">
+                        <button type="button" class="play-mode is-selected" data-colour-mode="find">Find it</button>
+                        <button type="button" class="play-mode" data-colour-mode="mix">Mix it</button>
+                    </div>
+                    <div id="play-find">
+                        <p class="play-find-kicker">Tap this colour</p>
+                        <div class="play-find-target-row">
+                            <span class="play-swatch" id="play-find-swatch" aria-hidden="true"></span>
+                            <span class="play-find-word" id="play-find-word">blue</span>
+                        </div>
+                        <div class="play-find-grid" id="play-find-grid"></div>
+                        <p class="play-feedback" id="play-find-feedback" aria-live="polite"></p>
+                    </div>
+                    <div id="play-mix" hidden>
+                        <div class="play-mix-stage">
+                            <button type="button" class="play-pot is-selected" id="play-pot-a" aria-label="First colour"></button>
+                            <span class="play-mix-op" aria-hidden="true">+</span>
+                            <button type="button" class="play-pot" id="play-pot-b" aria-label="Second colour"></button>
+                            <span class="play-mix-op" aria-hidden="true">=</span>
+                            <div class="play-pot play-pot-result" id="play-pot-result" aria-hidden="true"></div>
+                        </div>
+                        <p class="play-mix-caption" id="play-mix-caption">Pick two colours</p>
+                        <div class="play-paintbox" id="play-paintbox" role="group" aria-label="Paint colours"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -1902,8 +1985,10 @@ window.addEventListener('DOMContentLoaded', function() {
             load();
         })();
     </script>
+    <script src="{{ url_for('static', filename='js/play_widget_logic.js') }}?v=20260926a"></script>
+    <script src="{{ url_for('static', filename='js/play_widget.js') }}?v=20260926b"></script>
     <script src="{{ url_for('static', filename='js/visual_timer.js') }}?v=20260919a"></script>
-    <script src="{{ url_for('static', filename='js/dashboard_layout.js') }}?v=20260915b"></script>
+    <script src="{{ url_for('static', filename='js/dashboard_layout.js') }}?v=20260926a"></script>
 
     <!-- Notes Kanban Section -->
     <section class="notes-kanban-section collapsible-section collapsed" id="notes-kanban-section">

@@ -164,8 +164,11 @@
             return false;
         }
         if (document.body.classList.contains('visual-timer-open')) return true;
+        if (document.body.classList.contains('play-widget-open')) return true;
         const overlay = document.getElementById('visual-timer-overlay');
         if (overlay && !overlay.hidden) return true;
+        const playOverlay = document.getElementById('play-overlay');
+        if (playOverlay && !playOverlay.hidden) return true;
         try {
             const saved = JSON.parse(localStorage.getItem('visualTimerState') || '{}');
             return !!(saved && saved.running);

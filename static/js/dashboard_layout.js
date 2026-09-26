@@ -8,7 +8,7 @@
     const STORAGE_KEY = 'dashboardLayoutV1';
     const GRID_COLS = 12;
     const ROW_UNIT = 18;
-    const DEFAULT_ORDER = ['tasks', 'meals', 'events', 'rewards', 'photos', 'timer', 'notes'];
+    const DEFAULT_ORDER = ['tasks', 'meals', 'events', 'rewards', 'photos', 'timer', 'play', 'notes'];
     const DEFAULTS = {
         tasks: { cols: 4, rows: 12 },
         meals: { cols: 4, rows: 8 },
@@ -16,6 +16,7 @@
         rewards: { cols: 4, rows: 9 },
         photos: { cols: 4, rows: 12 },
         timer: { cols: 2, rows: 8 },
+        play: { cols: 4, rows: 9 },
         notes: { cols: 12, rows: 16 }
     };
     const MIN_SIZE = {
@@ -25,6 +26,7 @@
         rewards: { cols: 2, rows: 7 },
         photos: { cols: 2, rows: 8 },
         timer: { cols: 2, rows: 6 },
+        play: { cols: 2, rows: 7 },
         notes: { cols: 3, rows: 10 }
     };
 
@@ -88,7 +90,10 @@
         const present = new Set(tiles().map((el) => el.dataset.dashId));
         const order = (layout.order || DEFAULT_ORDER).filter((id) => present.has(id));
         DEFAULT_ORDER.forEach((id) => {
-            if (present.has(id) && order.indexOf(id) === -1) order.push(id);
+            if (!present.has(id) || order.indexOf(id) !== -1) return;
+            const notesAt = order.indexOf('notes');
+            if (notesAt !== -1) order.splice(notesAt, 0, id);
+            else order.push(id);
         });
         tiles().forEach((el) => {
             if (order.indexOf(el.dataset.dashId) === -1) order.push(el.dataset.dashId);
@@ -133,7 +138,7 @@
 
     grid.addEventListener('click', (e) => {
         if (arranging || drag || resize) return;
-        if (e.target.closest('.dash-tile-handle, .dash-tile-resize, .dash-note-add-btn, .visual-timer-launcher')) return;
+        if (e.target.closest('.dash-tile-handle, .dash-tile-resize, .dash-note-add-btn, .visual-timer-launcher, .play-launch')) return;
         const tile = e.target.closest('.dash-tile[data-dash-nav]');
         if (!tile || !grid.contains(tile)) return;
         if (typeof goToSection === 'function') goToSection(tile.dataset.dashNav);
