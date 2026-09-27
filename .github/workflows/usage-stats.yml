@@ -1,0 +1,48 @@
+name: Usage statistics
+
+on:
+  schedule:
+    # 16:20 UTC is early morning in Adelaide, after the day's pulls have settled.
+    - cron: "20 16 * * *"
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "telemetry.py"
+      - "usage_stats.py"
+      - "usage_page.py"
+      - "scripts/collect_usage.py"
+      - ".github/workflows/usage-stats.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Collect usage statistics
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/collect_usage.py
+
+      - name: Commit snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add stats/usage.json
+          if git diff --cached --quiet; then
+            echo "No stats changes"
+          else
+            git commit -m "Record image pull and install counts."
+            git push
+          fi

@@ -217,4 +217,20 @@ In **Settings → Notification Settings**, add your Gotify server URL and app to
 - Image: `ghcr.io/matda59/choresrewards:latest` (and `:nightly`)
 - Port **3000** in the container
 
-No cloud account required. Everything stays on your server except optional Google Calendar and weather lookups.
+No cloud account required. Family data stays on your server. Optional Google Calendar and weather lookups call those services. Anonymous install counting is described below.
+
+---
+
+## Usage statistics
+
+Image pulls and installs are counted separately.
+
+- **Pulls** are GHCR downloads. Updates count again, so this number is larger than the number of households. A daily job stores the history in `stats/usage.json`.
+- **Installs** count each saved data folder once, the first time a container starts.
+- **Check-ins** happen at most once a day per install.
+
+The container only downloads two tiny public files on GitHub. That increments download counters. Names, chores, photos, and your server address are not sent.
+
+Adults can open **Usage statistics** from the sidebar chart icon, or from Settings. To turn counting off, set `CHORESREWARDS_TELEMETRY=off`, or clear the checkbox on that page.
+
+GitHub stars, forks, and 14-day clone and view totals are on the same page.

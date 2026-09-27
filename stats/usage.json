@@ -1,0 +1,145 @@
+{
+  "updated": "2026-09-27T00:03:54Z",
+  "image": "ghcr.io/matda59/choresrewards",
+  "repo": "matda59/ChoresRewards",
+  "pulls": {
+    "total": 5384,
+    "daily": [
+      {
+        "date": "2026-08-28",
+        "count": 12
+      },
+      {
+        "date": "2026-08-29",
+        "count": 2
+      },
+      {
+        "date": "2026-08-30",
+        "count": 2
+      },
+      {
+        "date": "2026-08-31",
+        "count": 3
+      },
+      {
+        "date": "2026-09-01",
+        "count": 3
+      },
+      {
+        "date": "2026-09-02",
+        "count": 3
+      },
+      {
+        "date": "2026-09-03",
+        "count": 6
+      },
+      {
+        "date": "2026-09-04",
+        "count": 16
+      },
+      {
+        "date": "2026-09-05",
+        "count": 5
+      },
+      {
+        "date": "2026-09-06",
+        "count": 3
+      },
+      {
+        "date": "2026-09-07",
+        "count": 3
+      },
+      {
+        "date": "2026-09-08",
+        "count": 8
+      },
+      {
+        "date": "2026-09-09",
+        "count": 6
+      },
+      {
+        "date": "2026-09-10",
+        "count": 4
+      },
+      {
+        "date": "2026-09-11",
+        "count": 3
+      },
+      {
+        "date": "2026-09-12",
+        "count": 5
+      },
+      {
+        "date": "2026-09-13",
+        "count": 4
+      },
+      {
+        "date": "2026-09-14",
+        "count": 14
+      },
+      {
+        "date": "2026-09-15",
+        "count": 6
+      },
+      {
+        "date": "2026-09-16",
+        "count": 7
+      },
+      {
+        "date": "2026-09-17",
+        "count": 5
+      },
+      {
+        "date": "2026-09-18",
+        "count": 11
+      },
+      {
+        "date": "2026-09-19",
+        "count": 4
+      },
+      {
+        "date": "2026-09-20",
+        "count": 4
+      },
+      {
+        "date": "2026-09-21",
+        "count": 6
+      },
+      {
+        "date": "2026-09-22",
+        "count": 5
+      },
+      {
+        "date": "2026-09-23",
+        "count": 4
+      },
+      {
+        "date": "2026-09-24",
+        "count": 6
+      },
+      {
+        "date": "2026-09-25",
+        "count": 22
+      },
+      {
+        "date": "2026-09-26",
+        "count": 0
+      }
+    ]
+  },
+  "installs": {
+    "total": null,
+    "checkins": null,
+    "history": []
+  },
+  "github": {
+    "stars": 187,
+    "forks": 10,
+    "clones": [],
+    "views": [],
+    "clone_count_14": null,
+    "clone_uniques_14": null,
+    "view_count_14": null,
+    "view_uniques_14": null
+  }
+}

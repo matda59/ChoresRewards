@@ -259,6 +259,7 @@
                 <a href="{{ url_for('routes.settings_quiz') }}"{% if request.endpoint == 'routes.settings_quiz' %} class="active"{% endif %}><i class="fas fa-question-circle"></i> Quiz Questions</a>
                 <a href="{{ url_for('routes.settings_extras') }}"{% if request.endpoint == 'routes.settings_extras' %} class="active"{% endif %}><i class="fas fa-broom"></i> Extra Chores</a>
                 <a href="{{ url_for('routes.settings_screensaver') }}"{% if request.endpoint == 'routes.settings_screensaver' %} class="active"{% endif %}><i class="fas fa-images"></i> Screensaver</a>
+                <a href="{{ url_for('usage.usage_stats_page') }}"><i class="fas fa-chart-bar"></i> Usage statistics</a>
             </nav>
             <div class="settings-content">
                 <h3 class="section-title"><i class="fas fa-images"></i> Screensaver / Photo &amp; Video Slideshow</h3>

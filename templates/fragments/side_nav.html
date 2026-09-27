@@ -48,6 +48,9 @@
     <a class="side-nav-btn side-nav-link{% if request.endpoint == 'routes.activity_log' %} side-nav-active{% endif %}" href="{{ url_for('routes.activity_log') }}" title="Activity Log">
         <i class="fas fa-history"></i>
     </a>
+    <a class="side-nav-btn side-nav-link admin-only{% if request.endpoint == 'usage.usage_stats_page' %} side-nav-active{% endif %}" data-display="flex" href="{{ url_for('usage.usage_stats_page') }}" title="Usage statistics">
+        <i class="fas fa-chart-bar"></i>
+    </a>
     <a class="side-nav-btn side-nav-link admin-only{% if request.endpoint and request.endpoint.startswith('routes.settings') %} side-nav-active{% endif %}" href="{{ url_for('routes.settings') }}" title="Settings">
         <i class="fas fa-cog"></i>
     </a>

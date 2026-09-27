@@ -24,5 +24,6 @@
 <Config Name="Uploads" Target="/app/static/uploads" Default="" Mode="rw" Description="Profile pictures and reward images - must be mapped to persist across container updates" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/appdata/choresrewards/uploads/</Config>
 <Config Name="Web" Target="3000" Default="" Mode="tcp" Description="" Type="Port" Display="always" Required="false" Mask="false">3112</Config>
 <Config Name="Enable Google Calendar" Target="ENABLE_GOOGLE_CALENDAR" Default="true" Mode="" Description="Required to show Google Calendar settings and integration options" Type="Variable" Display="always" Required="false" Mask="false">true</Config>
+<Config Name="Anonymous usage stats" Target="CHORESREWARDS_TELEMETRY" Default="on" Mode="" Description="Counts this install once, then checks in daily. No names, chores, or photos are sent. Set to off to disable." Type="Variable" Display="always" Required="false" Mask="false">on</Config>
 <TailscaleStateDir/>
 </Container>

@@ -15,6 +15,9 @@ RUN chmod +x start.sh
 # Copy the application code
 COPY app.py .
 COPY models.py .
+COPY usage_stats.py .
+COPY usage_page.py .
+COPY telemetry.py .
 COPY extensions.py .
 COPY routes.py .
 COPY quiz_questions.py .
@@ -23,6 +26,7 @@ COPY quiz_questions.py .
 COPY routes /app/routes/
 COPY static /app/static/
 COPY templates /app/templates/
+COPY stats/usage.json /app/stats/usage.json
 
 # Expose the port the app runs on
 EXPOSE 3000

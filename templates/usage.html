@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .usage-page {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 1.25rem 1.25rem 3rem;
+    }
+    .usage-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+    .usage-header h1 {
+        margin: 0;
+        font-size: 1.45rem;
+        color: var(--cr-text-primary);
+        font-weight: 700;
+    }
+    .usage-header h1 i { color: #4CAF50; margin-right: 0.45rem; }
+    .usage-lead {
+        margin: 0.35rem 0 0;
+        color: var(--cr-text-secondary);
+        max-width: 46rem;
+        line-height: 1.45;
+    }
+    .usage-links { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .usage-links a, .usage-save {
+        color: var(--cr-text-primary);
+        text-decoration: none;
+        background: var(--cr-subtle-panel);
+        border: 1px solid var(--cr-subtle-panel-border);
+        border-radius: 10px;
+        padding: 0.45rem 0.8rem;
+        font-size: 0.9rem;
+    }
+    .usage-save {
+        background: #4CAF50;
+        border-color: #4CAF50;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .usage-note, .usage-ok {
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1rem;
+        line-height: 1.4;
+    }
+    .usage-note {
+        background: rgba(251, 191, 36, 0.12);
+        color: var(--cr-text-primary);
+        border: 1px solid rgba(251, 191, 36, 0.35);
+    }
+    .usage-ok {
+        background: rgba(76, 175, 80, 0.12);
+        color: var(--cr-text-primary);
+        border: 1px solid rgba(76, 175, 80, 0.35);
+    }
+    .usage-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.85rem;
+        margin-bottom: 1.1rem;
+    }
+    .usage-card {
+        background: linear-gradient(135deg, var(--cr-surface-1) 0%, var(--cr-surface-2) 100%);
+        border: 1px solid var(--cr-surface-border);
+        border-radius: 14px;
+        padding: 1rem 1.05rem 0.9rem;
+        box-shadow: 0 4px 18px var(--cr-shadow);
+    }
+    .usage-card span {
+        display: block;
+        color: var(--cr-text-secondary);
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+    .usage-card strong {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 1.7rem;
+        line-height: 1.15;
+        color: #4CAF50;
+    }
+    .usage-card em {
+        display: block;
+        margin-top: 0.35rem;
+        font-style: normal;
+        color: var(--cr-text-secondary);
+        font-size: 0.78rem;
+        line-height: 1.35;
+    }
+    .usage-panel {
+        background: linear-gradient(135deg, var(--cr-surface-1) 0%, var(--cr-surface-2) 100%);
+        border: 1px solid var(--cr-surface-border);
+        border-radius: 14px;
+        padding: 1rem 1.1rem 1.15rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 18px var(--cr-shadow);
+    }
+    .usage-panel h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1rem;
+        color: var(--cr-text-primary);
+    }
+    .usage-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 168px;
+        overflow: hidden;
+        padding-bottom: 1.15rem;
+    }
+    .usage-bar {
+        flex: 1 1 0;
+        min-width: 0;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: center;
+        height: 100%;
+    }
+    .usage-bar i {
+        display: block;
+        width: 100%;
+        border-radius: 5px 5px 2px 2px;
+        background: #4CAF50;
+        min-height: 0;
+    }
+    .usage-bar b {
+        position: absolute;
+        left: 50%;
+        bottom: -1.05rem;
+        transform: translateX(-50%);
+        font-size: 0.62rem;
+        font-weight: 600;
+        color: var(--cr-text-secondary);
+        white-space: nowrap;
+    }
+    .usage-bar:first-child b { left: 0; transform: none; }
+    .usage-bar:last-child b { left: auto; right: 0; transform: none; }
+    .usage-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+    }
+    .usage-table th, .usage-table td {
+        text-align: left;
+        padding: 0.45rem 0.3rem;
+        border-bottom: 1px solid var(--cr-surface-border);
+        color: var(--cr-text-primary);
+    }
+    .usage-table th { color: var(--cr-text-secondary); font-weight: 600; font-size: 0.78rem; }
+    .usage-choice {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        color: var(--cr-text-primary);
+        margin-bottom: 0.8rem;
+    }
+    .usage-choice input { margin-top: 0.2rem; }
+    .usage-meta { color: var(--cr-text-secondary); font-size: 0.85rem; }
+    [data-theme="light"] .usage-card strong { color: #059669; }
+    [data-theme="light"] .usage-bar i { background: #059669; }
+</style>
+
+<div class="usage-page">
+    <div class="usage-header">
+        <div>
+            <h1><i class="fas fa-chart-bar"></i>Usage statistics</h1>
+            <p class="usage-lead">Pulls count every image download, including updates. Installs count each saved data folder once. Check-ins are once a day per install. No names, chores, or photos are included.</p>
+        </div>
+        <div class="usage-links">
+            <a href="{{ package_url }}">Container downloads</a>
+            <a href="{{ url_for('usage.usage_stats_page', refresh=1) }}">Refresh</a>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="usage-note">{{ error }}</div>
+    {% endif %}
+    {% if saved %}
+    <div class="usage-ok">Saved this household's install counting preference.</div>
+    {% endif %}
+
+    <div class="usage-cards">
+        <div class="usage-card">
+            <span>Image pulls</span>
+            <strong>{{ pulls_total or "—" }}</strong>
+            <em>All GHCR downloads of choresrewards</em>
+        </div>
+        <div class="usage-card">
+            <span>Pulls, last 30 days</span>
+            <strong>{{ pulls_30 or "—" }}</strong>
+            <em>Includes updates of existing installs</em>
+        </div>
+        <div class="usage-card">
+            <span>Installs</span>
+            <strong>{{ installs_total or "Not yet" }}</strong>
+            <em>{% if installs_ready %}Households that have started this version{% else %}Starts after the usage counters are published{% endif %}</em>
+        </div>
+        <div class="usage-card">
+            <span>Check-ins</span>
+            <strong>{{ checkins_total or "Not yet" }}</strong>
+            <em>{% if latest_checkins %}{{ latest_checkins }} on {{ latest_date }}{% else %}Daily total appears after two snapshots{% endif %}</em>
+        </div>
+        <div class="usage-card">
+            <span>GitHub stars</span>
+            <strong>{{ stars or "—" }}</strong>
+            <em>{{ forks or "0" }} forks</em>
+        </div>
+        <div class="usage-card">
+            <span>Repo clones, 14 days</span>
+            <strong>{{ clones_14 or "Not yet" }}</strong>
+            <em>{% if clone_uniques_14 %}{{ clone_uniques_14 }} unique cloners{% else %}Recorded by the daily stats job{% endif %}</em>
+        </div>
+        <div class="usage-card">
+            <span>Repo views, 14 days</span>
+            <strong>{{ views_14 or "Not yet" }}</strong>
+            <em>{% if view_uniques_14 %}{{ view_uniques_14 }} unique viewers{% else %}Recorded by the daily stats job{% endif %}</em>
+        </div>
+        {% if latest_new_installs %}
+        <div class="usage-card">
+            <span>New installs</span>
+            <strong>{{ latest_new_installs }}</strong>
+            <em>On {{ latest_date }}</em>
+        </div>
+        {% endif %}
+    </div>
+
+    <section class="usage-panel">
+        <h2>Image pulls by day</h2>
+        {% if chart %}
+        <div class="usage-chart" aria-label="Daily image pulls">
+            {% for bar in chart %}
+            <div class="usage-bar" title="{{ bar.date }}: {{ bar.count }} pulls">
+                <i style="height: {{ bar.height }}%;"></i>
+                <b>{% if bar.show_label %}{{ bar.label }}{% endif %}</b>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="usage-meta">No daily pull counts yet.</p>
+        {% endif %}
+    </section>
+
+    {% if recent %}
+    <section class="usage-panel">
+        <h2>Installs and check-ins</h2>
+        <table class="usage-table">
+            <thead>
+                <tr><th>Date</th><th>New installs</th><th>Check-ins</th></tr>
+            </thead>
+            <tbody>
+                {% for row in recent %}
+                <tr>
+                    <td>{{ row.date }}</td>
+                    <td>{{ row.new_installs }}</td>
+                    <td>{{ row.checkins }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+
+    <section class="usage-panel">
+        <h2>This household</h2>
+        {% if telemetry_forced_off %}
+        <p class="usage-meta">Counting is turned off for this server with <code>CHORESREWARDS_TELEMETRY=off</code>.</p>
+        {% elif not in_docker %}
+        <p class="usage-meta">This copy is not in Docker, so it does not send a count. Running containers do, unless you turn it off.</p>
+        {% elif install_reported %}
+        <p class="usage-meta">This server has been counted as an install{% if last_checkin %}. Last check-in {{ last_checkin }}{% endif %}.</p>
+        {% else %}
+        <p class="usage-meta">A Docker container counts itself once, then checks in about once a day. Nothing about your family is sent.</p>
+        {% endif %}
+        <form method="post">
+            <label class="usage-choice">
+                <input type="checkbox" name="telemetry" value="on" {% if telemetry_on %}checked{% endif %} {% if telemetry_forced_off %}disabled{% endif %}>
+                <span>Count this household in anonymous install statistics.</span>
+            </label>
+            {% if not telemetry_forced_off %}
+            <button class="usage-save" type="submit">Save</button>
+            {% endif %}
+        </form>
+    </section>
+    {% if updated %}
+    <p class="usage-meta">Updated {{ updated }}.</p>
+    {% endif %}
+</div>
+{% endblock %}

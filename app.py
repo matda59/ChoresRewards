@@ -99,6 +99,9 @@ from routes import routes_bp
 
 app.register_blueprint(routes_bp)
 
+from usage_page import usage_bp
+app.register_blueprint(usage_bp)
+
 # Create database tables
 with app.app_context():
     db.create_all()
@@ -195,6 +198,9 @@ with app.app_context():
     if changed:
         db.session.commit()
         print(f"[startup] Cleared {changed} stale upload reference(s) from DB.")
+
+import telemetry
+telemetry.start(app)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3000)

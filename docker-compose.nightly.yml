@@ -16,6 +16,7 @@ services:
     environment:
       - TZ=Australia/Adelaide
       - ENABLE_GOOGLE_CALENDAR=true
+      - CHORESREWARDS_TELEMETRY=off
     restart: unless-stopped
 
 volumes:
