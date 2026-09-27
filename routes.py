@@ -2539,11 +2539,27 @@ def get_person_by_name(name):
     return Person.query.filter_by(name=name).first()
 
 
+def _daily_due_datetime_for_today(due_datetime, today):
+    """Move a repeating chore's due time onto ``today``, keeping the clock time.
+
+    ``due_date`` is only the day the chore next appears. The points deadline is
+    ``due_datetime``. Leaving that timestamp on the day the chore was created
+    makes every later completion overdue, so a daily chore with a due time
+    stops paying out after the first deadline.
+    """
+    if due_datetime is None:
+        return None
+    if due_datetime.date() >= today:
+        return due_datetime
+    return due_datetime.replace(year=today.year, month=today.month, day=today.day)
+
+
 def reset_daily_chores():
     """
     For each daily chore, if its due_date is before today then:
       - Mark it as not completed (so it reappears), and
       - Update its due_date to today.
+    A due time moves forward with that day, keeping the same clock time.
     This ensures daily chores reoccur each day until deleted, and allows skipping a day.
     IMPORTANT: Only resets chores that are daily AND NOT marked as deleted.
     """
@@ -2576,9 +2592,15 @@ def reset_daily_chores():
         # Ensure the due_date is a date object (not datetime)
         chore_date = chore.due_date.date() if isinstance(chore.due_date, datetime) else chore.due_date
 
+        rolled_due = _daily_due_datetime_for_today(chore.due_datetime, today)
+        if rolled_due is not None and rolled_due != chore.due_datetime:
+            chore.due_datetime = rolled_due
+            updated = True
+
         # Only flag as overdue if the user explicitly set a due_datetime and it has passed.
         # Do NOT use chore.due_date here — that field is auto-managed by the daily reset
         # cycle (set to today each run) and has no meaning as a user deadline.
+        # The due time has already been moved onto today, so this is today's deadline.
         if not chore.completed and chore.due_datetime is not None:
             if chore.due_datetime < datetime.utcnow():
                 overdue_chores.append(chore)
