@@ -2362,6 +2362,24 @@ h3 {
 }
 
 /* Chore metadata row: tags + points badge */
+/* Undo on completed chore cards — the toast's Undo only lasts 5 seconds */
+.btn-undo-chore {
+    background: transparent;
+    border: 1px solid rgba(148, 163, 184, 0.55);
+    color: inherit;
+    border-radius: 999px;
+    padding: 4px 12px;
+    min-height: 30px;
+    font-size: 0.8em;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+.btn-undo-chore:hover {
+    background: rgba(148, 163, 184, 0.18);
+}
+
 .chore-meta {
     display: flex;
     align-items: center;
