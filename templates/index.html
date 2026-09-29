@@ -3591,12 +3591,26 @@ function deleteChore(choreId, permanent) {
     });
 }
 // --- Redeem Reward Modal ---
+function rewardAmountCents(amount) {
+    const n = Number(amount);
+    if (!Number.isFinite(n)) return 0;
+    return Math.round((n + Number.EPSILON) * 100);
+}
+
+function rewardAmountLabel(amount, cash) {
+    const cents = rewardAmountCents(amount);
+    const whole = Math.trunc(cents / 100);
+    const frac = Math.abs(cents % 100);
+    if (cash) return `$${whole}.${String(frac).padStart(2, '0')}`;
+    if (!frac) return String(whole);
+    return `${whole}.${String(frac).padStart(2, '0').replace(/0$/, '')}`;
+}
+
 function completeReward(rewardId) {
     if (typeof isAdultMode === 'function' && !isAdultMode()) {
         if (typeof showToast === 'function') showToast('Ask an adult to unlock first 🔒', 'warning');
         return;
     }
-    // Find the reward element and get reward details
     const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
     if (!rewardElem) {
         showUnifiedModal({
@@ -3610,28 +3624,34 @@ function completeReward(rewardId) {
     }
     const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
     const rewardTitle = rewardElem.querySelector('.reward-title-modern') ? rewardElem.querySelector('.reward-title-modern').textContent.trim() : 'this reward';
-    const pointsElem = rewardElem.querySelector('.reward-points-value');
-    const pointsMatch = pointsElem ? pointsElem.textContent.match(/(\d+)/) : null;
-    const pointsRequired = pointsMatch ? parseInt(pointsMatch[1]) : 0;
-    // Get person's current points from the points display in their column
+    // The card stores the full cost. The visible label can be "$2.50" or "2.50",
+    // and reading only the digits before the decimal treated that as 2.
+    const rawCost = parseFloat(rewardElem.getAttribute('data-points'));
+    const pointsRequired = Number.isFinite(rawCost) ? rawCost : 0;
     const personColumn = document.querySelector(`.column[data-person="${assignedTo}"]`);
-    const pointsValueElem = personColumn ? personColumn.querySelector('.chore-points-value') : null;
+    const pointsValueElem = personColumn ? personColumn.querySelector('.points-display .chore-points-value') : null;
     const currentPointsText = pointsValueElem ? pointsValueElem.textContent.replace(/[^0-9.]/g, '') : '0';
-    const currentPoints = parseFloat(currentPointsText) || 0;
-    if (currentPoints < pointsRequired) {
+    const parsedBalance = parseFloat(currentPointsText);
+    const balance = Number.isFinite(parsedBalance) ? parsedBalance : 0;
+    const cash = window.REWARD_SYSTEM === 'cash';
+    if (rewardAmountCents(balance) < rewardAmountCents(pointsRequired)) {
+        const need = rewardAmountLabel(pointsRequired, cash);
+        const have = rewardAmountLabel(balance, cash);
         showUnifiedModal({
             icon: '😢',
-            message: `Not enough points to redeem "${rewardTitle}"! You need ${pointsRequired} points but only have ${Math.floor(currentPoints)} points.`,
+            message: cash
+                ? `Not enough to redeem "${rewardTitle}"! You need ${need} but only have ${have}.`
+                : `Not enough points to redeem "${rewardTitle}"! You need ${need} points but only have ${have} points.`,
             buttons: [
                 {text: 'OK', color: '#888', onClick: null}
             ]
         });
         return;
     }
-    // Confirmation modal using unified style
+    const costLabel = cash ? rewardAmountLabel(pointsRequired, true) : `${rewardAmountLabel(pointsRequired, false)} points`;
     showUnifiedModal({
         icon: '<i class="fas fa-check-circle" style="color:#6366f1;"></i>',
-        message: `Redeem "${rewardTitle}" for <b>${assignedTo}</b> costing ${pointsRequired} points?`,
+        message: `Redeem "${rewardTitle}" for <b>${assignedTo}</b> costing ${costLabel}?`,
         buttons: [
             {text: 'Redeem', color: '#6366f1', onClick: function() { doRedeemReward(rewardId); }},
             {text: 'Cancel', color: '#888', onClick: null}
@@ -9104,12 +9124,26 @@ function confirmDeleteReward(rewardId) {
         ]
     });
 }
+function rewardAmountCents(amount) {
+    const n = Number(amount);
+    if (!Number.isFinite(n)) return 0;
+    return Math.round((n + Number.EPSILON) * 100);
+}
+
+function rewardAmountLabel(amount, cash) {
+    const cents = rewardAmountCents(amount);
+    const whole = Math.trunc(cents / 100);
+    const frac = Math.abs(cents % 100);
+    if (cash) return `$${whole}.${String(frac).padStart(2, '0')}`;
+    if (!frac) return String(whole);
+    return `${whole}.${String(frac).padStart(2, '0').replace(/0$/, '')}`;
+}
+
 function completeReward(rewardId) {
     if (typeof isAdultMode === 'function' && !isAdultMode()) {
         if (typeof showToast === 'function') showToast('Ask an adult to unlock first 🔒', 'warning');
         return;
     }
-    // Find the reward element and get reward details
     const rewardElem = document.querySelector(`[data-reward-id="${rewardId}"]`);
     if (!rewardElem) {
         showUnifiedModal({
@@ -9123,28 +9157,34 @@ function completeReward(rewardId) {
     }
     const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
     const rewardTitle = rewardElem.querySelector('.reward-title-modern') ? rewardElem.querySelector('.reward-title-modern').textContent.trim() : 'this reward';
-    const pointsElem = rewardElem.querySelector('.reward-points-value');
-    const pointsMatch = pointsElem ? pointsElem.textContent.match(/(\d+)/) : null;
-    const pointsRequired = pointsMatch ? parseInt(pointsMatch[1]) : 0;
-    // Get person's current points from the points display in their column
+    // The card stores the full cost. The visible label can be "$2.50" or "2.50",
+    // and reading only the digits before the decimal treated that as 2.
+    const rawCost = parseFloat(rewardElem.getAttribute('data-points'));
+    const pointsRequired = Number.isFinite(rawCost) ? rawCost : 0;
     const personColumn = document.querySelector(`.column[data-person="${assignedTo}"]`);
-    const pointsValueElem = personColumn ? personColumn.querySelector('.chore-points-value') : null;
+    const pointsValueElem = personColumn ? personColumn.querySelector('.points-display .chore-points-value') : null;
     const currentPointsText = pointsValueElem ? pointsValueElem.textContent.replace(/[^0-9.]/g, '') : '0';
-    const currentPoints = parseFloat(currentPointsText) || 0;
-    if (currentPoints < pointsRequired) {
+    const parsedBalance = parseFloat(currentPointsText);
+    const balance = Number.isFinite(parsedBalance) ? parsedBalance : 0;
+    const cash = window.REWARD_SYSTEM === 'cash';
+    if (rewardAmountCents(balance) < rewardAmountCents(pointsRequired)) {
+        const need = rewardAmountLabel(pointsRequired, cash);
+        const have = rewardAmountLabel(balance, cash);
         showUnifiedModal({
             icon: '😢',
-            message: `Not enough points to redeem "${rewardTitle}"! You need ${pointsRequired} points but only have ${Math.floor(currentPoints)} points.`,
+            message: cash
+                ? `Not enough to redeem "${rewardTitle}"! You need ${need} but only have ${have}.`
+                : `Not enough points to redeem "${rewardTitle}"! You need ${need} points but only have ${have} points.`,
             buttons: [
                 {text: 'OK', color: '#888', onClick: null}
             ]
         });
         return;
     }
-    // Confirmation modal using unified style
+    const costLabel = cash ? rewardAmountLabel(pointsRequired, true) : `${rewardAmountLabel(pointsRequired, false)} points`;
     showUnifiedModal({
         icon: '<i class="fas fa-check-circle" style="color:#6366f1;"></i>',
-        message: `Redeem "${rewardTitle}" for <b>${assignedTo}</b> costing ${pointsRequired} points?`,
+        message: `Redeem "${rewardTitle}" for <b>${assignedTo}</b> costing ${costLabel}?`,
         buttons: [
             {text: 'Redeem', color: '#6366f1', onClick: function() { doRedeemReward(rewardId); }},
             {text: 'Cancel', color: '#888', onClick: null}
