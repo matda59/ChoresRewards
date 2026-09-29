@@ -1,5 +1,6 @@
 from flask import Flask
 from extensions import db
+import fcntl
 import mimetypes
 import os
 import secrets
@@ -28,41 +29,50 @@ def _load_secret_key(flask_app):
          instance folder, next to the database. Existing installs keep working
          with no configuration, and sessions survive restarts.
 
-    Generating without persisting would log everyone out on every restart, so
-    the file is written atomically and re-read afterwards: with several workers
-    starting at once, whichever wins os.replace is the key they all use.
+    Generating without persisting would log everyone out on every restart.
+    Gunicorn starts several workers at once. Each one used to write its own
+    key and keep that copy, so a session signed by one worker was rejected by
+    the next and login would not stick. They now take an exclusive lock on the
+    key file: the first writer stores the key, and the others wait and read it.
     """
     env_key = os.environ.get('CR_SECRET_KEY') or os.environ.get('SECRET_KEY')
     if env_key:
         return env_key
 
-    os.makedirs(flask_app.instance_path, exist_ok=True)
-    key_path = os.path.join(flask_app.instance_path, 'secret_key')
     try:
-        with open(key_path, 'r', encoding='utf-8') as fh:
-            existing = fh.read().strip()
-        if existing:
-            return existing
-    except OSError:
-        pass
-
-    generated = secrets.token_hex(32)
-    tmp_path = '{}.{}.tmp'.format(key_path, os.getpid())
-    try:
-        with open(tmp_path, 'w', encoding='utf-8') as fh:
-            fh.write(generated)
-        os.chmod(tmp_path, 0o600)
-        os.replace(tmp_path, key_path)
-        with open(key_path, 'r', encoding='utf-8') as fh:
-            return fh.read().strip() or generated
+        os.makedirs(flask_app.instance_path, exist_ok=True)
+        key_path = os.path.join(flask_app.instance_path, 'secret_key')
+        fd = os.open(key_path, os.O_CREAT | os.O_RDWR, 0o600)
     except OSError:
         # Read-only instance folder: still better than a published constant,
         # at the cost of sessions not surviving a restart.
+        return secrets.token_hex(32)
+
+    try:
         try:
-            os.unlink(tmp_path)
+            os.fchmod(fd, 0o600)
         except OSError:
             pass
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except OSError:
+            pass
+        os.lseek(fd, 0, os.SEEK_SET)
+        existing = os.read(fd, 4096).decode('utf-8', 'replace').strip()
+        if existing:
+            return existing
+        generated = secrets.token_hex(32)
+        os.ftruncate(fd, 0)
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.write(fd, generated.encode('utf-8'))
+        os.fsync(fd)
         return generated
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        except OSError:
+            pass
+        os.close(fd)
 
 
 app.secret_key = _load_secret_key(app)
