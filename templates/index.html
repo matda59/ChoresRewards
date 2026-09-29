@@ -6458,7 +6458,7 @@ function deleteReward(rewardId) {
                                     <span class="chore-title" style="font-size:0.95em;">{{ chore.title }}</span>
                                 </div>
                                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
-                                    <span style="font-size:0.78em; color:#94a3b8;">&#10003; {% if chore.date_completed %}{{ chore.date_completed.strftime("%I:%M %p") }}{% else %}Today{% endif %}</span>
+                                    <span style="display:inline-flex; align-items:center; gap:8px;"><button type="button" class="btn-undo-chore" onclick="undoChoreCompletion({{ chore.id }}, null, null, null)" title="Mark as not done (takes the points back)" aria-label="Undo completion"><i class="fas fa-undo"></i> Undo</button><span style="font-size:0.78em; color:#94a3b8;">&#10003; {% if chore.date_completed %}{{ chore.date_completed.strftime("%I:%M %p") }}{% else %}Today{% endif %}</span></span>
                                     <span class="chore-points-badge" title="Points for this chore">
                                         {% if reward_system == 'cash' %}
                                             <i class="fas fa-money-bill-wave"></i>
