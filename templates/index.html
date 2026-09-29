@@ -3799,6 +3799,13 @@ rewardStyle.innerHTML = `
 `;
 document.head.appendChild(rewardStyle);
 
+function rewardTitleFromCard(rewardElem) {
+    const titled = rewardElem.getAttribute('data-title')
+        || (rewardElem.querySelector('.reward-title-modern') ? rewardElem.querySelector('.reward-title-modern').textContent : '');
+    const name = (titled || '').trim();
+    return name || 'this reward';
+}
+
 // --- Delete Reward Modal ---
 function confirmDeleteReward(rewardId) {
     if (typeof isAdultMode === 'function' && !isAdultMode()) {
@@ -3818,7 +3825,7 @@ function confirmDeleteReward(rewardId) {
         return;
     }
     
-    const rewardTitle = rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : 'this reward';
+    const rewardTitle = rewardTitleFromCard(rewardElem);
     const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
     
     showUnifiedModal({
@@ -7162,7 +7169,7 @@ function updateStreakDisplay(column, streakCount) {
         {% if reward.completed %}
         {% set reward_person = reward.person if reward.person is not none else get_person_by_name(reward.assigned_to) %}
         {% set reward_assignee = reward_person.name if reward_person else reward.assigned_to %}
-        <div class="reward-card" style="opacity:0.7; position:relative;" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward_assignee }}" data-assigned-to-id="{{ reward.assigned_to_id or (reward_person.id if reward_person else '') }}">
+        <div class="reward-card" style="opacity:0.7; position:relative;" data-reward-id="{{ reward.id }}" data-assigned-to="{{ reward_assignee }}" data-assigned-to-id="{{ reward.assigned_to_id or (reward_person.id if reward_person else '') }}" data-title="{{ reward.title | e }}">
             {% if reward.image_url %}
             <div class="reward-image-container">
                 <img src="{{ reward.image_url }}" alt="{{ reward.title }}" class="reward-image">
@@ -9079,7 +9086,7 @@ function confirmDeleteReward(rewardId) {
         });
         return;
     }
-    const rewardTitle = rewardElem.querySelector('.reward-title') ? rewardElem.querySelector('.reward-title').textContent.trim() : 'this reward';
+    const rewardTitle = rewardTitleFromCard(rewardElem);
     const assignedTo = rewardElem.getAttribute('data-assigned-to') || '';
     showUnifiedModal({
         icon: '<i class="fas fa-trash-alt" style="color:#e53935;"></i>',
