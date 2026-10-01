@@ -6437,7 +6437,8 @@ function deleteReward(rewardId) {
                                         {% set due_date = chore.due_datetime.date() %}
                                         {% set is_today = current_date and due_date == current_date %}
                                         {% set is_tomorrow = current_date and due_date == (current_date + timedelta(days=1)) %}
-                                        <span class="chore-tag chore-tag-due"><i class="fas fa-clock"></i> Due {% if is_today %}Today{% elif is_tomorrow %}Tomorrow{% else %}{{ chore.due_datetime.strftime('%a %b %d') }}{% endif %} {{ chore.due_datetime.strftime('%-I:%M%p')|replace(':00','') }}</span>
+                                        {% set is_overdue = chore.id in overdue_chore_ids %}
+                                        <span class="chore-tag {% if is_overdue %}chore-tag-overdue{% else %}chore-tag-due{% endif %}"><i class="fas fa-clock"></i> {% if is_overdue %}Overdue{% else %}Due {% if is_today %}Today{% elif is_tomorrow %}Tomorrow{% else %}{{ chore.due_datetime.strftime('%a %b %d') }}{% endif %}{% endif %} {{ chore.due_datetime.strftime('%-I:%M%p')|replace(':00','') }}</span>
                                     {% endif %}
                                 </div>
                             </div>
@@ -7862,7 +7863,10 @@ function injectNewChoreCard(resp, formData) {
         else if (dueDateOnly.getTime() === tomorrow.getTime()) dateLabel = 'Tomorrow';
         else dateLabel = dueDate.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
         let timeStr = dueDate.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true}).replace(':00 ', ' ');
-        tagsHtml += `<span class="chore-tag chore-tag-due"><i class="fas fa-clock"></i> Due ${dateLabel} ${timeStr}</span>`;
+        const overdue = dueDate.getTime() < Date.now();
+        const dueClass = overdue ? 'chore-tag-overdue' : 'chore-tag-due';
+        const dueLabel = overdue ? 'Overdue' : `Due ${dateLabel}`;
+        tagsHtml += `<span class="chore-tag ${dueClass}"><i class="fas fa-clock"></i> ${dueLabel} ${timeStr}</span>`;
     }
 
     const pointsHtml = isCash

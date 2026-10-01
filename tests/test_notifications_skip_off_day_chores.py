@@ -1,10 +1,10 @@
 """The header bell should not list a repeating chore on a day it does not run."""
 
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from app import app, db
-from models import Chore, Person
+from models import AppSetting, Chore, Person
 
 
 def _alert_titles(payload):
@@ -29,6 +29,7 @@ def test_bell_hides_repeating_chores_that_are_not_on_todays_board():
     }
 
     with app.app_context():
+        AppSetting.set('timezone', 'UTC')
         person = Person(name=f'Bell {suffix}', points=0, bonus_points=0)
         db.session.add(person)
         db.session.flush()
@@ -88,8 +89,9 @@ def test_bell_hides_repeating_chores_that_are_not_on_todays_board():
         assert titles['today'] in titles_shown
         assert titles['soon'] in titles_shown
         today_alert = next(alert for alert in payload['alerts'] if alert.get('title') == titles['today'])
-        assert today_alert['severity'] == 'due_soon'
-        assert 'Due today' in today_alert['detail']
+        past_noon = datetime.now(timezone.utc) > noon.replace(tzinfo=timezone.utc)
+        assert today_alert['severity'] == ('overdue' if past_noon else 'due_soon')
+        assert ('Past due' if past_noon else 'Due today') in today_alert['detail']
     finally:
         with app.app_context():
             for chore_id in created['chores']:

@@ -2423,6 +2423,16 @@ h3 {
     background: rgba(251, 146, 60, 0.12);
 }
 
+.chore-tag-overdue {
+    color: #f87171;
+    background: rgba(239, 68, 68, 0.16);
+}
+
+[data-theme="light"] .chore-tag-overdue {
+    color: #b91c1c;
+    background: rgba(220, 38, 38, 0.12);
+}
+
 .chore-tag-extra {
     color: #fbbf24;
     background: rgba(251, 191, 36, 0.16);
