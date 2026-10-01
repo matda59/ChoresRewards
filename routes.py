@@ -2572,6 +2572,10 @@ def reset_daily_chores():
       - Mark it as not completed (so it reappears), and
       - Update its due_date to today.
     A due time moves forward with that day, keeping the same clock time.
+    It stays put while the chore is still completed. Undo decides whether
+    points were awarded by comparing the completion to due_datetime, so
+    moving that deadline onto a later time makes an unpaid overdue
+    completion look on time and takes points away.
     This ensures daily chores reoccur each day until deleted, and allows skipping a day.
     IMPORTANT: Only resets chores that are daily AND NOT marked as deleted.
     """
@@ -2603,19 +2607,7 @@ def reset_daily_chores():
     for chore in daily_chores:
         # Ensure the due_date is a date object (not datetime)
         chore_date = chore.due_date.date() if isinstance(chore.due_date, datetime) else chore.due_date
-
-        rolled_due = _daily_due_datetime_for_today(chore.due_datetime, today)
-        if rolled_due is not None and rolled_due != chore.due_datetime:
-            chore.due_datetime = rolled_due
-            updated = True
-
-        # Only flag as overdue if the user explicitly set a due_datetime and it has passed.
-        # Do NOT use chore.due_date here — that field is auto-managed by the daily reset
-        # cycle (set to today each run) and has no meaning as a user deadline.
-        # The due time has already been moved onto today, so this is today's deadline.
-        if not chore.completed and chore.due_datetime is not None:
-            if chore.due_datetime < datetime.utcnow():
-                overdue_chores.append(chore)
+        was_incomplete = not chore.completed
 
         if chore_date is None or chore_date < today:
             print(f"[reset_daily_chores] Resetting chore: ID={chore.id}, Title='{chore.title}'")
@@ -2623,6 +2615,24 @@ def reset_daily_chores():
             chore.due_date = today
             updated = True
             reset_count += 1
+
+        # Roll the due time only once this occurrence is open. A chore that is
+        # still completed keeps the deadline it was finished against.
+        if not chore.completed:
+            rolled_due = _daily_due_datetime_for_today(chore.due_datetime, today)
+            if rolled_due is not None and rolled_due != chore.due_datetime:
+                chore.due_datetime = rolled_due
+                updated = True
+
+        # Only flag as overdue if the user explicitly set a due_datetime and it has passed.
+        # Do NOT use chore.due_date here — that field is auto-managed by the daily reset
+        # cycle (set to today each run) and has no meaning as a user deadline.
+        # The due time has already been moved onto today, so this is today's deadline.
+        # Chores brought back from a previous day were already finished then; don't
+        # notify about them just because today's clock time is already past.
+        if was_incomplete and chore.due_datetime is not None:
+            if chore.due_datetime < datetime.utcnow():
+                overdue_chores.append(chore)
 
     # Send Gotify notification for overdue chores if enabled
     if gotify_notify_due_chores_expired and gotify_url and gotify_token and overdue_chores:

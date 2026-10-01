@@ -192,6 +192,56 @@ def test_due_time_rolls_forward_when_the_day_was_already_reset(client):
         assert db.session.get(Person, person_id).points == 5
 
 
+def test_undo_after_reset_does_not_take_points_from_an_unpaid_completion(client):
+    """A finished chore must keep the deadline it was judged against.
+
+    The morning reset used to move due_datetime onto today even when the chore
+    was already completed. Undo decides whether to take points back by comparing
+    the completion to that deadline, so an overdue completion that paid nothing
+    looked on time and the balance dropped.
+    """
+    person_id, name = client.add_person(points=10)
+    clock = _future_clock()
+    today = datetime.now(timezone.utc).date()
+    yesterday = today - timedelta(days=1)
+    chore_id = client.add_chore(
+        person_id,
+        name,
+        is_daily=True,
+        completed=False,
+        due_date=today,
+        due_datetime=datetime.combine(yesterday, clock),
+    )
+
+    complete = client.post('/complete_chore', json={'chore_id': chore_id})
+    assert complete.status_code == 200
+    assert complete.get_json()['overdue'] is True
+    assert complete.get_json()['points_awarded'] == 0
+
+    _run_reset([chore_id])
+
+    with app.app_context():
+        chore = db.session.get(Chore, chore_id)
+        assert chore.completed is True
+        assert chore.due_datetime == datetime.combine(yesterday, clock)
+
+    undo = client.post('/undo_complete_chore', json={'chore_id': chore_id})
+    assert undo.status_code == 200
+    assert undo.get_json()['success'] is True
+    with app.app_context():
+        assert db.session.get(Person, person_id).points == 10
+        assert db.session.get(Chore, chore_id).completed is False
+
+    _run_reset([chore_id])
+    again = client.post('/complete_chore', json={'chore_id': chore_id})
+    body = again.get_json()
+    assert again.status_code == 200
+    assert body['overdue'] is False
+    assert body['points_awarded'] == 5
+    with app.app_context():
+        assert db.session.get(Person, person_id).points == 15
+
+
 def test_one_off_chore_keeps_its_original_deadline(client):
     person_id, name = client.add_person()
     yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
