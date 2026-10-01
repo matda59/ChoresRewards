@@ -3577,6 +3577,28 @@ def activity_log():
     db.session.commit()
 
 
+def _notification_chore_is_open_today(chore, today):
+    """Repeating chores only belong in the bell on a day they actually run.
+
+    The board hides a weekday chore on the weekend, and skipping a chore for
+    today pushes its due date to tomorrow. The due time can still sit on
+    today, which made the bell list those chores as due.
+    """
+    if not chore.is_daily:
+        return True
+    chore_date = chore.due_date
+    if isinstance(chore_date, datetime):
+        chore_date = chore_date.date()
+    if chore_date is not None and chore_date > today:
+        return False
+    raw_days = (chore.days_of_week or '').strip()
+    if not raw_days:
+        return True
+    today_name = today.strftime('%A').lower()
+    scheduled = {part.strip().lower() for part in raw_days.split(',') if part.strip()}
+    return today_name in scheduled
+
+
 @routes_bp.route('/api/notifications', methods=['GET'])
 def api_notifications():
     """Header bell feed: overdue/due-soon alerts plus recent activity."""
@@ -3643,6 +3665,8 @@ def api_notifications():
 
         chores = Chore.query.filter_by(completed=False, deleted=False).all()
         for chore in chores:
+            if not _notification_chore_is_open_today(chore, today):
+                continue
             due = None
             if chore.due_datetime:
                 due = chore.due_datetime.date() if hasattr(chore.due_datetime, 'date') else chore.due_datetime
