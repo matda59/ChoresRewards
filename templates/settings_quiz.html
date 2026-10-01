@@ -538,7 +538,9 @@
     function loadSoundOptions() {
         fetch('/api/sounds').then(r => r.json()).then(data => {
             if (data.success) {
-                soundOptions = (data.sounds || []).map(s => '/static/sounds/' + s);
+                soundOptions = (data.sounds || []).map(s => (
+                    typeof s === 'string' ? '/static/sounds/' + s : s.url
+                ));
                 const dl = document.getElementById('sound-options');
                 dl.innerHTML = soundOptions.map(p => '<option value="' + esc(p) + '">').join('');
             }

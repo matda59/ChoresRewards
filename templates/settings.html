@@ -1041,6 +1041,13 @@
             const soundFileInput = document.getElementById('sound-file-input');
             let currentAudio = null;
 
+            function soundEntry(sound) {
+                if (typeof sound === 'string') {
+                    return { name: sound, url: '/static/sounds/' + sound };
+                }
+                return { name: sound.name, url: sound.url };
+            }
+
             // Fetch and display sounds
             function loadSounds() {
                 if (!audioListContainer) return;
@@ -1068,13 +1075,14 @@
                     audioListContainer.innerHTML = '<p>No sounds found.</p>';
                     return;
                 }
-                sounds.forEach(sound => {
+                sounds.forEach(rawSound => {
+                    const sound = soundEntry(rawSound);
                     const soundItem = document.createElement('div');
                     soundItem.className = 'sound-item';
 
                     const soundName = document.createElement('div');
                     soundName.className = 'sound-name';
-                    soundName.textContent = sound;
+                    soundName.textContent = sound.name;
 
                     const controls = document.createElement('div');
                     controls.className = 'sound-controls';
@@ -1092,7 +1100,7 @@
                                 currentPlayBtn.innerHTML = '<i class="fas fa-play">style="color: grey;"</i>';
                                 currentPlayBtn.title = 'Play';
                             }
-                            if (currentAudio.src.endsWith(sound)) {
+                            if (currentAudio.src.endsWith(sound.url)) {
                                 // Clicking the same play button stops the audio
                                 currentAudio = null;
                                 currentPlayBtn = null;
@@ -1107,7 +1115,7 @@
                                 currentPlayBtn.title = 'Play';
                             }
                         }
-                        currentAudio = new Audio(`/static/sounds/${sound}`);
+                        currentAudio = new Audio(sound.url);
                         currentAudio.play();
                         playBtn.innerHTML = '<i class="fas fa-stop"></i>';
                         playBtn.title = 'Stop';
@@ -1126,8 +1134,8 @@
                     downloadBtn.title = 'Download';
                     downloadBtn.addEventListener('click', () => {
                         const link = document.createElement('a');
-                        link.href = `/static/sounds/${sound}`;
-                        link.download = sound;
+                        link.href = sound.url;
+                        link.download = sound.name;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
@@ -1138,16 +1146,16 @@
                     deleteBtn.innerHTML = '<i class="fas fa-trash-alt" style="color: red;"></i>';
                     deleteBtn.title = 'Delete';
                     deleteBtn.addEventListener('click', () => {
-                        if (confirm(`Are you sure you want to delete "${sound}"?`)) {
+                        if (confirm(`Are you sure you want to delete "${sound.name}"?`)) {
                             fetch('/api/sounds/delete', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ filename: sound })
+                                body: JSON.stringify({ filename: sound.name })
                             })
                             .then(response => response.json())
                             .then(data => {
                                 if (data.success) {
-                                    if (currentAudio && !currentAudio.paused && currentAudio.src.includes(sound)) {
+                                    if (currentAudio && !currentAudio.paused && currentAudio.src.includes(sound.url)) {
                                         currentAudio.pause();
                                         currentAudio = null;
                                     }

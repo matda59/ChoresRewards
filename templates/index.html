@@ -8220,7 +8220,9 @@ function playAchievementSound() {
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.sounds && data.sounds.length > 0) {
-                    const sounds = data.sounds.map(sound => '/static/sounds/' + sound);
+                    const sounds = data.sounds.map(sound => (
+                        typeof sound === 'string' ? '/static/sounds/' + sound : sound.url
+                    )).filter(Boolean);
                     const soundUrl = sounds[Math.floor(Math.random() * sounds.length)];
                     const audio = new Audio(soundUrl);
                     audio.volume = 0.8;

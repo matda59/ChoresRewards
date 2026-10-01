@@ -4306,20 +4306,111 @@ def gcal_sa_delete():
     return jsonify({'success': True})
 
 
-# New API endpoint to list all sound files in static/sounds
+# Sound effects.
+# Built-in clips live in static/sounds and are part of the image, so a rebuild
+# replaces that folder. Uploaded clips live in static/uploads/sounds, which is
+# the Docker volume that also keeps photos. Hiding a built-in clip is recorded
+# in the instance folder so the hide survives a rebuild too.
+SOUND_EXTENSIONS = ('.mp3', '.wav', '.ogg')
+HIDDEN_SOUNDS_FILENAME = 'hidden_sounds.json'
+
+
+def _bundled_sounds_dir():
+    return os.path.join(current_app.root_path, 'static', 'sounds')
+
+
+def _custom_sounds_dir():
+    folder = os.path.join(
+        current_app.root_path,
+        current_app.config.get('UPLOAD_FOLDER', UPLOAD_FOLDER),
+        'sounds',
+    )
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def _hidden_sounds_path():
+    return os.path.join(current_app.instance_path, HIDDEN_SOUNDS_FILENAME)
+
+
+def _load_hidden_sounds():
+    path = _hidden_sounds_path()
+    if not os.path.exists(path):
+        return set()
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = _json.load(f)
+        if isinstance(data, list):
+            return {os.path.basename(str(name)) for name in data if name}
+    except Exception:
+        pass
+    return set()
+
+
+def _save_hidden_sounds(names):
+    path = _hidden_sounds_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        _json.dump(sorted(names), f)
+
+
+def _safe_sound_filename(filename):
+    """Basename only, so a delete request cannot escape the sounds folders."""
+    if not isinstance(filename, str):
+        return None
+    name = os.path.basename(filename.strip().replace('\\', '/'))
+    if not name or name in ('.', '..'):
+        return None
+    if not name.lower().endswith(SOUND_EXTENSIONS):
+        return None
+    return name
+
+
+def _sound_url(folder_url, name):
+    return folder_url + quote(name)
+
+
+def _iter_sound_files(folder):
+    if not os.path.isdir(folder):
+        return []
+    names = []
+    for name in os.listdir(folder):
+        if not name.lower().endswith(SOUND_EXTENSIONS):
+            continue
+        if os.path.isfile(os.path.join(folder, name)):
+            names.append(name)
+    return names
+
+
+def _list_sound_entries():
+    """Bundled clips plus uploads. An upload with the same name wins."""
+    hidden = _load_hidden_sounds()
+    entries = {}
+    for name in _iter_sound_files(_bundled_sounds_dir()):
+        if name in hidden:
+            continue
+        entries[name] = {
+            'name': name,
+            'url': _sound_url('/static/sounds/', name),
+            'custom': False,
+        }
+    for name in _iter_sound_files(_custom_sounds_dir()):
+        entries[name] = {
+            'name': name,
+            'url': _sound_url('/static/uploads/sounds/', name),
+            'custom': True,
+        }
+    return [entries[name] for name in sorted(entries, key=str.lower)]
+
+
 @routes_bp.route('/api/sounds', methods=['GET'])
 def list_sounds():
-    sounds_dir = os.path.join(current_app.root_path, 'static', 'sounds')
     try:
-        files = os.listdir(sounds_dir)
-        # Filter for supported audio files (mp3, wav, ogg)
-        supported_exts = ('.mp3', '.wav', '.ogg')
-        sound_files = [f for f in files if f.lower().endswith(supported_exts)]
-        return jsonify({'success': True, 'sounds': sound_files})
+        return jsonify({'success': True, 'sounds': _list_sound_entries()})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# New API endpoint to upload a sound file to static/sounds
+
 @routes_bp.route('/api/sounds/upload', methods=['POST'])
 def upload_sound():
     if 'sound_file' not in request.files:
@@ -4327,31 +4418,46 @@ def upload_sound():
     file = request.files['sound_file']
     if file.filename == '':
         return jsonify({'success': False, 'error': 'No selected file'}), 400
-    # Validate file extension
-    allowed_exts = ('.mp3', '.wav', '.ogg')
-    if not file.filename.lower().endswith(allowed_exts):
+    if not file.filename.lower().endswith(SOUND_EXTENSIONS):
         return jsonify({'success': False, 'error': 'Unsupported file type'}), 400
-    sounds_dir = os.path.join(current_app.root_path, 'static', 'sounds')
-    os.makedirs(sounds_dir, exist_ok=True)
     filename = secure_filename(file.filename)
-    filepath = os.path.join(sounds_dir, filename)
-    # Save file
+    if not filename or not filename.lower().endswith(SOUND_EXTENSIONS):
+        return jsonify({'success': False, 'error': 'Unsupported file type'}), 400
+    filepath = os.path.join(_custom_sounds_dir(), filename)
     file.save(filepath)
-    return jsonify({'success': True, 'filename': filename})
+    hidden = _load_hidden_sounds()
+    if filename in hidden:
+        hidden.remove(filename)
+        _save_hidden_sounds(hidden)
+    return jsonify({
+        'success': True,
+        'filename': filename,
+        'url': _sound_url('/static/uploads/sounds/', filename),
+    })
 
-# New API endpoint to delete a sound file from static/sounds
+
 @routes_bp.route('/api/sounds/delete', methods=['POST'])
 def delete_sound():
-    data = request.get_json()
-    filename = data.get('filename')
+    data = request.get_json(silent=True) or {}
+    filename = _safe_sound_filename(data.get('filename'))
     if not filename:
         return jsonify({'success': False, 'error': 'Filename required'}), 400
-    sounds_dir = os.path.join(current_app.root_path, 'static', 'sounds')
-    filepath = os.path.join(sounds_dir, filename)
-    if not os.path.exists(filepath):
-        return jsonify({'success': False, 'error': 'File not found'}), 404
     try:
-        os.remove(filepath)
+        removed = False
+        custom_path = os.path.join(_custom_sounds_dir(), filename)
+        if os.path.isfile(custom_path):
+            os.remove(custom_path)
+            removed = True
+        bundled_path = os.path.join(_bundled_sounds_dir(), filename)
+        if os.path.isfile(bundled_path):
+            # Leave the image copy in place. A rebuild would restore a deleted
+            # file, and a bind-mounted source tree would lose a tracked clip.
+            hidden = _load_hidden_sounds()
+            hidden.add(filename)
+            _save_hidden_sounds(hidden)
+            removed = True
+        if not removed:
+            return jsonify({'success': False, 'error': 'File not found'}), 404
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
