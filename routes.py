@@ -253,6 +253,13 @@ def _adult_required():
         return jsonify({'success': False, 'error': 'Adult authorisation required'}), 403
     return None
 
+
+def _adult_page_required():
+    """Redirect when a locked or child session opens an adult page."""
+    if not session.get('adult_mode', False):
+        return redirect(url_for('routes.index'))
+    return None
+
 GOOGLE_CALENDAR_CACHE = {
     'cache_key': None,
     'expires_at': None,
@@ -1097,8 +1104,9 @@ def fetch_google_calendar_events(app_timezone):
 
 @routes_bp.route('/settings/notification', methods=['GET', 'POST'])
 def settings_notification():
-    if not session.get('adult_mode', False) and not session.get('authenticated', False):
-        return redirect(url_for('routes.index'))
+    _page_guard = _adult_page_required()
+    if _page_guard:
+        return _page_guard
     family = Person.query.order_by(Person.id).all()
     gotify_url = AppSetting.get('gotify_url', '')
     gotify_token = AppSetting.get('gotify_token', '')
@@ -1156,16 +1164,18 @@ def settings_notification():
 @routes_bp.route('/settings/audio', methods=['GET'])
 def settings_audio():
     """Render the audio settings page with navigation pane."""
-    if not session.get('adult_mode', False) and not session.get('authenticated', False):
-        return redirect(url_for('routes.index'))
+    _page_guard = _adult_page_required()
+    if _page_guard:
+        return _page_guard
     return render_template('settings_audio.html')
 
 # Quiz Questions Settings Page
 @routes_bp.route('/settings/quiz', methods=['GET', 'POST'])
 def settings_quiz():
     """Render and save the bonus quiz questions from a dedicated settings page."""
-    if not session.get('adult_mode', False) and not session.get('authenticated', False):
-        return redirect(url_for('routes.index'))
+    _page_guard = _adult_page_required()
+    if _page_guard:
+        return _page_guard
     error = None
     success = None
     if request.method == 'POST':
@@ -1194,8 +1204,9 @@ def settings_quiz():
 @routes_bp.route('/settings/extras', methods=['GET', 'POST'])
 def settings_extras():
     """Parent-editable catalog of optional extra chores kids can claim to earn more."""
-    if not session.get('adult_mode', False) and not session.get('authenticated', False):
-        return redirect(url_for('routes.index'))
+    _page_guard = _adult_page_required()
+    if _page_guard:
+        return _page_guard
     error = None
     success = None
     if request.method == 'POST':
@@ -1415,8 +1426,9 @@ def _screensaver_photo_urls(photos):
 @routes_bp.route('/settings/screensaver', methods=['GET', 'POST'])
 def settings_screensaver():
     """Render and save the screensaver / photo slideshow settings."""
-    if not session.get('adult_mode', False) and not session.get('authenticated', False):
-        return redirect(url_for('routes.index'))
+    _page_guard = _adult_page_required()
+    if _page_guard:
+        return _page_guard
     error = None
     success = None
     if request.method == 'POST':
@@ -4085,8 +4097,9 @@ def profile(person_id):
 
 @routes_bp.route('/settings', methods=['GET', 'POST'])
 def settings():
-    if not session.get('adult_mode', False) and not session.get('authenticated', False):
-        return redirect(url_for('routes.index'))
+    _page_guard = _adult_page_required()
+    if _page_guard:
+        return _page_guard
     import bcrypt
     from models import Person  # AppSetting already imported at top
     error = None
@@ -4373,8 +4386,9 @@ def settings():
 
 @routes_bp.route('/settings/gcal-service-account/upload', methods=['POST'])
 def gcal_sa_upload():
-    if not session.get('authenticated', False):
-        return jsonify({'success': False, 'error': 'Not authenticated'}), 403
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     if not is_google_calendar_feature_enabled():
         return jsonify({'success': False, 'error': 'Feature not enabled'}), 403
     if 'gcal_sa_file' not in request.files:
@@ -4401,8 +4415,9 @@ def gcal_sa_upload():
 
 @routes_bp.route('/settings/gcal-service-account/delete', methods=['POST'])
 def gcal_sa_delete():
-    if not session.get('authenticated', False):
-        return jsonify({'success': False, 'error': 'Not authenticated'}), 403
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     if not is_google_calendar_feature_enabled():
         return jsonify({'success': False, 'error': 'Feature not enabled'}), 403
     sa_path = os.path.join(current_app.instance_path, 'gcal_service_account.json')
@@ -4428,6 +4443,9 @@ def list_sounds():
 # New API endpoint to upload a sound file to static/sounds
 @routes_bp.route('/api/sounds/upload', methods=['POST'])
 def upload_sound():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     if 'sound_file' not in request.files:
         return jsonify({'success': False, 'error': 'No file part'}), 400
     file = request.files['sound_file']
@@ -4448,13 +4466,22 @@ def upload_sound():
 # New API endpoint to delete a sound file from static/sounds
 @routes_bp.route('/api/sounds/delete', methods=['POST'])
 def delete_sound():
-    data = request.get_json()
-    filename = data.get('filename')
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    data = request.get_json(silent=True) or {}
+    filename = secure_filename(str(data.get('filename') or ''))
     if not filename:
         return jsonify({'success': False, 'error': 'Filename required'}), 400
-    sounds_dir = os.path.join(current_app.root_path, 'static', 'sounds')
-    filepath = os.path.join(sounds_dir, filename)
-    if not os.path.exists(filepath):
+    sounds_dir = os.path.realpath(os.path.join(current_app.root_path, 'static', 'sounds'))
+    filepath = os.path.realpath(os.path.join(sounds_dir, filename))
+    try:
+        inside = os.path.commonpath([sounds_dir, filepath]) == sounds_dir
+    except ValueError:
+        inside = False
+    # An absolute path, or any ".." segments, used to make os.path.join drop
+    # the sounds directory and delete that path instead — including the database.
+    if not inside or not os.path.isfile(filepath):
         return jsonify({'success': False, 'error': 'File not found'}), 404
     try:
         os.remove(filepath)
@@ -4464,6 +4491,9 @@ def delete_sound():
 
 @routes_bp.route('/add_daily_chore', methods=['POST'])
 def add_daily_chore():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         if request.is_json:
             data = request.get_json()
@@ -4522,6 +4552,9 @@ def add_daily_chore():
 # --- EDIT DAILY CHORE ROUTE ---
 @routes_bp.route('/edit_daily_chore', methods=['POST'])
 def edit_daily_chore():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         if not request.is_json:
             return jsonify({'success': False, 'error': 'JSON required'}), 400
@@ -4564,6 +4597,9 @@ def delete_daily_chore():
     Delete a daily chore permanently by marking it as deleted.
     This is a specialized endpoint for daily chores only.
     """
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         # Get request data
         data = request.get_json()
