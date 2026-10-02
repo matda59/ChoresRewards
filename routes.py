@@ -426,7 +426,7 @@ MEAL_WEEKDAY_KEYS = ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'sa
 
 
 def _get_week_start(target_date=None):
-    target = target_date or date.today()
+    target = target_date or _family_today()
     return target - timedelta(days=target.weekday())
 
 
@@ -1480,7 +1480,7 @@ def api_screensaver_config():
 @routes_bp.route('/api/screensaver/chore_summary', methods=['GET'])
 def api_screensaver_chore_summary():
     """Per-person remaining-chore breakdown plus the next few upcoming calendar events, for the screensaver overlay."""
-    today = date.today()
+    today = _family_today()
     family = Person.query.order_by(Person.order, Person.id).all()
     chores_today = Chore.query.filter(
         Chore.deleted == False,
@@ -1630,7 +1630,7 @@ def completed_chores_fragment():
     # You may need to adjust how you get the current user/family context
     # For now, assume all completed chores for today
     from datetime import datetime
-    today = datetime.now().date()
+    today = _family_today()
     # If you have user/family context, filter by that as well
     completed_chores = Chore.query.filter(
         Chore.completed == True,
@@ -2579,7 +2579,7 @@ def reset_daily_chores():
     This ensures daily chores reoccur each day until deleted, and allows skipping a day.
     IMPORTANT: Only resets chores that are daily AND NOT marked as deleted.
     """
-    today = date.today()
+    today = _family_today()
     print(f"[reset_daily_chores] Running daily chore reset for {today}")
 
     # Only select chores that are:
@@ -2702,19 +2702,20 @@ def index():
     if Person.query.count() == 0:
         return redirect(url_for('routes.setup_wizard'))
     # Only run the expensive reset (with Gotify HTTP calls) once per day
-    _today_str = str(date.today())
+    family_today = _family_today()
+    _today_str = str(family_today)
     if AppSetting.get('last_daily_reset', '') != _today_str:
         reset_daily_chores()
         AppSetting.set('last_daily_reset', _today_str)
     chores = Chore.query.filter(
         Chore.deleted == False,
-        ((Chore.is_daily == False) | (Chore.due_date <= date.today()))
+        ((Chore.is_daily == False) | (Chore.due_date <= family_today))
     ).order_by(Chore.due_date).all()
     rewards = Reward.query.all()
     family = Person.query.all()
 
     from sqlalchemy import func as _func
-    _week_start = date.today() - timedelta(days=date.today().weekday())
+    _week_start = family_today - timedelta(days=family_today.weekday())
     _weekly = db.session.query(
         Chore.assigned_to,
         _func.count(Chore.id)
@@ -2862,7 +2863,7 @@ def index():
         notes_columns=notes_columns,
         notes_notes=notes_notes,
         timedelta=timedelta,
-        current_date=date.today(),
+        current_date=family_today,
         timezone=timezone,
         google_calendar_feature_enabled=google_calendar_feature_enabled,
         google_calendar_enabled=google_calendar_enabled,
@@ -3132,6 +3133,31 @@ def _app_timezone():
         return ZoneInfo('UTC')
 
 
+def _configured_timezone():
+    """Zone chosen in Settings, or None when that setting was never saved.
+
+    An unset setting keeps the container clock, so a Docker ``TZ=`` still
+    defines the day for installs that have not picked a timezone. Once one is
+    saved, that zone is the day boundary: the settings page says it controls
+    when chores reset, and due times are already read as wall time in that zone.
+    """
+    stored = (AppSetting.get('timezone') or '').strip()
+    if not stored:
+        return None
+    try:
+        return ZoneInfo(stored)
+    except Exception:
+        return None
+
+
+def _family_today():
+    """Calendar day the family is on, for reset, the board, and deadlines."""
+    tz = _configured_timezone()
+    if tz is None:
+        return date.today()
+    return datetime.now(timezone.utc).astimezone(tz).date()
+
+
 def _chore_is_overdue(chore, when_utc):
     """Return True when `when_utc` is after the chore's deadline.
 
@@ -3140,10 +3166,10 @@ def _chore_is_overdue(chore, when_utc):
     instants. Comparing a naive deadline to an aware clock raises TypeError
     and rolls back the completion.
 
-    A date-only deadline is the calendar day `date.today()` stored, so it
-    follows the container timezone. Comparing it to the UTC date treats the
-    chore as overdue on the evening it is due wherever local time is behind
-    UTC, and the completion then saves with no points.
+    A date-only deadline is a calendar day on the family's clock. Comparing
+    it to the container date marks the chore overdue on the evening it is
+    still due wherever the container is ahead of that clock, and the
+    completion then saves with no points.
     """
     if when_utc.tzinfo is None:
         when_utc = when_utc.replace(tzinfo=timezone.utc)
@@ -3157,7 +3183,9 @@ def _chore_is_overdue(chore, when_utc):
         return when_utc > due.astimezone(timezone.utc)
 
     if chore.due_date:
-        return when_utc.astimezone().date() > chore.due_date
+        tz = _configured_timezone()
+        local_day = when_utc.astimezone(tz).date() if tz is not None else when_utc.astimezone().date()
+        return local_day > chore.due_date
 
     return False
 
@@ -3626,7 +3654,7 @@ def api_notifications():
     """Header bell feed: overdue/due-soon alerts plus recent activity."""
     from models import OrganiseItem, VehicleService, Chore, ActivityLog
 
-    today = date.today()
+    today = _family_today()
     alerts = []
 
     def _days_label(days):
@@ -3969,7 +3997,7 @@ def add_chore():
             is_daily=is_daily,
             completed=False,
             date_completed=None,
-            due_date=due_datetime.date() if due_datetime else (date.today() if is_daily else None),
+            due_date=due_datetime.date() if due_datetime else (_family_today() if is_daily else None),
             due_datetime=due_datetime,
             days_of_week=days_of_week_str,
             icon=icon
@@ -4519,8 +4547,8 @@ def add_daily_chore():
                 'success': False,
                 'error': "Title and Assigned To are required fields."
             }), 400
-        # Default to today's date for daily chores
-        due_date = date.today()
+        # Default to the family's today for daily chores
+        due_date = _family_today()
         # Look up the person by name to get their ID
         person = Person.query.filter_by(name=assigned_to).first()
         assigned_to_id = person.id if person else None
@@ -4711,7 +4739,7 @@ def delete_chore():
                 )
                 message = f"Daily chore '{chore_title}' has been permanently deleted"
             else:
-                chore.due_date = date.today() + timedelta(days=1)
+                chore.due_date = _family_today() + timedelta(days=1)
                 db.session.commit()
                 log_activity(
                     'daily_chore_skipped',
