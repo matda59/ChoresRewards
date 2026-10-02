@@ -845,7 +845,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 <i class="fas fa-chevron-down quick-add-chevron"></i>
             </button>
             <div class="header-quick-add-menu" id="header-quick-add-menu">
-                <button type="button" class="header-quick-add-item" onclick="quickNavAction('chore')">
+                <button type="button" class="header-quick-add-item admin-only" data-display="flex" onclick="quickNavAction('chore')">
                     <i class="fas fa-tasks" style="color:#e100ff;"></i>
                     <span>Add Chore</span>
                 </button>
@@ -857,11 +857,11 @@ window.addEventListener('DOMContentLoaded', function() {
                     <i class="fas fa-sticky-note" style="color:#fbbf24;"></i>
                     <span>New Note</span>
                 </button>
-                <button type="button" class="header-quick-add-item admin-only" onclick="quickNavAction('organise')">
+                <button type="button" class="header-quick-add-item admin-only" data-display="flex" onclick="quickNavAction('organise')">
                     <i class="fas fa-folder-open" style="color:#38bdf8;"></i>
                     <span>Add Organise</span>
                 </button>
-                <button type="button" class="header-quick-add-item admin-only" onclick="quickNavAction('reward')">
+                <button type="button" class="header-quick-add-item admin-only" data-display="flex" onclick="quickNavAction('reward')">
                     <i class="fas fa-gift" style="color:#a78bfa;"></i>
                     <span>Create Reward</span>
                 </button>
@@ -9478,7 +9478,7 @@ function quickNavAction(type) {
     if (type === 'chore') {
         goToSection('add-chores-section');
         setTimeout(() => {
-            const input = document.getElementById('title') || document.querySelector('#add-chores-section input[type="text"]');
+            const input = document.getElementById('chore-title-input');
             if (input) input.focus();
         }, 300);
     } else if (type === 'shopping') {
