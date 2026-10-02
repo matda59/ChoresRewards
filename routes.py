@@ -2710,6 +2710,7 @@ def index():
         Chore.deleted == False,
         ((Chore.is_daily == False) | (Chore.due_date <= date.today()))
     ).order_by(Chore.due_date).all()
+    overdue_chore_ids = _timed_overdue_chore_ids(chores)
     rewards = Reward.query.all()
     family = Person.query.all()
 
@@ -2879,6 +2880,7 @@ def index():
         person_earned_keys=person_earned_keys,
         person_total_completed=person_total_completed,
         extra_chores=_get_extra_chores(),
+        overdue_chore_ids=overdue_chore_ids,
     ))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     resp.headers['Pragma'] = 'no-cache'
@@ -3130,6 +3132,19 @@ def _app_timezone():
         return ZoneInfo(tz_name)
     except Exception:
         return ZoneInfo('UTC')
+
+
+def _timed_overdue_chore_ids(chores):
+    """Ids of open chores whose due time has already passed.
+
+    `index` reuses the name `timezone` for the settings string, so this stays
+    outside that function.
+    """
+    now_utc = datetime.now(timezone.utc)
+    return {
+        c.id for c in chores
+        if c.due_datetime and not c.completed and _chore_is_overdue(c, now_utc)
+    }
 
 
 def _chore_is_overdue(chore, when_utc):
@@ -3699,13 +3714,21 @@ def api_notifications():
             days = (due - today).days
             if days > 7:
                 continue
+            # A due time is the deadline that stops points. The calendar day
+            # can still be today after that time, which left the bell saying
+            # "Due soon" for a chore that is already overdue.
+            past_time = (
+                days >= 0
+                and chore.due_datetime is not None
+                and _chore_is_overdue(chore, datetime.now(timezone.utc))
+            )
             who = chore.assigned_to or 'Unassigned'
             alerts.append({
                 'id': f'chore-{chore.id}',
                 'kind': 'chore',
-                'severity': 'overdue' if days < 0 else 'due_soon',
+                'severity': 'overdue' if days < 0 or past_time else 'due_soon',
                 'title': chore.title,
-                'detail': f"{who} · {_days_label(days)}",
+                'detail': f"{who} · {'Past due' if past_time else _days_label(days)}",
                 'due_date': due.isoformat(),
                 'days': days,
                 'target': 'kanban',
