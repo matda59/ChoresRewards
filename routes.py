@@ -5372,6 +5372,11 @@ def complete_reward():
         if not reward:
             return jsonify({'success': False, 'error': 'Reward not found'}), 404
 
+        # The celebration keeps the card on screen for a few seconds and does
+        # not reload immediately. A second tap used to charge the cost again.
+        if reward.completed:
+            return jsonify({'success': False, 'error': 'This reward was already redeemed'}), 409
+
         # Try multiple approaches to find the person
         person = None
 
@@ -5398,9 +5403,18 @@ def complete_reward():
         if available_points < required_points:
             return jsonify({'success': False, 'error': f'Not enough points to complete this reward. {person.name} has {person.points} points but needs {reward.points_required}'}), 400
 
+        # Claim the reward before taking points. Overlapping taps both pass
+        # the check above; only the update that still sees it as open proceeds.
+        claimed = Reward.query.filter(
+            Reward.id == reward.id,
+            Reward.completed.is_(False),
+        ).update({Reward.completed: True}, synchronize_session='fetch')
+        if not claimed:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': 'This reward was already redeemed'}), 409
+
         # Update the reward and person
         person.points = _round_points(person.points - reward.points_required)
-        reward.completed = True
         # Apply timezone to reward completion
         from zoneinfo import ZoneInfo
         tz_name = AppSetting.get('timezone', 'UTC')
