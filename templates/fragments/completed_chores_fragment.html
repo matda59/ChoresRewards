@@ -10,7 +10,7 @@
             <span class="chore-points-badge" title="Points for this chore">
                 {% if reward_system == 'cash' %}
                     <i class="fas fa-money-bill-wave"></i>
-                    <span class="chore-points-value">${{ chore.points }}</span>
+                    <span class="chore-points-value">${{ '%.2f' % chore.points }}</span>
                 {% else %}
                     <i class="fas fa-award"></i>
                     <span class="chore-points-value">{{ chore.points }}</span>
