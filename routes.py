@@ -4739,7 +4739,15 @@ def delete_chore():
                 )
                 message = f"Daily chore '{chore_title}' has been permanently deleted"
             else:
+                # Hide it for the rest of today. Tomorrow's board includes a
+                # daily chore whose due date is that day.
                 chore.due_date = _family_today() + timedelta(days=1)
+                # The morning reset only reopens a repeating chore once its
+                # due date is already past. A finished chore left completed
+                # would stay hidden tomorrow as well. Reopen it without
+                # taking back the points already awarded for today.
+                if chore.completed:
+                    chore.completed = False
                 db.session.commit()
                 log_activity(
                     'daily_chore_skipped',
