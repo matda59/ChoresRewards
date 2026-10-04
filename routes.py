@@ -414,6 +414,17 @@ def _layout_day_events(events):
     return sorted_events
 
 
+def _form_flag_is_true(value):
+    """Interpret a JSON or form boolean. Missing values are not true."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in ('on', 'true', '1', 'yes')
+    return False
+
+
 def _round_points(value):
     try:
         return float(Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
@@ -1733,17 +1744,34 @@ def edit_chore():
         icon = data.get('icon', None)
         if icon is not None:
             chore.icon = icon if icon else None
-        # Normalize days_of_week to lowercase and trimmed before saving
-        if days_of_week:
-            days_of_week = [d.strip().lower() for d in days_of_week]
-            chore.days_of_week = ','.join(days_of_week)
+        # The add form treats a repeating chore with no days as every day.
+        # An empty list used to force is_daily off, so editing the title or
+        # points of that chore turned it into a one-off and the morning reset
+        # never brought it back.
+        if isinstance(days_of_week, str):
+            days_of_week = [days_of_week]
+        cleaned_days = []
+        if isinstance(days_of_week, list):
+            for day in days_of_week:
+                text = str(day).strip().lower()
+                if text:
+                    cleaned_days.append(text)
+        if cleaned_days:
+            chore.days_of_week = ','.join(cleaned_days)
             chore.is_daily = True
         else:
             chore.days_of_week = None
-            chore.is_daily = False
+            if 'is_daily' in data:
+                chore.is_daily = _form_flag_is_true(data.get('is_daily'))
+            else:
+                chore.is_daily = False
         db.session.commit()
         log_activity('chore_edited', f"Chore '{title}' was edited for {assigned_to}", user_name=assigned_to)
-        return jsonify({'success': True})
+        return jsonify({
+            'success': True,
+            'is_daily': bool(chore.is_daily),
+            'days_of_week': chore.days_of_week or '',
+        })
     except Exception as e:
         db.session.rollback()
         log_activity('system_error', f"Error editing chore: {str(e)}")
