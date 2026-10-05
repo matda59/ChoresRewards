@@ -2704,7 +2704,7 @@ window.addEventListener('DOMContentLoaded', function() {
                         {% if reward_system == 'cash' %}
                         <span class="reward-points-badge">
                             <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
-                            <span class="reward-points-value">${{ reward.points_required }}</span>
+                            <span class="reward-points-value">${{ '%.2f' % reward.points_required }}</span>
                         </span>
                         {% else %}
                         <span class="reward-points-badge">
@@ -2734,8 +2734,13 @@ window.addEventListener('DOMContentLoaded', function() {
                         {% endif %}
                     </div>
                     <span class="reward-points-badge">
+                        {% if reward_system == 'cash' %}
+                        <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
+                        <span class="reward-points-value">${{ '%.2f' % reward.points_required }}</span>
+                        {% else %}
                         <i class="fas fa-award"></i>
                         <span class="reward-points-value">{{ reward.points_required }}</span>
+                        {% endif %}
                     </span>
                     <button class="edit-image-btn admin-only" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;padding:8px;cursor:pointer;z-index:2;" onclick="openEditRewardModal(this.closest('.reward-card'))" title="Edit reward">
                         <i class="fas fa-pencil-alt" style="color:#fff;font-size:1.2em;"></i>
@@ -2748,7 +2753,7 @@ window.addEventListener('DOMContentLoaded', function() {
                     <div class="reward-points-badge" style="display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">
                         {% if reward_system == 'cash' %}
                             <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
-                            <span class="reward-points-value">${{ reward.points_required }}</span>
+                            <span class="reward-points-value">${{ '%.2f' % reward.points_required }}</span>
                         {% else %}
                             <i class="fas fa-award" style="color:#fbbf24;"></i>
                             <span class="reward-points-value">{{ reward.points_required }}</span>
@@ -6419,7 +6424,7 @@ function deleteReward(rewardId) {
                             <span class="chore-points-badge" style="position:absolute;top:6px;left:6px;margin-left:0;" title="Points for this chore">
                                 {% if reward_system == 'cash' %}
                                     <i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i>
-                                    <span class="chore-points-value">${{ chore.points }}</span>
+                                    <span class="chore-points-value">${{ '%.2f' % chore.points }}</span>
                                 {% else %}
                                     <i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i>
                                     <span class="chore-points-value">{{ chore.points }}</span>
@@ -6513,7 +6518,7 @@ function deleteReward(rewardId) {
                                     <span class="chore-points-badge" title="Points for this chore">
                                         {% if reward_system == 'cash' %}
                                             <i class="fas fa-money-bill-wave"></i>
-                                            <span class="chore-points-value">${{ chore.points }}</span>
+                                            <span class="chore-points-value">${{ '%.2f' % chore.points }}</span>
                                         {% else %}
                                             <i class="fas fa-award"></i>
                                             <span class="chore-points-value">{{ chore.points }}</span>
@@ -7219,8 +7224,13 @@ function updateStreakDisplay(column, streakCount) {
                 <img src="{{ reward.image_url }}" alt="{{ reward.title }}" class="reward-image">
                 <div class="reward-overlay">
                     <span class="reward-points-badge">
+                        {% if reward_system == 'cash' %}
+                        <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
+                        <span class="reward-points-value">${{ '%.2f' % reward.points_required }}</span>
+                        {% else %}
                         <i class="fas fa-award"></i>
                         <span class="reward-points-value">{{ reward.points_required }}</span>
+                        {% endif %}
                     </span>
                 </div>
             </div>
@@ -7244,16 +7254,26 @@ function updateStreakDisplay(column, streakCount) {
                     {% endif %}
                 </div>
                 <span class="reward-points-badge">
+                    {% if reward_system == 'cash' %}
+                    <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
+                    <span class="reward-points-value">${{ '%.2f' % reward.points_required }}</span>
+                    {% else %}
                     <i class="fas fa-award"></i>
                     <span class="reward-points-value">{{ reward.points_required }}</span>
+                    {% endif %}
                 </span>
             </div>
             {% endif %}
             <div class="reward-content">
                 <h3 class="reward-title-modern">{{ reward.title }}</h3>
                 <div class="reward-points-badge" style="display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">
+                    {% if reward_system == 'cash' %}
+                    <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
+                    <span class="reward-points-value">${{ '%.2f' % reward.points_required }}</span>
+                    {% else %}
                     <i class="fas fa-award" style="color:#fbbf24;"></i>
                     <span class="reward-points-value">{{ reward.points_required }}</span>
+                    {% endif %}
                 </div>
                 {% if reward.description %}
                 <p class="reward-description">{{ reward.description }}</p>
@@ -7882,9 +7902,10 @@ function injectNewChoreCard(resp, formData) {
         tagsHtml += `<span class="chore-tag chore-tag-due"><i class="fas fa-clock"></i> Due ${dateLabel} ${timeStr}</span>`;
     }
 
+    const pointsLabel = Number.isFinite(points) ? (isCash ? points.toFixed(2) : String(points)) : (isCash ? '0.00' : '0');
     const pointsHtml = isCash
-        ? `<i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i><span class="chore-points-value">$${points}</span>`
-        : `<i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i><span class="chore-points-value">${points}</span>`;
+        ? `<i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i><span class="chore-points-value">$${pointsLabel}</span>`
+        : `<i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i><span class="chore-points-value">${pointsLabel}</span>`;
 
     const cardHtml = `<div class="chore${formData.is_extra ? ' chore-extra' : ''}" data-chore-id="${resp.chore_id}"${formData.extra_id ? ` data-extra-id="${formData.extra_id}"` : ''} style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px; padding-top:40px;">
         <button class="btn-delete-chore-sm" onclick="confirmDeleteChore(${resp.chore_id}, ${isDaily})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
