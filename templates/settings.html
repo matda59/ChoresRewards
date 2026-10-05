@@ -579,7 +579,7 @@
                     <div class="table-container">
                         <div class="chores-card-list" id="all-chores-tbody">
                             {% for chore in all_chores if not chore.completed or chore.is_daily %}
-                            <div class="chore-card" id="chore-row-{{ chore.id }}" data-chore-icon="{{ chore.icon or '' }}" data-days="{{ chore.days_of_week or '' }}">
+                            <div class="chore-card" id="chore-row-{{ chore.id }}" data-chore-icon="{{ chore.icon or '' }}" data-days="{{ chore.days_of_week or '' }}" data-daily="{{ 'true' if chore.is_daily else 'false' }}">
                                 <div class="chore-card-main">
                                     <div class="chore-card-title-area">
                                         <span class="chore-title">{{ chore.title }}</span>
@@ -1332,6 +1332,10 @@
                     <button type="button" class="chore-emoji-opt" data-emoji="🧼">🧼</button>
                     </div>
                 </div>
+                <label style="margin-top:8px; display:flex; align-items:center; gap:8px; color:#fff; font-weight:600;">
+                    <input type="checkbox" id="edit-chore-repeating"> Repeats
+                </label>
+                <span style="color:#aaa; font-size:0.95em; margin-left:2px;">Turn this off for a one-off chore. Leave the days unticked to repeat every day.</span>
                 <label style="margin-top:8px; display:block; color:#fff; font-weight:600;">Specific Day(s) of the Week:</label>
                 <div id="editChoreDaysOfWeek" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 8px;">
                     {% for day in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
@@ -1340,7 +1344,6 @@
                     </label>
                     {% endfor %}
                 </div>
-                <span style="color:#aaa; font-size:0.95em; margin-left:2px;">(Select one or more days, or leave blank for non-repeating chores)</span>
                 <div style="text-align: right;">
                     <button type="button" id="cancelEditChoreBtn" style="background: rgba(136, 136, 136, 0.1); color: #fff; border: none; padding: 8px 12px; border-radius: 12px; cursor: pointer; margin-right: 10px;">Cancel</button>
                     <button type="submit" class="save-btn" style="background: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 12px; cursor: pointer;">Save</button>
@@ -1391,6 +1394,8 @@
                 option.selected = (option.value === assignedTo);
             }
             editChorePointsInput.value = points;
+            const repeatingInput = document.getElementById('edit-chore-repeating');
+            if (repeatingInput) repeatingInput.checked = row.dataset.daily === 'true';
             // Set days of week checkboxes
             document.querySelectorAll('.edit-chore-day-checkbox').forEach(cb => {
                 cb.checked = daysOfWeek.includes(cb.value.toLowerCase());
@@ -1455,8 +1460,12 @@
                 return;
             }
 
-            // Gather days of week from checkboxes
-            const daysOfWeek = Array.from(document.querySelectorAll('.edit-chore-day-checkbox:checked')).map(cb => cb.value);
+            // Repeating with no days means every day, matching the add-chore form.
+            // Turning Repeats off is what makes the chore a one-off.
+            const repeats = document.getElementById('edit-chore-repeating')?.checked === true;
+            const daysOfWeek = repeats
+                ? Array.from(document.querySelectorAll('.edit-chore-day-checkbox:checked')).map(cb => cb.value)
+                : [];
             const icon = document.getElementById('editChoreIcon')?.value ?? '';
             const data = {
                 chore_id: choreId,
@@ -1464,6 +1473,7 @@
                 assigned_to: assignedTo,
                 points: points,
                 days_of_week: daysOfWeek,
+                is_daily: repeats,
                 icon: icon
             };
 
@@ -1487,13 +1497,23 @@
                         row.querySelector('.chore-assigned-to').textContent = assignedTo;
                         row.querySelector('.chore-points').textContent = points;
                         row.dataset.choreIcon = icon;
-                        const normalisedDays = daysOfWeek.map(d => d.trim().toLowerCase());
+                        const stillDaily = result.is_daily !== undefined ? !!result.is_daily : repeats;
+                        row.dataset.daily = stillDaily ? 'true' : 'false';
+                        const normalisedDays = (result.days_of_week || '').split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
                         row.dataset.days = normalisedDays.join(',');
                         const daysChip = row.querySelector('.chore-days');
                         if (daysChip) {
                             daysChip.textContent = normalisedDays.length
                                 ? normalisedDays.map(d => DAY_ABBREVIATIONS[d] || d).join(', ')
-                                : '-';
+                                : (stillDaily ? 'Daily' : '-');
+                        }
+                        const typeChip = row.querySelector('.chip-daily, .chip-oneoff');
+                        if (typeChip) {
+                            typeChip.classList.toggle('chip-daily', stillDaily);
+                            typeChip.classList.toggle('chip-oneoff', !stillDaily);
+                            typeChip.innerHTML = stillDaily
+                                ? '<i class="fas fa-sync-alt" style="font-size:0.7em;"></i>&nbsp;Daily'
+                                : '<i class="fas fa-bolt" style="font-size:0.7em;"></i>&nbsp;One-off';
                         }
                     }
                     editChoreModal.style.display = 'none';
