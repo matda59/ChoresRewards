@@ -2739,6 +2739,7 @@ def index():
         Chore.deleted == False,
         ((Chore.is_daily == False) | (Chore.due_date <= family_today))
     ).order_by(Chore.due_date).all()
+    overdue_chore_ids = _timed_overdue_chore_ids(chores)
     rewards = Reward.query.all()
     family = Person.query.all()
 
@@ -2908,6 +2909,7 @@ def index():
         person_earned_keys=person_earned_keys,
         person_total_completed=person_total_completed,
         extra_chores=_get_extra_chores(),
+        overdue_chore_ids=overdue_chore_ids,
     ))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     resp.headers['Pragma'] = 'no-cache'
@@ -3755,13 +3757,21 @@ def api_notifications():
             days = (due - today).days
             if days > 7:
                 continue
+            # A due time is the deadline that stops points. The calendar day
+            # can still be today after that time, which left the bell saying
+            # "Due soon" for a chore that is already overdue.
+            past_time = (
+                days >= 0
+                and chore.due_datetime is not None
+                and _chore_is_overdue(chore, datetime.now(timezone.utc))
+            )
             who = chore.assigned_to or 'Unassigned'
             alerts.append({
                 'id': f'chore-{chore.id}',
                 'kind': 'chore',
-                'severity': 'overdue' if days < 0 else 'due_soon',
+                'severity': 'overdue' if days < 0 or past_time else 'due_soon',
                 'title': chore.title,
-                'detail': f"{who} · {_days_label(days)}",
+                'detail': f"{who} · {'Past due' if past_time else _days_label(days)}",
                 'due_date': due.isoformat(),
                 'days': days,
                 'target': 'kanban',
