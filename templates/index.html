@@ -2704,7 +2704,7 @@ window.addEventListener('DOMContentLoaded', function() {
                         {% if reward_system == 'cash' %}
                         <span class="reward-points-badge">
                             <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
-                            <span class="reward-points-value">${{ reward.points_required }}</span>
+                            <span class="reward-points-value">${{ '%.2f' % reward.points_required }}</span>
                         </span>
                         {% else %}
                         <span class="reward-points-badge">
@@ -2734,8 +2734,13 @@ window.addEventListener('DOMContentLoaded', function() {
                         {% endif %}
                     </div>
                     <span class="reward-points-badge">
+                        {% if reward_system == 'cash' %}
+                        <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
+                        <span class="reward-points-value">${{ '%.2f' % reward.points_required }}</span>
+                        {% else %}
                         <i class="fas fa-award"></i>
                         <span class="reward-points-value">{{ reward.points_required }}</span>
+                        {% endif %}
                     </span>
                     <button class="edit-image-btn admin-only" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;padding:8px;cursor:pointer;z-index:2;" onclick="openEditRewardModal(this.closest('.reward-card'))" title="Edit reward">
                         <i class="fas fa-pencil-alt" style="color:#fff;font-size:1.2em;"></i>
@@ -2748,7 +2753,7 @@ window.addEventListener('DOMContentLoaded', function() {
                     <div class="reward-points-badge" style="display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">
                         {% if reward_system == 'cash' %}
                             <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
-                            <span class="reward-points-value">${{ reward.points_required }}</span>
+                            <span class="reward-points-value">${{ '%.2f' % reward.points_required }}</span>
                         {% else %}
                             <i class="fas fa-award" style="color:#fbbf24;"></i>
                             <span class="reward-points-value">{{ reward.points_required }}</span>
@@ -3430,27 +3435,44 @@ window.addEventListener('DOMContentLoaded', function() {
 <script>
 // --- Clear All Completed Chores ---
 function clearAllCompletedChores(btn) {
-    console.log('Clear All button clicked');
-    if (!confirm('Are you sure you want to delete all completed chores for this person?')) return;
-    // Find the parent completed-chores-list
+    const adult = (typeof isAdultMode === 'function' && isAdultMode())
+        || document.documentElement.classList.contains('adult-mode');
+    if (!adult) {
+        if (typeof showToast === 'function') showToast('Ask an adult to unlock first 🔒', 'warning');
+        return;
+    }
+    if (!confirm("Clear today's completed chores for this person? Repeating chores come back tomorrow. One-off chores are removed.")) return;
     const completedList = btn.closest('.completed-chores-list');
-    if (!completedList) { console.log('No completed-chores-list found'); return; }
-    // Get all completed chore elements
-    const choreDivs = completedList.querySelectorAll('.chore.completed');
-    const ids = Array.from(choreDivs).map(div => div.getAttribute('data-chore-id'));
-    if (ids.length === 0) { alert('No completed chores to clear.'); return; }
-    // For each, send a delete request
-    let deleted = 0;
-    ids.forEach((id, idx) => {
+    if (!completedList) return;
+    const chores = Array.from(completedList.querySelectorAll('.chore.completed')).map(div => ({
+        id: div.getAttribute('data-chore-id'),
+        isDaily: div.getAttribute('data-is-daily') === 'true',
+    })).filter(chore => chore.id);
+    if (chores.length === 0) { alert('No completed chores to clear.'); return; }
+    let finished = 0;
+    let failed = false;
+    chores.forEach(chore => {
         fetch("{{ url_for('routes.delete_chore') }}", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chore_id: id, permanent: true })
+            // permanent deletes the row. A repeating chore should only leave
+            // today's list, then show up again tomorrow.
+            body: JSON.stringify({ chore_id: chore.id, permanent: !chore.isDaily })
         })
-        .then(res => res.json())
-        .then(data => {
-            deleted++;
-            if (deleted === ids.length) window.location.reload();
+        .then(res => res.json().then(data => ({ ok: res.ok, data })).catch(() => ({ ok: false, data: {} })))
+        .then(({ ok, data }) => {
+            if (!ok || !data.success) failed = true;
+        })
+        .catch(() => { failed = true; })
+        .finally(() => {
+            finished++;
+            if (finished !== chores.length) return;
+            if (failed) {
+                if (window.showToast) showToast('Could not clear every completed chore', 'error');
+                else alert('Could not clear every completed chore');
+                return;
+            }
+            window.location.reload();
         });
     });
 }
@@ -6402,7 +6424,7 @@ function deleteReward(rewardId) {
                             <span class="chore-points-badge" style="position:absolute;top:6px;left:6px;margin-left:0;" title="Points for this chore">
                                 {% if reward_system == 'cash' %}
                                     <i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i>
-                                    <span class="chore-points-value">${{ chore.points }}</span>
+                                    <span class="chore-points-value">${{ '%.2f' % chore.points }}</span>
                                 {% else %}
                                     <i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i>
                                     <span class="chore-points-value">{{ chore.points }}</span>
@@ -6482,11 +6504,11 @@ function deleteReward(rewardId) {
                     <div class="chores-list completed-chores-list" style="display: none;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <h4 class="chores-completed-header" style="color: var(--text-color); margin-top: 0;">Completed Chores:</h4>
-                            <button class="clear-all-completed-btn" style="background:#f44336; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:0.95em; cursor:pointer; margin-bottom:6px;" onclick="clearAllCompletedChores(this)"><i class='fas fa-trash'></i> Clear All</button>
+                            <button type="button" class="clear-all-completed-btn admin-only" style="background:#f44336; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:0.95em; cursor:pointer; margin-bottom:6px;" onclick="clearAllCompletedChores(this)"><i class='fas fa-trash'></i> Clear All</button>
                         </div>
-                        <div class="clear-all-hint" style="font-size:0.95em;color:var(--cr-text-secondary);margin-bottom:6px;">(all completed chores today)</div>
+                        <div class="clear-all-hint admin-only" style="font-size:0.95em;color:var(--cr-text-secondary);margin-bottom:6px;">(clears this list for today)</div>
                         {% for chore in completed_chores %}
-                            <div class="chore completed" data-chore-id="{{ chore.id }}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04); opacity:0.72; padding-right:34px;">
+                            <div class="chore completed" data-chore-id="{{ chore.id }}" data-is-daily="{{ chore.is_daily|tojson }}" style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04); opacity:0.72; padding-right:34px;">
                                 <button class="btn-delete-chore-sm" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
                                 <div class="chore-header">
                                     <span class="chore-icon"><i class="fas fa-check-circle" style="color:#10b981;"></i></span>
@@ -6497,7 +6519,7 @@ function deleteReward(rewardId) {
                                     <span class="chore-points-badge" title="Points for this chore">
                                         {% if reward_system == 'cash' %}
                                             <i class="fas fa-money-bill-wave"></i>
-                                            <span class="chore-points-value">${{ chore.points }}</span>
+                                            <span class="chore-points-value">${{ '%.2f' % chore.points }}</span>
                                         {% else %}
                                             <i class="fas fa-award"></i>
                                             <span class="chore-points-value">{{ chore.points }}</span>
@@ -7203,8 +7225,13 @@ function updateStreakDisplay(column, streakCount) {
                 <img src="{{ reward.image_url }}" alt="{{ reward.title }}" class="reward-image">
                 <div class="reward-overlay">
                     <span class="reward-points-badge">
+                        {% if reward_system == 'cash' %}
+                        <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
+                        <span class="reward-points-value">${{ '%.2f' % reward.points_required }}</span>
+                        {% else %}
                         <i class="fas fa-award"></i>
                         <span class="reward-points-value">{{ reward.points_required }}</span>
+                        {% endif %}
                     </span>
                 </div>
             </div>
@@ -7228,16 +7255,26 @@ function updateStreakDisplay(column, streakCount) {
                     {% endif %}
                 </div>
                 <span class="reward-points-badge">
+                    {% if reward_system == 'cash' %}
+                    <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
+                    <span class="reward-points-value">${{ '%.2f' % reward.points_required }}</span>
+                    {% else %}
                     <i class="fas fa-award"></i>
                     <span class="reward-points-value">{{ reward.points_required }}</span>
+                    {% endif %}
                 </span>
             </div>
             {% endif %}
             <div class="reward-content">
                 <h3 class="reward-title-modern">{{ reward.title }}</h3>
                 <div class="reward-points-badge" style="display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">
+                    {% if reward_system == 'cash' %}
+                    <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i>
+                    <span class="reward-points-value">${{ '%.2f' % reward.points_required }}</span>
+                    {% else %}
                     <i class="fas fa-award" style="color:#fbbf24;"></i>
                     <span class="reward-points-value">{{ reward.points_required }}</span>
+                    {% endif %}
                 </div>
                 {% if reward.description %}
                 <p class="reward-description">{{ reward.description }}</p>
@@ -7869,9 +7906,10 @@ function injectNewChoreCard(resp, formData) {
         tagsHtml += `<span class="chore-tag ${dueClass}"><i class="fas fa-clock"></i> ${dueLabel} ${timeStr}</span>`;
     }
 
+    const pointsLabel = Number.isFinite(points) ? (isCash ? points.toFixed(2) : String(points)) : (isCash ? '0.00' : '0');
     const pointsHtml = isCash
-        ? `<i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i><span class="chore-points-value">$${points}</span>`
-        : `<i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i><span class="chore-points-value">${points}</span>`;
+        ? `<i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i><span class="chore-points-value">$${pointsLabel}</span>`
+        : `<i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i><span class="chore-points-value">${pointsLabel}</span>`;
 
     const cardHtml = `<div class="chore${formData.is_extra ? ' chore-extra' : ''}" data-chore-id="${resp.chore_id}"${formData.extra_id ? ` data-extra-id="${formData.extra_id}"` : ''} style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px; padding-top:40px;">
         <button class="btn-delete-chore-sm" onclick="confirmDeleteChore(${resp.chore_id}, ${isDaily})" aria-label="Delete chore"><i class="fas fa-times"></i></button>

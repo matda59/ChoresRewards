@@ -414,6 +414,17 @@ def _layout_day_events(events):
     return sorted_events
 
 
+def _form_flag_is_true(value):
+    """Interpret a JSON or form boolean. Missing values are not true."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in ('on', 'true', '1', 'yes')
+    return False
+
+
 def _round_points(value):
     try:
         return float(Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
@@ -426,7 +437,7 @@ MEAL_WEEKDAY_KEYS = ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'sa
 
 
 def _get_week_start(target_date=None):
-    target = target_date or date.today()
+    target = target_date or _family_today()
     return target - timedelta(days=target.weekday())
 
 
@@ -1480,7 +1491,7 @@ def api_screensaver_config():
 @routes_bp.route('/api/screensaver/chore_summary', methods=['GET'])
 def api_screensaver_chore_summary():
     """Per-person remaining-chore breakdown plus the next few upcoming calendar events, for the screensaver overlay."""
-    today = date.today()
+    today = _family_today()
     family = Person.query.order_by(Person.order, Person.id).all()
     chores_today = Chore.query.filter(
         Chore.deleted == False,
@@ -1630,7 +1641,7 @@ def completed_chores_fragment():
     # You may need to adjust how you get the current user/family context
     # For now, assume all completed chores for today
     from datetime import datetime
-    today = datetime.now().date()
+    today = _family_today()
     # If you have user/family context, filter by that as well
     completed_chores = Chore.query.filter(
         Chore.completed == True,
@@ -1733,17 +1744,34 @@ def edit_chore():
         icon = data.get('icon', None)
         if icon is not None:
             chore.icon = icon if icon else None
-        # Normalize days_of_week to lowercase and trimmed before saving
-        if days_of_week:
-            days_of_week = [d.strip().lower() for d in days_of_week]
-            chore.days_of_week = ','.join(days_of_week)
+        # The add form treats a repeating chore with no days as every day.
+        # An empty list used to force is_daily off, so editing the title or
+        # points of that chore turned it into a one-off and the morning reset
+        # never brought it back.
+        if isinstance(days_of_week, str):
+            days_of_week = [days_of_week]
+        cleaned_days = []
+        if isinstance(days_of_week, list):
+            for day in days_of_week:
+                text = str(day).strip().lower()
+                if text:
+                    cleaned_days.append(text)
+        if cleaned_days:
+            chore.days_of_week = ','.join(cleaned_days)
             chore.is_daily = True
         else:
             chore.days_of_week = None
-            chore.is_daily = False
+            if 'is_daily' in data:
+                chore.is_daily = _form_flag_is_true(data.get('is_daily'))
+            else:
+                chore.is_daily = False
         db.session.commit()
         log_activity('chore_edited', f"Chore '{title}' was edited for {assigned_to}", user_name=assigned_to)
-        return jsonify({'success': True})
+        return jsonify({
+            'success': True,
+            'is_daily': bool(chore.is_daily),
+            'days_of_week': chore.days_of_week or '',
+        })
     except Exception as e:
         db.session.rollback()
         log_activity('system_error', f"Error editing chore: {str(e)}")
@@ -2579,7 +2607,7 @@ def reset_daily_chores():
     This ensures daily chores reoccur each day until deleted, and allows skipping a day.
     IMPORTANT: Only resets chores that are daily AND NOT marked as deleted.
     """
-    today = date.today()
+    today = _family_today()
     print(f"[reset_daily_chores] Running daily chore reset for {today}")
 
     # Only select chores that are:
@@ -2702,20 +2730,21 @@ def index():
     if Person.query.count() == 0:
         return redirect(url_for('routes.setup_wizard'))
     # Only run the expensive reset (with Gotify HTTP calls) once per day
-    _today_str = str(date.today())
+    family_today = _family_today()
+    _today_str = str(family_today)
     if AppSetting.get('last_daily_reset', '') != _today_str:
         reset_daily_chores()
         AppSetting.set('last_daily_reset', _today_str)
     chores = Chore.query.filter(
         Chore.deleted == False,
-        ((Chore.is_daily == False) | (Chore.due_date <= date.today()))
+        ((Chore.is_daily == False) | (Chore.due_date <= family_today))
     ).order_by(Chore.due_date).all()
     overdue_chore_ids = _timed_overdue_chore_ids(chores)
     rewards = Reward.query.all()
     family = Person.query.all()
 
     from sqlalchemy import func as _func
-    _week_start = date.today() - timedelta(days=date.today().weekday())
+    _week_start = family_today - timedelta(days=family_today.weekday())
     _weekly = db.session.query(
         Chore.assigned_to,
         _func.count(Chore.id)
@@ -2863,7 +2892,7 @@ def index():
         notes_columns=notes_columns,
         notes_notes=notes_notes,
         timedelta=timedelta,
-        current_date=date.today(),
+        current_date=family_today,
         timezone=timezone,
         google_calendar_feature_enabled=google_calendar_feature_enabled,
         google_calendar_enabled=google_calendar_enabled,
@@ -3134,17 +3163,29 @@ def _app_timezone():
         return ZoneInfo('UTC')
 
 
-def _timed_overdue_chore_ids(chores):
-    """Ids of open chores whose due time has already passed.
+def _configured_timezone():
+    """Zone chosen in Settings, or None when that setting was never saved.
 
-    `index` reuses the name `timezone` for the settings string, so this stays
-    outside that function.
+    An unset setting keeps the container clock, so a Docker ``TZ=`` still
+    defines the day for installs that have not picked a timezone. Once one is
+    saved, that zone is the day boundary: the settings page says it controls
+    when chores reset, and due times are already read as wall time in that zone.
     """
-    now_utc = datetime.now(timezone.utc)
-    return {
-        c.id for c in chores
-        if c.due_datetime and not c.completed and _chore_is_overdue(c, now_utc)
-    }
+    stored = (AppSetting.get('timezone') or '').strip()
+    if not stored:
+        return None
+    try:
+        return ZoneInfo(stored)
+    except Exception:
+        return None
+
+
+def _family_today():
+    """Calendar day the family is on, for reset, the board, and deadlines."""
+    tz = _configured_timezone()
+    if tz is None:
+        return date.today()
+    return datetime.now(timezone.utc).astimezone(tz).date()
 
 
 def _chore_is_overdue(chore, when_utc):
@@ -3155,10 +3196,10 @@ def _chore_is_overdue(chore, when_utc):
     instants. Comparing a naive deadline to an aware clock raises TypeError
     and rolls back the completion.
 
-    A date-only deadline is the calendar day `date.today()` stored, so it
-    follows the container timezone. Comparing it to the UTC date treats the
-    chore as overdue on the evening it is due wherever local time is behind
-    UTC, and the completion then saves with no points.
+    A date-only deadline is a calendar day on the family's clock. Comparing
+    it to the container date marks the chore overdue on the evening it is
+    still due wherever the container is ahead of that clock, and the
+    completion then saves with no points.
     """
     if when_utc.tzinfo is None:
         when_utc = when_utc.replace(tzinfo=timezone.utc)
@@ -3172,7 +3213,9 @@ def _chore_is_overdue(chore, when_utc):
         return when_utc > due.astimezone(timezone.utc)
 
     if chore.due_date:
-        return when_utc.astimezone().date() > chore.due_date
+        tz = _configured_timezone()
+        local_day = when_utc.astimezone(tz).date() if tz is not None else when_utc.astimezone().date()
+        return local_day > chore.due_date
 
     return False
 
@@ -3641,7 +3684,7 @@ def api_notifications():
     """Header bell feed: overdue/due-soon alerts plus recent activity."""
     from models import OrganiseItem, VehicleService, Chore, ActivityLog
 
-    today = date.today()
+    today = _family_today()
     alerts = []
 
     def _days_label(days):
@@ -3992,7 +4035,7 @@ def add_chore():
             is_daily=is_daily,
             completed=False,
             date_completed=None,
-            due_date=due_datetime.date() if due_datetime else (date.today() if is_daily else None),
+            due_date=due_datetime.date() if due_datetime else (_family_today() if is_daily else None),
             due_datetime=due_datetime,
             days_of_week=days_of_week_str,
             icon=icon
@@ -4542,8 +4585,8 @@ def add_daily_chore():
                 'success': False,
                 'error': "Title and Assigned To are required fields."
             }), 400
-        # Default to today's date for daily chores
-        due_date = date.today()
+        # Default to the family's today for daily chores
+        due_date = _family_today()
         # Look up the person by name to get their ID
         person = Person.query.filter_by(name=assigned_to).first()
         assigned_to_id = person.id if person else None
@@ -4734,7 +4777,15 @@ def delete_chore():
                 )
                 message = f"Daily chore '{chore_title}' has been permanently deleted"
             else:
-                chore.due_date = date.today() + timedelta(days=1)
+                # Hide it for the rest of today. Tomorrow's board includes a
+                # daily chore whose due date is that day.
+                chore.due_date = _family_today() + timedelta(days=1)
+                # The morning reset only reopens a repeating chore once its
+                # due date is already past. A finished chore left completed
+                # would stay hidden tomorrow as well. Reopen it without
+                # taking back the points already awarded for today.
+                if chore.completed:
+                    chore.completed = False
                 db.session.commit()
                 log_activity(
                     'daily_chore_skipped',
@@ -5367,6 +5418,11 @@ def complete_reward():
         if not reward:
             return jsonify({'success': False, 'error': 'Reward not found'}), 404
 
+        # The celebration keeps the card on screen for a few seconds and does
+        # not reload immediately. A second tap used to charge the cost again.
+        if reward.completed:
+            return jsonify({'success': False, 'error': 'This reward was already redeemed'}), 409
+
         # Try multiple approaches to find the person
         person = None
 
@@ -5393,9 +5449,18 @@ def complete_reward():
         if available_points < required_points:
             return jsonify({'success': False, 'error': f'Not enough points to complete this reward. {person.name} has {person.points} points but needs {reward.points_required}'}), 400
 
+        # Claim the reward before taking points. Overlapping taps both pass
+        # the check above; only the update that still sees it as open proceeds.
+        claimed = Reward.query.filter(
+            Reward.id == reward.id,
+            Reward.completed.is_(False),
+        ).update({Reward.completed: True}, synchronize_session='fetch')
+        if not claimed:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': 'This reward was already redeemed'}), 409
+
         # Update the reward and person
         person.points = _round_points(person.points - reward.points_required)
-        reward.completed = True
         # Apply timezone to reward completion
         from zoneinfo import ZoneInfo
         tz_name = AppSetting.get('timezone', 'UTC')
