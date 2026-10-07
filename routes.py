@@ -253,6 +253,13 @@ def _adult_required():
         return jsonify({'success': False, 'error': 'Adult authorisation required'}), 403
     return None
 
+
+def _adult_page_required():
+    """Redirect when a locked or child session opens an adult page."""
+    if not session.get('adult_mode', False):
+        return redirect(url_for('routes.index'))
+    return None
+
 GOOGLE_CALENDAR_CACHE = {
     'cache_key': None,
     'expires_at': None,
@@ -407,6 +414,17 @@ def _layout_day_events(events):
     return sorted_events
 
 
+def _form_flag_is_true(value):
+    """Interpret a JSON or form boolean. Missing values are not true."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in ('on', 'true', '1', 'yes')
+    return False
+
+
 def _round_points(value):
     try:
         return float(Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
@@ -419,7 +437,7 @@ MEAL_WEEKDAY_KEYS = ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'sa
 
 
 def _get_week_start(target_date=None):
-    target = target_date or date.today()
+    target = target_date or _family_today()
     return target - timedelta(days=target.weekday())
 
 
@@ -523,9 +541,61 @@ def _merge_meal_plan_with_recurring(raw_plan, recurring_plan, week_start):
                 merged[day_key][meal_type] = recurring_value[:120]
 
         for meal_type, value in overrides.get(day_key, {}).items():
-            merged[day_key][meal_type] = value
+            # A saved blank is not a plan. The planner used to store one for
+            # every untouched slot, and that blank then hid the weekly meal.
+            if str(value or '').strip():
+                merged[day_key][meal_type] = value
 
     return merged
+
+
+def _meal_overrides_to_store(plan_for_week, recurring_plan, week_start):
+    """Persist only this week's one-off meals.
+
+    Blank slots and slots that match the weekly repeat are left out, so the
+    repeat keeps showing and can still be renamed later.
+    """
+    stored = {}
+    for offset in range(7):
+        current_day = week_start + timedelta(days=offset)
+        day_key = current_day.isoformat()
+        weekday_key = MEAL_WEEKDAY_KEYS[current_day.weekday()]
+        source = plan_for_week.get(day_key, {})
+        if not isinstance(source, dict):
+            continue
+        day_out = {}
+        recurring_day = recurring_plan.get(weekday_key, {}) if isinstance(recurring_plan, dict) else {}
+        for meal_type in MEAL_TYPES:
+            value = str(source.get(meal_type, '') or '').strip()[:120]
+            recurring_entry = recurring_day.get(meal_type, {}) if isinstance(recurring_day, dict) else {}
+            recurring_value = ''
+            if isinstance(recurring_entry, dict) and recurring_entry.get('enabled'):
+                recurring_value = str(recurring_entry.get('value', '') or '').strip()
+            if value and value != recurring_value:
+                day_out[meal_type] = value
+        if day_out:
+            stored[day_key] = day_out
+    return stored
+
+
+def _drop_blank_stored_meals(stored_plan):
+    """Remove empty meal strings left by older saves."""
+    if not isinstance(stored_plan, dict):
+        return {}
+    cleaned_plan = {}
+    for day_key, meals in stored_plan.items():
+        if not isinstance(meals, dict):
+            continue
+        cleaned_day = {}
+        for meal_type, value in meals.items():
+            if meal_type not in MEAL_TYPES:
+                continue
+            text = str(value or '').strip()[:120]
+            if text:
+                cleaned_day[meal_type] = text
+        if cleaned_day:
+            cleaned_plan[day_key] = cleaned_day
+    return cleaned_plan
 
 
 def _get_meal_planner_data(week_start):
@@ -1045,8 +1115,9 @@ def fetch_google_calendar_events(app_timezone):
 
 @routes_bp.route('/settings/notification', methods=['GET', 'POST'])
 def settings_notification():
-    if not session.get('adult_mode', False) and not session.get('authenticated', False):
-        return redirect(url_for('routes.index'))
+    _page_guard = _adult_page_required()
+    if _page_guard:
+        return _page_guard
     family = Person.query.order_by(Person.id).all()
     gotify_url = AppSetting.get('gotify_url', '')
     gotify_token = AppSetting.get('gotify_token', '')
@@ -1104,16 +1175,18 @@ def settings_notification():
 @routes_bp.route('/settings/audio', methods=['GET'])
 def settings_audio():
     """Render the audio settings page with navigation pane."""
-    if not session.get('adult_mode', False) and not session.get('authenticated', False):
-        return redirect(url_for('routes.index'))
+    _page_guard = _adult_page_required()
+    if _page_guard:
+        return _page_guard
     return render_template('settings_audio.html')
 
 # Quiz Questions Settings Page
 @routes_bp.route('/settings/quiz', methods=['GET', 'POST'])
 def settings_quiz():
     """Render and save the bonus quiz questions from a dedicated settings page."""
-    if not session.get('adult_mode', False) and not session.get('authenticated', False):
-        return redirect(url_for('routes.index'))
+    _page_guard = _adult_page_required()
+    if _page_guard:
+        return _page_guard
     error = None
     success = None
     if request.method == 'POST':
@@ -1142,8 +1215,9 @@ def settings_quiz():
 @routes_bp.route('/settings/extras', methods=['GET', 'POST'])
 def settings_extras():
     """Parent-editable catalog of optional extra chores kids can claim to earn more."""
-    if not session.get('adult_mode', False) and not session.get('authenticated', False):
-        return redirect(url_for('routes.index'))
+    _page_guard = _adult_page_required()
+    if _page_guard:
+        return _page_guard
     error = None
     success = None
     if request.method == 'POST':
@@ -1363,8 +1437,9 @@ def _screensaver_photo_urls(photos):
 @routes_bp.route('/settings/screensaver', methods=['GET', 'POST'])
 def settings_screensaver():
     """Render and save the screensaver / photo slideshow settings."""
-    if not session.get('adult_mode', False) and not session.get('authenticated', False):
-        return redirect(url_for('routes.index'))
+    _page_guard = _adult_page_required()
+    if _page_guard:
+        return _page_guard
     error = None
     success = None
     if request.method == 'POST':
@@ -1416,7 +1491,7 @@ def api_screensaver_config():
 @routes_bp.route('/api/screensaver/chore_summary', methods=['GET'])
 def api_screensaver_chore_summary():
     """Per-person remaining-chore breakdown plus the next few upcoming calendar events, for the screensaver overlay."""
-    today = date.today()
+    today = _family_today()
     family = Person.query.order_by(Person.order, Person.id).all()
     chores_today = Chore.query.filter(
         Chore.deleted == False,
@@ -1566,7 +1641,7 @@ def completed_chores_fragment():
     # You may need to adjust how you get the current user/family context
     # For now, assume all completed chores for today
     from datetime import datetime
-    today = datetime.now().date()
+    today = _family_today()
     # If you have user/family context, filter by that as well
     completed_chores = Chore.query.filter(
         Chore.completed == True,
@@ -1669,17 +1744,34 @@ def edit_chore():
         icon = data.get('icon', None)
         if icon is not None:
             chore.icon = icon if icon else None
-        # Normalize days_of_week to lowercase and trimmed before saving
-        if days_of_week:
-            days_of_week = [d.strip().lower() for d in days_of_week]
-            chore.days_of_week = ','.join(days_of_week)
+        # The add form treats a repeating chore with no days as every day.
+        # An empty list used to force is_daily off, so editing the title or
+        # points of that chore turned it into a one-off and the morning reset
+        # never brought it back.
+        if isinstance(days_of_week, str):
+            days_of_week = [days_of_week]
+        cleaned_days = []
+        if isinstance(days_of_week, list):
+            for day in days_of_week:
+                text = str(day).strip().lower()
+                if text:
+                    cleaned_days.append(text)
+        if cleaned_days:
+            chore.days_of_week = ','.join(cleaned_days)
             chore.is_daily = True
         else:
             chore.days_of_week = None
-            chore.is_daily = False
+            if 'is_daily' in data:
+                chore.is_daily = _form_flag_is_true(data.get('is_daily'))
+            else:
+                chore.is_daily = False
         db.session.commit()
         log_activity('chore_edited', f"Chore '{title}' was edited for {assigned_to}", user_name=assigned_to)
-        return jsonify({'success': True})
+        return jsonify({
+            'success': True,
+            'is_daily': bool(chore.is_daily),
+            'days_of_week': chore.days_of_week or '',
+        })
     except Exception as e:
         db.session.rollback()
         log_activity('system_error', f"Error editing chore: {str(e)}")
@@ -1899,9 +1991,12 @@ def api_meal_planner():
         if not isinstance(full_stored_plan, dict):
             full_stored_plan = {}
         week_data = _normalize_meal_plan(input_plan, week_start)
-        full_stored_plan.update(week_data)
-
         normalized_recurring = _normalize_meal_recurring(input_recurring)
+        for offset in range(7):
+            full_stored_plan.pop((week_start + timedelta(days=offset)).isoformat(), None)
+        full_stored_plan.update(_meal_overrides_to_store(week_data, normalized_recurring, week_start))
+        full_stored_plan = _drop_blank_stored_meals(full_stored_plan)
+
         AppSetting.set('meal_planner_plan_json', _json.dumps(full_stored_plan))
         AppSetting.set('meal_planner_recurring_json', _json.dumps(normalized_recurring))
         log_activity('settings_updated', 'Meal planner was updated')
@@ -2484,15 +2579,35 @@ def get_person_by_name(name):
     return Person.query.filter_by(name=name).first()
 
 
+def _daily_due_datetime_for_today(due_datetime, today):
+    """Move a repeating chore's due time onto ``today``, keeping the clock time.
+
+    ``due_date`` is only the day the chore next appears. The points deadline is
+    ``due_datetime``. Leaving that timestamp on the day the chore was created
+    makes every later completion overdue, so a daily chore with a due time
+    stops paying out after the first deadline.
+    """
+    if due_datetime is None:
+        return None
+    if due_datetime.date() >= today:
+        return due_datetime
+    return due_datetime.replace(year=today.year, month=today.month, day=today.day)
+
+
 def reset_daily_chores():
     """
     For each daily chore, if its due_date is before today then:
       - Mark it as not completed (so it reappears), and
       - Update its due_date to today.
+    A due time moves forward with that day, keeping the same clock time.
+    It stays put while the chore is still completed. Undo decides whether
+    points were awarded by comparing the completion to due_datetime, so
+    moving that deadline onto a later time makes an unpaid overdue
+    completion look on time and takes points away.
     This ensures daily chores reoccur each day until deleted, and allows skipping a day.
     IMPORTANT: Only resets chores that are daily AND NOT marked as deleted.
     """
-    today = date.today()
+    today = _family_today()
     print(f"[reset_daily_chores] Running daily chore reset for {today}")
 
     # Only select chores that are:
@@ -2520,13 +2635,7 @@ def reset_daily_chores():
     for chore in daily_chores:
         # Ensure the due_date is a date object (not datetime)
         chore_date = chore.due_date.date() if isinstance(chore.due_date, datetime) else chore.due_date
-
-        # Only flag as overdue if the user explicitly set a due_datetime and it has passed.
-        # Do NOT use chore.due_date here — that field is auto-managed by the daily reset
-        # cycle (set to today each run) and has no meaning as a user deadline.
-        if not chore.completed and chore.due_datetime is not None:
-            if chore.due_datetime < datetime.utcnow():
-                overdue_chores.append(chore)
+        was_incomplete = not chore.completed
 
         if chore_date is None or chore_date < today:
             print(f"[reset_daily_chores] Resetting chore: ID={chore.id}, Title='{chore.title}'")
@@ -2534,6 +2643,24 @@ def reset_daily_chores():
             chore.due_date = today
             updated = True
             reset_count += 1
+
+        # Roll the due time only once this occurrence is open. A chore that is
+        # still completed keeps the deadline it was finished against.
+        if not chore.completed:
+            rolled_due = _daily_due_datetime_for_today(chore.due_datetime, today)
+            if rolled_due is not None and rolled_due != chore.due_datetime:
+                chore.due_datetime = rolled_due
+                updated = True
+
+        # Only flag as overdue if the user explicitly set a due_datetime and it has passed.
+        # Do NOT use chore.due_date here — that field is auto-managed by the daily reset
+        # cycle (set to today each run) and has no meaning as a user deadline.
+        # The due time has already been moved onto today, so this is today's deadline.
+        # Chores brought back from a previous day were already finished then; don't
+        # notify about them just because today's clock time is already past.
+        if was_incomplete and chore.due_datetime is not None:
+            if chore.due_datetime < datetime.utcnow():
+                overdue_chores.append(chore)
 
     # Send Gotify notification for overdue chores if enabled
     if gotify_notify_due_chores_expired and gotify_url and gotify_token and overdue_chores:
@@ -2603,19 +2730,21 @@ def index():
     if Person.query.count() == 0:
         return redirect(url_for('routes.setup_wizard'))
     # Only run the expensive reset (with Gotify HTTP calls) once per day
-    _today_str = str(date.today())
+    family_today = _family_today()
+    _today_str = str(family_today)
     if AppSetting.get('last_daily_reset', '') != _today_str:
         reset_daily_chores()
         AppSetting.set('last_daily_reset', _today_str)
     chores = Chore.query.filter(
         Chore.deleted == False,
-        ((Chore.is_daily == False) | (Chore.due_date <= date.today()))
+        ((Chore.is_daily == False) | (Chore.due_date <= family_today))
     ).order_by(Chore.due_date).all()
+    overdue_chore_ids = _timed_overdue_chore_ids(chores)
     rewards = Reward.query.all()
     family = Person.query.all()
 
     from sqlalchemy import func as _func
-    _week_start = date.today() - timedelta(days=date.today().weekday())
+    _week_start = family_today - timedelta(days=family_today.weekday())
     _weekly = db.session.query(
         Chore.assigned_to,
         _func.count(Chore.id)
@@ -2763,7 +2892,7 @@ def index():
         notes_columns=notes_columns,
         notes_notes=notes_notes,
         timedelta=timedelta,
-        current_date=date.today(),
+        current_date=family_today,
         timezone=timezone,
         google_calendar_feature_enabled=google_calendar_feature_enabled,
         google_calendar_enabled=google_calendar_enabled,
@@ -2780,6 +2909,7 @@ def index():
         person_earned_keys=person_earned_keys,
         person_total_completed=person_total_completed,
         extra_chores=_get_extra_chores(),
+        overdue_chore_ids=overdue_chore_ids,
     ))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     resp.headers['Pragma'] = 'no-cache'
@@ -3033,6 +3163,44 @@ def _app_timezone():
         return ZoneInfo('UTC')
 
 
+def _configured_timezone():
+    """Zone chosen in Settings, or None when that setting was never saved.
+
+    An unset setting keeps the container clock, so a Docker ``TZ=`` still
+    defines the day for installs that have not picked a timezone. Once one is
+    saved, that zone is the day boundary: the settings page says it controls
+    when chores reset, and due times are already read as wall time in that zone.
+    """
+    stored = (AppSetting.get('timezone') or '').strip()
+    if not stored:
+        return None
+    try:
+        return ZoneInfo(stored)
+    except Exception:
+        return None
+
+
+def _family_today():
+    """Calendar day the family is on, for reset, the board, and deadlines."""
+    tz = _configured_timezone()
+    if tz is None:
+        return date.today()
+    return datetime.now(timezone.utc).astimezone(tz).date()
+
+
+def _timed_overdue_chore_ids(chores):
+    """Ids of open chores whose due time has already passed.
+
+    `index` reuses the name `timezone` for the settings string, so this stays
+    outside that function.
+    """
+    now_utc = datetime.now(timezone.utc)
+    return {
+        c.id for c in chores
+        if c.due_datetime and not c.completed and _chore_is_overdue(c, now_utc)
+    }
+
+
 def _chore_is_overdue(chore, when_utc):
     """Return True when `when_utc` is after the chore's deadline.
 
@@ -3040,6 +3208,11 @@ def _chore_is_overdue(chore, when_utc):
     how `date_completed` is stored. Both sides are compared as aware UTC
     instants. Comparing a naive deadline to an aware clock raises TypeError
     and rolls back the completion.
+
+    A date-only deadline is a calendar day on the family's clock. Comparing
+    it to the container date marks the chore overdue on the evening it is
+    still due wherever the container is ahead of that clock, and the
+    completion then saves with no points.
     """
     if when_utc.tzinfo is None:
         when_utc = when_utc.replace(tzinfo=timezone.utc)
@@ -3053,7 +3226,9 @@ def _chore_is_overdue(chore, when_utc):
         return when_utc > due.astimezone(timezone.utc)
 
     if chore.due_date:
-        return when_utc.date() > chore.due_date
+        tz = _configured_timezone()
+        local_day = when_utc.astimezone(tz).date() if tz is not None else when_utc.astimezone().date()
+        return local_day > chore.due_date
 
     return False
 
@@ -3495,12 +3670,34 @@ def activity_log():
     db.session.commit()
 
 
+def _notification_chore_is_open_today(chore, today):
+    """Repeating chores only belong in the bell on a day they actually run.
+
+    The board hides a weekday chore on the weekend, and skipping a chore for
+    today pushes its due date to tomorrow. The due time can still sit on
+    today, which made the bell list those chores as due.
+    """
+    if not chore.is_daily:
+        return True
+    chore_date = chore.due_date
+    if isinstance(chore_date, datetime):
+        chore_date = chore_date.date()
+    if chore_date is not None and chore_date > today:
+        return False
+    raw_days = (chore.days_of_week or '').strip()
+    if not raw_days:
+        return True
+    today_name = today.strftime('%A').lower()
+    scheduled = {part.strip().lower() for part in raw_days.split(',') if part.strip()}
+    return today_name in scheduled
+
+
 @routes_bp.route('/api/notifications', methods=['GET'])
 def api_notifications():
     """Header bell feed: overdue/due-soon alerts plus recent activity."""
     from models import OrganiseItem, VehicleService, Chore, ActivityLog
 
-    today = date.today()
+    today = _family_today()
     alerts = []
 
     def _days_label(days):
@@ -3561,6 +3758,8 @@ def api_notifications():
 
         chores = Chore.query.filter_by(completed=False, deleted=False).all()
         for chore in chores:
+            if not _notification_chore_is_open_today(chore, today):
+                continue
             due = None
             if chore.due_datetime:
                 due = chore.due_datetime.date() if hasattr(chore.due_datetime, 'date') else chore.due_datetime
@@ -3571,13 +3770,21 @@ def api_notifications():
             days = (due - today).days
             if days > 7:
                 continue
+            # A due time is the deadline that stops points. The calendar day
+            # can still be today after that time, which left the bell saying
+            # "Due soon" for a chore that is already overdue.
+            past_time = (
+                days >= 0
+                and chore.due_datetime is not None
+                and _chore_is_overdue(chore, datetime.now(timezone.utc))
+            )
             who = chore.assigned_to or 'Unassigned'
             alerts.append({
                 'id': f'chore-{chore.id}',
                 'kind': 'chore',
-                'severity': 'overdue' if days < 0 else 'due_soon',
+                'severity': 'overdue' if days < 0 or past_time else 'due_soon',
                 'title': chore.title,
-                'detail': f"{who} · {_days_label(days)}",
+                'detail': f"{who} · {'Past due' if past_time else _days_label(days)}",
                 'due_date': due.isoformat(),
                 'days': days,
                 'target': 'kanban',
@@ -3841,7 +4048,7 @@ def add_chore():
             is_daily=is_daily,
             completed=False,
             date_completed=None,
-            due_date=due_datetime.date() if due_datetime else (date.today() if is_daily else None),
+            due_date=due_datetime.date() if due_datetime else (_family_today() if is_daily else None),
             due_datetime=due_datetime,
             days_of_week=days_of_week_str,
             icon=icon
@@ -3979,8 +4186,9 @@ def profile(person_id):
 
 @routes_bp.route('/settings', methods=['GET', 'POST'])
 def settings():
-    if not session.get('adult_mode', False) and not session.get('authenticated', False):
-        return redirect(url_for('routes.index'))
+    _page_guard = _adult_page_required()
+    if _page_guard:
+        return _page_guard
     import bcrypt
     from models import Person  # AppSetting already imported at top
     error = None
@@ -4267,8 +4475,9 @@ def settings():
 
 @routes_bp.route('/settings/gcal-service-account/upload', methods=['POST'])
 def gcal_sa_upload():
-    if not session.get('authenticated', False):
-        return jsonify({'success': False, 'error': 'Not authenticated'}), 403
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     if not is_google_calendar_feature_enabled():
         return jsonify({'success': False, 'error': 'Feature not enabled'}), 403
     if 'gcal_sa_file' not in request.files:
@@ -4295,8 +4504,9 @@ def gcal_sa_upload():
 
 @routes_bp.route('/settings/gcal-service-account/delete', methods=['POST'])
 def gcal_sa_delete():
-    if not session.get('authenticated', False):
-        return jsonify({'success': False, 'error': 'Not authenticated'}), 403
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     if not is_google_calendar_feature_enabled():
         return jsonify({'success': False, 'error': 'Feature not enabled'}), 403
     sa_path = os.path.join(current_app.instance_path, 'gcal_service_account.json')
@@ -4413,6 +4623,9 @@ def list_sounds():
 
 @routes_bp.route('/api/sounds/upload', methods=['POST'])
 def upload_sound():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     if 'sound_file' not in request.files:
         return jsonify({'success': False, 'error': 'No file part'}), 400
     file = request.files['sound_file']
@@ -4438,6 +4651,9 @@ def upload_sound():
 
 @routes_bp.route('/api/sounds/delete', methods=['POST'])
 def delete_sound():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     data = request.get_json(silent=True) or {}
     filename = _safe_sound_filename(data.get('filename'))
     if not filename:
@@ -4464,6 +4680,9 @@ def delete_sound():
 
 @routes_bp.route('/add_daily_chore', methods=['POST'])
 def add_daily_chore():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         if request.is_json:
             data = request.get_json()
@@ -4479,8 +4698,8 @@ def add_daily_chore():
                 'success': False,
                 'error': "Title and Assigned To are required fields."
             }), 400
-        # Default to today's date for daily chores
-        due_date = date.today()
+        # Default to the family's today for daily chores
+        due_date = _family_today()
         # Look up the person by name to get their ID
         person = Person.query.filter_by(name=assigned_to).first()
         assigned_to_id = person.id if person else None
@@ -4522,6 +4741,9 @@ def add_daily_chore():
 # --- EDIT DAILY CHORE ROUTE ---
 @routes_bp.route('/edit_daily_chore', methods=['POST'])
 def edit_daily_chore():
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         if not request.is_json:
             return jsonify({'success': False, 'error': 'JSON required'}), 400
@@ -4564,6 +4786,9 @@ def delete_daily_chore():
     Delete a daily chore permanently by marking it as deleted.
     This is a specialized endpoint for daily chores only.
     """
+    _guard = _adult_required()
+    if _guard:
+        return _guard
     try:
         # Get request data
         data = request.get_json()
@@ -4665,7 +4890,15 @@ def delete_chore():
                 )
                 message = f"Daily chore '{chore_title}' has been permanently deleted"
             else:
-                chore.due_date = date.today() + timedelta(days=1)
+                # Hide it for the rest of today. Tomorrow's board includes a
+                # daily chore whose due date is that day.
+                chore.due_date = _family_today() + timedelta(days=1)
+                # The morning reset only reopens a repeating chore once its
+                # due date is already past. A finished chore left completed
+                # would stay hidden tomorrow as well. Reopen it without
+                # taking back the points already awarded for today.
+                if chore.completed:
+                    chore.completed = False
                 db.session.commit()
                 log_activity(
                     'daily_chore_skipped',
@@ -5298,6 +5531,11 @@ def complete_reward():
         if not reward:
             return jsonify({'success': False, 'error': 'Reward not found'}), 404
 
+        # The celebration keeps the card on screen for a few seconds and does
+        # not reload immediately. A second tap used to charge the cost again.
+        if reward.completed:
+            return jsonify({'success': False, 'error': 'This reward was already redeemed'}), 409
+
         # Try multiple approaches to find the person
         person = None
 
@@ -5324,9 +5562,18 @@ def complete_reward():
         if available_points < required_points:
             return jsonify({'success': False, 'error': f'Not enough points to complete this reward. {person.name} has {person.points} points but needs {reward.points_required}'}), 400
 
+        # Claim the reward before taking points. Overlapping taps both pass
+        # the check above; only the update that still sees it as open proceeds.
+        claimed = Reward.query.filter(
+            Reward.id == reward.id,
+            Reward.completed.is_(False),
+        ).update({Reward.completed: True}, synchronize_session='fetch')
+        if not claimed:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': 'This reward was already redeemed'}), 409
+
         # Update the reward and person
         person.points = _round_points(person.points - reward.points_required)
-        reward.completed = True
         # Apply timezone to reward completion
         from zoneinfo import ZoneInfo
         tz_name = AppSetting.get('timezone', 'UTC')

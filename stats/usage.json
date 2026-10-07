@@ -1,9 +1,9 @@
 {
-  "updated": "2026-09-27T06:02:32Z",
+  "updated": "2026-10-07T16:36:41Z",
   "image": "ghcr.io/matda59/choresrewards",
   "repo": "matda59/ChoresRewards",
   "pulls": {
-    "total": 5385,
+    "total": 5463,
     "daily": [
       {
         "date": "2026-08-28",
@@ -11,7 +11,7 @@
       },
       {
         "date": "2026-08-29",
-        "count": 2
+        "count": 12
       },
       {
         "date": "2026-08-30",
@@ -19,7 +19,7 @@
       },
       {
         "date": "2026-08-31",
-        "count": 3
+        "count": 2
       },
       {
         "date": "2026-09-01",
@@ -31,19 +31,19 @@
       },
       {
         "date": "2026-09-03",
-        "count": 6
+        "count": 3
       },
       {
         "date": "2026-09-04",
-        "count": 16
+        "count": 6
       },
       {
         "date": "2026-09-05",
-        "count": 5
+        "count": 16
       },
       {
         "date": "2026-09-06",
-        "count": 3
+        "count": 5
       },
       {
         "date": "2026-09-07",
@@ -51,51 +51,51 @@
       },
       {
         "date": "2026-09-08",
-        "count": 8
-      },
-      {
-        "date": "2026-09-09",
-        "count": 6
-      },
-      {
-        "date": "2026-09-10",
-        "count": 4
-      },
-      {
-        "date": "2026-09-11",
         "count": 3
       },
       {
-        "date": "2026-09-12",
-        "count": 5
+        "date": "2026-09-09",
+        "count": 8
       },
       {
-        "date": "2026-09-13",
-        "count": 4
-      },
-      {
-        "date": "2026-09-14",
-        "count": 14
-      },
-      {
-        "date": "2026-09-15",
+        "date": "2026-09-10",
         "count": 6
       },
       {
-        "date": "2026-09-16",
-        "count": 7
+        "date": "2026-09-11",
+        "count": 4
       },
       {
-        "date": "2026-09-17",
+        "date": "2026-09-12",
+        "count": 3
+      },
+      {
+        "date": "2026-09-13",
         "count": 5
       },
       {
+        "date": "2026-09-14",
+        "count": 4
+      },
+      {
+        "date": "2026-09-15",
+        "count": 14
+      },
+      {
+        "date": "2026-09-16",
+        "count": 6
+      },
+      {
+        "date": "2026-09-17",
+        "count": 7
+      },
+      {
         "date": "2026-09-18",
-        "count": 11
+        "count": 5
       },
       {
         "date": "2026-09-19",
-        "count": 4
+        "count": 11
       },
       {
         "date": "2026-09-20",
@@ -103,44 +103,138 @@
       },
       {
         "date": "2026-09-21",
-        "count": 6
-      },
-      {
-        "date": "2026-09-22",
-        "count": 5
-      },
-      {
-        "date": "2026-09-23",
         "count": 4
       },
       {
-        "date": "2026-09-24",
+        "date": "2026-09-22",
         "count": 6
       },
       {
+        "date": "2026-09-23",
+        "count": 5
+      },
+      {
+        "date": "2026-09-24",
+        "count": 4
+      },
+      {
         "date": "2026-09-25",
-        "count": 22
+        "count": 6
       },
       {
         "date": "2026-09-26",
-        "count": 1
+        "count": 22
+      },
+      {
+        "date": "2026-09-27",
+        "count": 10
+      },
+      {
+        "date": "2026-09-28",
+        "count": 3
+      },
+      {
+        "date": "2026-09-29",
+        "count": 13
+      },
+      {
+        "date": "2026-09-30",
+        "count": 4
+      },
+      {
+        "date": "2026-10-01",
+        "count": 11
+      },
+      {
+        "date": "2026-10-02",
+        "count": 5
+      },
+      {
+        "date": "2026-10-03",
+        "count": 5
+      },
+      {
+        "date": "2026-10-04",
+        "count": 7
+      },
+      {
+        "date": "2026-10-05",
+        "count": 10
+      },
+      {
+        "date": "2026-10-06",
+        "count": 6
+      },
+      {
+        "date": "2026-10-07",
+        "count": 5
       }
     ]
   },
   "installs": {
-    "total": 0,
-    "checkins": 0,
+    "total": 4,
+    "checkins": 26,
     "history": [
       {
         "date": "2026-09-27",
-        "installs": 0,
-        "checkins": 0
+        "installs": 2,
+        "checkins": 2
+      },
+      {
+        "date": "2026-09-28",
+        "installs": 3,
+        "checkins": 5
+      },
+      {
+        "date": "2026-09-29",
+        "installs": 3,
+        "checkins": 6
+      },
+      {
+        "date": "2026-09-30",
+        "installs": 3,
+        "checkins": 8
+      },
+      {
+        "date": "2026-10-01",
+        "installs": 4,
+        "checkins": 11
+      },
+      {
+        "date": "2026-10-02",
+        "installs": 4,
+        "checkins": 15
+      },
+      {
+        "date": "2026-10-03",
+        "installs": 4,
+        "checkins": 17
+      },
+      {
+        "date": "2026-10-04",
+        "installs": 4,
+        "checkins": 20
+      },
+      {
+        "date": "2026-10-05",
+        "installs": 4,
+        "checkins": 22
+      },
+      {
+        "date": "2026-10-06",
+        "installs": 4,
+        "checkins": 24
+      },
+      {
+        "date": "2026-10-07",
+        "installs": 4,
+        "checkins": 26
       }
     ]
   },
   "github": {
-    "stars": 187,
-    "forks": 10,
+    "stars": 186,
+    "forks": 12,
     "clones": [],
     "views": [],
     "clone_count_14": null,
