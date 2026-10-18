@@ -182,14 +182,53 @@
         return (services && services.length) ? services[0] : null;
     }
 
-    function serviceDueClass(dateIso) {
-        if (!dateIso) return 'neutral';
-        const today = new Date(); today.setHours(0, 0, 0, 0);
-        const nextDate = new Date(dateIso + 'T00:00:00');
-        const diffDays = Math.round((nextDate - today) / 86400000);
-        if (diffDays < 0) return 'overdue';
-        if (diffDays <= 30) return 'due_soon';
-        return 'ok';
+    const SERVICE_KM_SOON = 2500;
+
+    function reminderWindow(item) {
+        const n = parseInt(item && item.reminder_days, 10);
+        return Number.isFinite(n) && n > 0 ? n : 30;
+    }
+
+    function daysUntil(iso) {
+        if (!iso) return null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const nextDate = new Date(iso + 'T00:00:00');
+        return Math.round((nextDate - today) / 86400000);
+    }
+
+    function worseStatus(current, next) {
+        const rank = { overdue: 3, due_soon: 2, soon: 2, ok: 1, neutral: 0 };
+        return (rank[next] || 0) > (rank[current] || 0) ? next : current;
+    }
+
+    function serviceDueClass(dateIso, reminderDays, remainingKm) {
+        let status = 'neutral';
+        if (dateIso) {
+            const diffDays = daysUntil(dateIso);
+            const windowDays = reminderDays || 30;
+            if (diffDays < 0) status = 'overdue';
+            else if (diffDays <= windowDays) status = 'due_soon';
+            else status = 'ok';
+        }
+        if (remainingKm != null) {
+            if (remainingKm <= 0) status = worseStatus(status, 'overdue');
+            else if (remainingKm <= SERVICE_KM_SOON) status = worseStatus(status, 'due_soon');
+            else if (status === 'neutral') status = 'ok';
+        }
+        return status;
+    }
+
+    function serviceProgress(km, targetMileage, services) {
+        const starts = (services || [])
+            .map(s => s.mileage)
+            .filter(m => m != null && m < targetMileage);
+        if (!starts.length || targetMileage <= 0) return null;
+        const start = Math.max(...starts);
+        const interval = targetMileage - start;
+        if (interval <= 0) return null;
+        const travelled = Math.max(0, Math.min(interval, km - start));
+        return Math.min(100, Math.max(0, Math.round((travelled / interval) * 100)));
     }
 
     function buildEmojiPickerHtml() {
@@ -378,6 +417,7 @@
                 if (res.success) {
                     serviceCache[itemId] = res.services;
                     renderCarWidgets(itemId);
+                    checkUrgentRenewals(organiseItems);
                     const panel = document.getElementById(`svc-panel-${itemId}`);
                     if (panel && panel.style.display !== 'none') renderServicePanel(itemId);
                 }
@@ -395,9 +435,9 @@
         const km = currentKm(item, services);
         const next = nextServiceInfo(item, services);
         const last = lastServiceInfo(services);
-        const nextStatus = serviceDueClass(next.date);
         let remainingKm = null;
         if (km != null && next.km != null) remainingKm = next.km - km;
+        const nextStatus = serviceDueClass(next.date, reminderWindow(item), remainingKm);
 
         const widgets = [];
         widgets.push(widgetMarkup({
@@ -457,6 +497,7 @@
             const paidControl = doc.paid
                 ? `<label class="org-widget-paid is-done"><input type="checkbox" checked aria-label="${safeTitle} is paid" onchange="organiseTogglePaid(${doc.id})"> Paid</label>`
                 : `<label class="org-widget-paid"><input type="checkbox" aria-label="Mark ${safeTitle} as paid" onchange="organiseStartRenewal(${doc.id}, this)"> Mark paid</label>`;
+            const footer = `<div class="org-widget-actions">${paidControl}<button type="button" class="org-widget-delete" onclick="organiseDelete(${doc.id})" title="Delete ${safeTitle}"><i class="fas fa-trash"></i></button></div>`;
             widgets.push(widgetMarkup({
                 label: safeTitle,
                 icon: doc.icon || '<i class="fas fa-file-alt"></i>',
@@ -467,7 +508,7 @@
                 status: sc,
                 extraClass: 'org-widget--doc',
                 onclick: `organiseEdit(${doc.id})`,
-                footer: paidControl,
+                footer: footer,
             }));
         });
 
@@ -482,25 +523,25 @@
         if (km != null && next.km != null && next.km > 0) {
             const targetMileage = next.km;
             const remaining = targetMileage - km;
-            const interval = Math.max(1000, targetMileage - Math.max(0, targetMileage - 10000));
-            const currentProgress = Math.max(0, km - Math.max(0, targetMileage - interval));
-            const pct = Math.min(100, Math.max(0, Math.round((currentProgress / interval) * 100)));
+            const pct = serviceProgress(km, targetMileage, services);
             let barStatus = '';
             if (remaining <= 0 || remaining <= 1000) barStatus = 'is-danger';
-            else if (remaining <= 2500) barStatus = 'is-warning';
+            else if (remaining <= SERVICE_KM_SOON) barStatus = 'is-warning';
             const remainingLabel = remaining <= 0
                 ? '<span class="org-progress-overdue"><i class="fas fa-exclamation-circle"></i> Service overdue</span>'
                 : `<span>${remaining.toLocaleString()} km until service</span>`;
+            const pctLabel = pct == null ? '' : ` (${pct}%)`;
+            const barWidth = pct == null ? (remaining <= 0 ? 100 : 0) : pct;
             progress = `
             <button type="button" class="org-widget org-widget--wide" onclick="organiseEditStatus(${itemId},'service')">
                 <span class="org-widget-edit"><i class="fas fa-pen"></i></span>
                 <span class="org-widget-label"><i class="fas fa-road"></i> Service interval</span>
                 <div class="org-service-milestone-header">
-                    <span>${km.toLocaleString()} / ${targetMileage.toLocaleString()} km (${pct}%)</span>
+                    <span>${km.toLocaleString()} / ${targetMileage.toLocaleString()} km${pctLabel}</span>
                     ${remainingLabel}
                 </div>
                 <div class="org-service-milestone-bar-bg">
-                    <div class="org-service-milestone-bar-fill ${barStatus}" style="width:${pct}%;"></div>
+                    <div class="org-service-milestone-bar-fill ${barStatus}" style="width:${barWidth}%;"></div>
                 </div>
             </button>`;
         }
@@ -528,6 +569,7 @@
                     serviceCache[itemId] = res.services;
                     renderServicePanel(itemId);
                     renderCarWidgets(itemId);
+                    checkUrgentRenewals(organiseItems);
                 }
             })
             .catch(() => {
@@ -753,6 +795,9 @@
 
         setItemKind(currentItemKind);
         updateCustomCategoryVisibility();
+        const deleteBtn = document.getElementById('org-modal-delete');
+        if (deleteBtn) deleteBtn.style.display = item ? '' : 'none';
+
         modal.style.display = 'flex';
         setTimeout(() => document.getElementById('org-input-title').focus(), 80);
     }
@@ -1067,6 +1112,7 @@
         const kids = childItems(id);
         const extra = kids.length ? ` This will also delete ${kids.length} linked document${kids.length === 1 ? '' : 's'}.` : '';
         if (!confirm(`Delete "${item.title}"?${extra}`)) return;
+        closeModal();
         fetch(`/api/organise/${id}`, { method: 'DELETE' })
             .then(r => r.json())
             .then(res => {
@@ -1232,44 +1278,75 @@
     window.openServiceModal = openServiceModal;
     window.toggleServicePanel = toggleServicePanel;
 
+    function collectUrgent(items) {
+        const alerts = [];
+        items.forEach(item => {
+            if (!item.paid && item.due_date && item.days_until_due != null && item.days_until_due <= reminderWindow(item)) {
+                const parent = items.find(i => i.id === item.parent_id);
+                const scope = parent ? carLabel(parent) : (item.category || 'Organise');
+                const overdue = item.days_until_due < 0;
+                const dueStr = item.days_until_due === 0
+                    ? 'Today'
+                    : `in ${item.days_until_due} day${item.days_until_due === 1 ? '' : 's'}`;
+                alerts.push({
+                    sort: item.days_until_due,
+                    overdue,
+                    title: item.title,
+                    badge: overdue ? `Overdue (${Math.abs(item.days_until_due)}d ago)` : `Due ${dueStr}`,
+                    desc: overdue
+                        ? `${scope} was due on ${formatDate(item.due_date)} · Tap to view details`
+                        : `${scope} renewal due on ${formatDate(item.due_date)} · Tap to view details`,
+                });
+            }
+            if (!isVehicle(item)) return;
+            const services = serviceCache[item.id] || [];
+            const next = nextServiceInfo(item, services);
+            const kmNow = currentKm(item, services);
+            const dateDays = next.date ? daysUntil(next.date) : null;
+            const remaining = (kmNow != null && next.km != null) ? next.km - kmNow : null;
+            const dateHit = dateDays != null && dateDays <= reminderWindow(item);
+            const kmHit = remaining != null && remaining <= SERVICE_KM_SOON;
+            if (!dateHit && !kmHit) return;
+            const overdue = (dateDays != null && dateDays < 0) || (remaining != null && remaining <= 0);
+            const bits = [];
+            if (dateHit) bits.push(dateDays < 0 ? `${Math.abs(dateDays)}d overdue` : daysLabel(dateDays));
+            if (kmHit) {
+                bits.push(remaining <= 0
+                    ? `${Math.abs(remaining).toLocaleString()} km overdue`
+                    : `${remaining.toLocaleString()} km to go`);
+            }
+            alerts.push({
+                sort: dateHit ? dateDays : (remaining <= 0 ? 0 : 14),
+                overdue,
+                title: `${carLabel(item)} service`,
+                badge: overdue ? 'Service overdue' : 'Service due soon',
+                desc: `${bits.join(' · ')} · Tap to view details`,
+            });
+        });
+        alerts.sort((a, b) => {
+            if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+            return a.sort - b.sort;
+        });
+        return alerts;
+    }
+
     function checkUrgentRenewals(items) {
         const banner = document.getElementById('urgent-renewal-banner');
         if (!banner) return;
-        if (!items || !items.length) {
+        const urgent = collectUrgent(items || []);
+        if (!urgent.length) {
             banner.style.display = 'none';
             return;
         }
 
-        const urgentItems = items.filter(i => !i.paid && i.due_date && i.days_until_due != null && i.days_until_due <= 7);
-        if (!urgentItems.length) {
-            banner.style.display = 'none';
-            return;
-        }
-
-        urgentItems.sort((a, b) => a.days_until_due - b.days_until_due);
-        const mostUrgent = urgentItems[0];
+        const mostUrgent = urgent[0];
         const headingEl = document.getElementById('urgent-renewal-heading');
         const badgeEl = document.getElementById('urgent-renewal-badge');
         const descEl = document.getElementById('urgent-renewal-desc');
-        const parent = items.find(i => i.id === mostUrgent.parent_id);
-        const scope = parent ? carLabel(parent) : (mostUrgent.category || 'Organise');
-
-        const isOverdue = mostUrgent.days_until_due < 0;
-        banner.classList.toggle('is-overdue', isOverdue);
-
-        if (isOverdue) {
-            const overdueDays = Math.abs(mostUrgent.days_until_due);
-            if (badgeEl) badgeEl.textContent = `Overdue (${overdueDays}d ago)`;
-            if (headingEl) headingEl.textContent = mostUrgent.title;
-            if (descEl) descEl.textContent = `${scope} was due on ${formatDate(mostUrgent.due_date)} · Tap to view details`;
-        } else {
-            const dueDays = mostUrgent.days_until_due;
-            const dueStr = dueDays === 0 ? 'Today' : `in ${dueDays} day${dueDays === 1 ? '' : 's'}`;
-            if (badgeEl) badgeEl.textContent = `Due ${dueStr}`;
-            if (headingEl) headingEl.textContent = mostUrgent.title;
-            if (descEl) descEl.textContent = `${scope} renewal due on ${formatDate(mostUrgent.due_date)} · Tap to view details`;
-        }
-
+        banner.classList.toggle('is-overdue', mostUrgent.overdue);
+        if (badgeEl) badgeEl.textContent = mostUrgent.badge;
+        if (headingEl) headingEl.textContent = mostUrgent.title;
+        if (descEl) descEl.textContent = mostUrgent.desc;
         banner.style.display = 'flex';
     }
 
@@ -1307,6 +1384,9 @@
         document.getElementById('org-modal-close')?.addEventListener('click', closeModal);
         document.getElementById('org-modal-cancel')?.addEventListener('click', closeModal);
         document.getElementById('org-modal-save')?.addEventListener('click', saveItem);
+        document.getElementById('org-modal-delete')?.addEventListener('click', () => {
+            if (editingItemId) organiseDelete(editingItemId);
+        });
 
         document.getElementById('svc-modal-close')?.addEventListener('click', closeServiceModal);
         document.getElementById('svc-modal-cancel')?.addEventListener('click', closeServiceModal);

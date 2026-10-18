@@ -3692,9 +3692,43 @@ def _notification_chore_is_open_today(chore, today):
     return today_name in scheduled
 
 
+_SERVICE_KM_SOON = 2500
+
+
+def _reminder_window(item):
+    """Days of notice configured on the document or car. Defaults to 30."""
+    try:
+        days = int(item.reminder_days or 30)
+    except (TypeError, ValueError):
+        days = 30
+    return max(1, min(365, days))
+
+
+def _effective_service_target(car, services):
+    """Next service date, target km, and current km, matching the car card."""
+    from datetime import date as _date
+    dated = [s for s in services if s.next_service_date or s.next_service_mileage is not None]
+    dated.sort(key=lambda s: (s.next_service_date is None, s.next_service_date or _date.max))
+    fallback = dated[0] if dated else None
+    next_date = car.next_service_date or (fallback.next_service_date if fallback else None)
+    if car.next_service_mileage is not None:
+        next_km = car.next_service_mileage
+    elif fallback is not None:
+        next_km = fallback.next_service_mileage
+    else:
+        next_km = None
+    odo = car.current_odometer
+    mileages = [s.mileage for s in services if s.mileage is not None]
+    if mileages:
+        peak = max(mileages)
+        odo = peak if odo is None else max(odo, peak)
+    return next_date, next_km, odo
+
+
 @routes_bp.route('/api/notifications', methods=['GET'])
 def api_notifications():
     """Header bell feed: overdue/due-soon alerts plus recent activity."""
+    from collections import defaultdict
     from models import OrganiseItem, VehicleService, Chore, ActivityLog
 
     today = _family_today()
@@ -3717,14 +3751,19 @@ def api_notifications():
         return name
 
     try:
-        org_items = OrganiseItem.query.filter(OrganiseItem.due_date.isnot(None)).all()
+        org_items = OrganiseItem.query.all()
+        by_id = {item.id: item for item in org_items}
+        services_by_car = defaultdict(list)
+        for svc in VehicleService.query.all():
+            services_by_car[svc.organise_item_id].append(svc)
+
         for item in org_items:
-            if item.paid:
+            if item.paid or not item.due_date:
                 continue
             days = (item.due_date - today).days
-            if days > 7:
+            if days > _reminder_window(item):
                 continue
-            parent = OrganiseItem.query.get(item.parent_id) if item.parent_id else None
+            parent = by_id.get(item.parent_id) if item.parent_id else None
             scope = _car_label(parent) if parent else (item.category or 'Organise')
             alerts.append({
                 'id': f'org-{item.id}',
@@ -3738,20 +3777,39 @@ def api_notifications():
                 'admin_only': True,
             })
 
-        services = VehicleService.query.filter(VehicleService.next_service_date.isnot(None)).all()
-        for svc in services:
-            days = (svc.next_service_date - today).days
-            if days > 7:
+        for car in org_items:
+            if car.parent_id or car.category != 'Car':
                 continue
-            car = OrganiseItem.query.get(svc.organise_item_id)
+            next_date, next_km, odo = _effective_service_target(car, services_by_car.get(car.id, []))
+            date_days = (next_date - today).days if next_date else None
+            remaining = (next_km - odo) if (next_km is not None and odo is not None) else None
+            date_due = date_days is not None and date_days <= _reminder_window(car)
+            km_due = remaining is not None and remaining <= _SERVICE_KM_SOON
+            if not date_due and not km_due:
+                continue
+            reasons = []
+            if date_due:
+                reasons.append(_days_label(date_days))
+            if km_due:
+                if remaining <= 0:
+                    reasons.append(f"{abs(remaining):,} km overdue" if remaining else "0 km to go")
+                else:
+                    reasons.append(f"{remaining:,} km to go")
+            overdue = (date_days is not None and date_days < 0) or (remaining is not None and remaining <= 0)
+            if date_due:
+                sort_days = date_days
+            elif remaining is not None and remaining <= 0:
+                sort_days = 0
+            else:
+                sort_days = min(_reminder_window(car), 7)
             alerts.append({
-                'id': f'svc-{svc.id}',
+                'id': f'svc-car-{car.id}',
                 'kind': 'service',
-                'severity': 'overdue' if days < 0 else 'due_soon',
-                'title': svc.service_type or 'Service',
-                'detail': f"{_car_label(car)} · {_days_label(days)}",
-                'due_date': svc.next_service_date.isoformat(),
-                'days': days,
+                'severity': 'overdue' if overdue else 'due_soon',
+                'title': 'Service',
+                'detail': f"{_car_label(car)} · {' · '.join(reasons)}",
+                'due_date': next_date.isoformat() if next_date else None,
+                'days': sort_days,
                 'target': 'organise-section',
                 'admin_only': True,
             })
