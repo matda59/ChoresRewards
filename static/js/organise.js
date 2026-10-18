@@ -351,12 +351,23 @@
         const edit = opts.editable
             ? '<span class="org-widget-edit"><i class="fas fa-pen"></i></span>'
             : '';
-        return `
-        <button type="button" class="org-widget${status}${extra}"${action}${hint}>
+        const body = `
             ${edit}
             <span class="org-widget-label">${opts.icon || ''} ${opts.label}</span>
             <span class="org-widget-value">${opts.value}</span>
-            ${meta}
+            ${meta}`;
+        if (opts.footer) {
+            return `
+        <div class="org-widget${status}${extra}"${hint}>
+            <button type="button" class="org-widget-main"${action}>
+                ${body}
+            </button>
+            ${opts.footer}
+        </div>`;
+        }
+        return `
+        <button type="button" class="org-widget${status}${extra}"${action}${hint}>
+            ${body}
         </button>`;
     }
 
@@ -439,19 +450,24 @@
             const extra = [
                 !doc.paid && doc.due_date && doc.days_until_due != null ? daysLabel(doc.days_until_due) : '',
                 doc.provider ? escapeHtml(doc.provider) : '',
-                doc.paid ? 'Paid' : '',
+                doc.last_date ? `Renewed ${formatDate(doc.last_date)}` : '',
                 doc.cost != null ? `$${parseFloat(doc.cost).toFixed(2)}` : '',
             ].filter(Boolean).join(' · ');
+            const safeTitle = escapeHtml(doc.title);
+            const paidControl = doc.paid
+                ? `<label class="org-widget-paid is-done"><input type="checkbox" checked aria-label="${safeTitle} is paid" onchange="organiseTogglePaid(${doc.id})"> Paid</label>`
+                : `<label class="org-widget-paid"><input type="checkbox" aria-label="Mark ${safeTitle} as paid" onchange="organiseStartRenewal(${doc.id}, this)"> Mark paid</label>`;
             widgets.push(widgetMarkup({
-                label: escapeHtml(doc.title),
+                label: safeTitle,
                 icon: doc.icon || '<i class="fas fa-file-alt"></i>',
                 value: due,
-                meta: extra || 'Tap to edit',
+                meta: extra || 'Due once a year',
                 hint: `Edit ${doc.title}`,
                 editable: true,
                 status: sc,
                 extraClass: 'org-widget--doc',
                 onclick: `organiseEdit(${doc.id})`,
+                footer: paidControl,
             }));
         });
 
@@ -1060,32 +1076,115 @@
             .catch(() => alert('Network error'));
     };
 
+    let renewalItemId = null;
+    let renewalCheckbox = null;
+
+    function closeRenewModal(resetCheck) {
+        const modal = document.getElementById('org-renew-modal');
+        if (modal) modal.style.display = 'none';
+        if (resetCheck && renewalCheckbox) renewalCheckbox.checked = false;
+        renewalCheckbox = null;
+        renewalItemId = null;
+        const error = document.getElementById('org-renew-error');
+        if (error) error.textContent = '';
+    }
+
+    window.organiseStartRenewal = function (id, checkbox) {
+        const item = organiseItems.find(i => i.id === id);
+        if (!item) {
+            if (checkbox) checkbox.checked = false;
+            return;
+        }
+        if (checkbox && !checkbox.checked) {
+            return;
+        }
+        renewalItemId = id;
+        renewalCheckbox = checkbox || null;
+        const modal = document.getElementById('org-renew-modal');
+        if (!modal) return;
+        const title = document.getElementById('org-renew-title');
+        const hint = document.getElementById('org-renew-hint');
+        const dateInput = document.getElementById('org-renew-date');
+        const costInput = document.getElementById('org-renew-cost');
+        const error = document.getElementById('org-renew-error');
+        if (title) title.textContent = `Mark ${item.title} as paid`;
+        if (hint) {
+            hint.textContent = `${item.title} renews once a year. Enter the date it is next due.`;
+        }
+        if (dateInput) {
+            dateInput.value = item.due_date ? nextDueDate(item.due_date) : addOneYear(todayISO());
+        }
+        if (costInput) costInput.value = item.cost != null ? item.cost : '';
+        if (error) error.textContent = '';
+        modal.style.display = 'flex';
+        if (dateInput) dateInput.focus();
+    };
+
+    async function saveRenewModal() {
+        const item = organiseItems.find(i => i.id === renewalItemId);
+        const dateInput = document.getElementById('org-renew-date');
+        const costInput = document.getElementById('org-renew-cost');
+        const error = document.getElementById('org-renew-error');
+        const due = dateInput ? dateInput.value : '';
+        if (!item || !due) {
+            if (error) error.textContent = 'Enter the next renewal date.';
+            return;
+        }
+        const payload = {
+            paid: false,
+            last_date: todayISO(),
+            due_date: due,
+        };
+        const costRaw = costInput ? costInput.value.trim() : '';
+        payload.cost = costRaw === '' ? null : parseFloat(costRaw);
+        if (payload.cost != null && Number.isNaN(payload.cost)) {
+            if (error) error.textContent = 'Enter a valid amount, or leave it blank.';
+            return;
+        }
+        try {
+            const r = await fetch(`/api/organise/${item.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const res = await r.json();
+            if (!res.success) {
+                if (error) error.textContent = res.error || 'Failed to save';
+                return;
+            }
+        } catch (_) {
+            if (error) error.textContent = 'Network error — please try again.';
+            return;
+        }
+        closeRenewModal(false);
+        loadOrganise();
+    }
+
     window.organiseTogglePaid = function (id) {
         const item = organiseItems.find(i => i.id === id);
         if (!item) return;
-
-        const payload = { paid: !item.paid };
-        if (!item.paid && item.due_date) {
-            const nextDue = nextDueDate(item.due_date);
-            if (!confirm(`Mark "${item.title}" as paid and set the next due date to ${formatDate(nextDue)}?`)) {
-                return;
-            }
-            payload.paid = false;
-            payload.last_date = todayISO();
-            payload.due_date = nextDue;
+        if (!item.paid) {
+            organiseStartRenewal(id, null);
+            return;
         }
-
         fetch(`/api/organise/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ paid: false }),
         })
             .then(r => r.json())
             .then(res => {
-                if (!res.success) { alert(res.error || 'Failed to update'); return; }
+                if (!res.success) {
+                    alert(res.error || 'Failed to update');
+                    loadOrganise();
+                    return;
+                }
                 loadOrganise();
             })
-            .catch(() => alert('Network error'));
+            .catch(() => {
+                alert('Network error');
+                loadOrganise();
+            });
     };
 
     window.organiseAddRenewal = function (carId) {
@@ -1217,6 +1316,10 @@
         document.getElementById('org-status-modal-cancel')?.addEventListener('click', closeStatusModal);
         document.getElementById('org-status-modal-save')?.addEventListener('click', saveStatusModal);
 
+        document.getElementById('org-renew-modal-close')?.addEventListener('click', () => closeRenewModal(true));
+        document.getElementById('org-renew-modal-cancel')?.addEventListener('click', () => closeRenewModal(true));
+        document.getElementById('org-renew-modal-save')?.addEventListener('click', saveRenewModal);
+
         const svcModal = document.getElementById('vehicle-service-modal');
         if (svcModal) {
             svcModal.addEventListener('click', function (e) {
@@ -1227,6 +1330,12 @@
         if (statusModal) {
             statusModal.addEventListener('click', function (e) {
                 if (e.target === statusModal) closeStatusModal();
+            });
+        }
+        const renewModal = document.getElementById('org-renew-modal');
+        if (renewModal) {
+            renewModal.addEventListener('click', function (e) {
+                if (e.target === renewModal) closeRenewModal(true);
             });
         }
 

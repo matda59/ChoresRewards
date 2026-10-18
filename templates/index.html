@@ -7311,7 +7311,7 @@ function updateStreakDisplay(column, streakCount) {
     </h2>
     <div class="organise-body">
         <div class="organise-toolbar">
-            <p class="org-subtitle">Keep cars, documents and service details in one place. Tap a widget to update kilometres, services or renewals.</p>
+            <p class="org-subtitle">Tap a card to edit it. For rego and insurance, tick Mark paid and enter next year’s renewal date.</p>
             <div class="org-toolbar-actions">
                 <button id="organise-add-btn" class="org-add-btn admin-only"><i class="fas fa-plus"></i> Add</button>
                 <div class="org-quick-wrap admin-only">
@@ -7441,8 +7441,9 @@ function updateStreakDisplay(column, streakCount) {
 
                 <label class="org-label">
                     <input id="org-input-paid" type="checkbox" style="margin-right:6px;">
-                    Paid / Done <span style="font-weight:400;color:var(--cr-text-secondary);">(hides reminders until you update the due date)</span>
+                    Hide reminders
                 </label>
+                <p class="org-field-hint">Rego and insurance renew each year. Tick Mark paid on the car card, then enter the next renewal date.</p>
             </div>
 
             <label class="org-label" style="margin-top:10px;">Photo</label>
@@ -7517,6 +7518,28 @@ function updateStreakDisplay(column, streakCount) {
         <div class="org-modal-footer">
             <button id="org-status-modal-cancel" class="org-btn-secondary">Cancel</button>
             <button id="org-status-modal-save" class="org-btn-primary">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Mark a yearly document paid and set the next renewal date -->
+<div id="org-renew-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--cr-modal-overlay); z-index:9100; justify-content:center; align-items:center;">
+    <div class="org-modal-box" style="max-width:420px;">
+        <div class="org-modal-header">
+            <span id="org-renew-title" style="font-weight:700; font-size:1.1em;">Mark as paid</span>
+            <button id="org-renew-modal-close" class="org-modal-close-btn" title="Close">&times;</button>
+        </div>
+        <div class="org-modal-body">
+            <p class="org-field-hint" id="org-renew-hint">This renews once a year. Enter the date it is next due.</p>
+            <label class="org-label" for="org-renew-date">Next renewal date</label>
+            <input id="org-renew-date" type="date" class="org-input">
+            <label class="org-label" for="org-renew-cost" style="margin-top:10px;">Amount paid ($)</label>
+            <input id="org-renew-cost" type="number" class="org-input" placeholder="Optional" min="0" step="0.01">
+            <p id="org-renew-error" class="org-field-hint" style="color:#dc2626; min-height:1.2em;"></p>
+        </div>
+        <div class="org-modal-footer">
+            <button id="org-renew-modal-cancel" class="org-btn-secondary">Cancel</button>
+            <button id="org-renew-modal-save" class="org-btn-primary">Save renewal</button>
         </div>
     </div>
 </div>
