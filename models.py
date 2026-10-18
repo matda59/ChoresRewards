@@ -280,6 +280,36 @@ class OrganiseItem(db.Model):
         }
 
 
+class OrganiseArchive(db.Model):
+    """A paid period kept after a document is renewed or moved off the current list."""
+    __tablename__ = 'organise_archive'
+    id = db.Column(db.Integer, primary_key=True)
+    organise_item_id = db.Column(db.Integer, db.ForeignKey('organise_item.id', ondelete='SET NULL'), nullable=True)
+    title = db.Column(db.String(200), nullable=False)
+    car_label = db.Column(db.String(200), nullable=True)
+    provider = db.Column(db.String(200), nullable=True)
+    icon = db.Column(db.String(20), nullable=True)
+    cost = db.Column(db.Float, nullable=True)
+    covered_until = db.Column(db.Date, nullable=True)
+    paid_on = db.Column(db.Date, nullable=True)
+    next_due = db.Column(db.Date, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'organise_item_id': self.organise_item_id,
+            'title': self.title,
+            'car_label': self.car_label or '',
+            'provider': self.provider,
+            'icon': self.icon,
+            'cost': self.cost,
+            'covered_until': self.covered_until.isoformat() if self.covered_until else None,
+            'paid_on': self.paid_on.isoformat() if self.paid_on else None,
+            'next_due': self.next_due.isoformat() if self.next_due else None,
+        }
+
+
 class VehicleService(db.Model):
     __tablename__ = 'vehicle_service'
     id = db.Column(db.Integer, primary_key=True)

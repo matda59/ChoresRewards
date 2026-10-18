@@ -7311,8 +7311,9 @@ function updateStreakDisplay(column, streakCount) {
     </h2>
     <div class="organise-body">
         <div class="organise-toolbar">
-            <p class="org-subtitle">Tap a card to edit it. For rego and insurance, tick Mark paid and enter next year’s renewal date.</p>
+            <p class="org-subtitle">Tick Mark paid on rego or insurance, enter next year’s date, and the payment you just made is kept in Archive.</p>
             <div class="org-toolbar-actions">
+                <button id="organise-archive-btn" class="org-quick-btn admin-only" type="button"><i class="fas fa-archive"></i> Archive <span id="organise-archive-count" class="org-archive-count"></span></button>
                 <button id="organise-add-btn" class="org-add-btn admin-only"><i class="fas fa-plus"></i> Add</button>
                 <div class="org-quick-wrap admin-only">
                     <button id="org-quick-btn" class="org-quick-btn" type="button"><i class="fas fa-car"></i> Templates</button>
@@ -7344,6 +7345,7 @@ function updateStreakDisplay(column, streakCount) {
         <div id="organise-items-container">
             <p class="org-empty">Loading…</p>
         </div>
+        <div id="organise-archive" class="org-archive" style="display:none;"></div>
     </div>
 </section>
 
@@ -7463,6 +7465,7 @@ function updateStreakDisplay(column, streakCount) {
             <textarea id="org-input-notes" class="org-input" rows="2" placeholder="Any extra details…" maxlength="2000"></textarea>
         </div>
         <div class="org-modal-footer">
+            <button type="button" id="org-modal-archive" class="org-btn-secondary" style="display:none;">Move to archive</button>
             <button type="button" id="org-modal-delete" class="org-btn-danger" style="display:none;">Delete</button>
             <button id="org-modal-cancel" class="org-btn-secondary">Cancel</button>
             <button id="org-modal-save" class="org-btn-primary">Save</button>
@@ -7531,7 +7534,7 @@ function updateStreakDisplay(column, streakCount) {
             <button id="org-renew-modal-close" class="org-modal-close-btn" title="Close">&times;</button>
         </div>
         <div class="org-modal-body">
-            <p class="org-field-hint" id="org-renew-hint">This renews once a year. Enter the date it is next due.</p>
+            <p class="org-field-hint" id="org-renew-hint">This renews once a year. The payment is kept in Archive. Enter the date it is next due.</p>
             <label class="org-label" for="org-renew-date">Next renewal date</label>
             <input id="org-renew-date" type="date" class="org-input">
             <label class="org-label" for="org-renew-cost" style="margin-top:10px;">Amount paid ($)</label>

@@ -6,6 +6,8 @@
     'use strict';
 
     let organiseItems = [];
+    let organiseArchive = [];
+    let archiveOpen = false;
     let editingItemId = null;
     let pendingPhotoFile = null;
     let photoRemoved = false;
@@ -797,6 +799,9 @@
         updateCustomCategoryVisibility();
         const deleteBtn = document.getElementById('org-modal-delete');
         if (deleteBtn) deleteBtn.style.display = item ? '' : 'none';
+        const archiveBtn = document.getElementById('org-modal-archive');
+        const canArchive = !!(item && !isVehicle(item));
+        if (archiveBtn) archiveBtn.style.display = canArchive ? '' : 'none';
 
         modal.style.display = 'flex';
         setTimeout(() => document.getElementById('org-input-title').focus(), 80);
@@ -1180,6 +1185,7 @@
             paid: false,
             last_date: todayISO(),
             due_date: due,
+            archive_payment: true,
         };
         const costRaw = costInput ? costInput.value.trim() : '';
         payload.cost = costRaw === '' ? null : parseFloat(costRaw);
@@ -1203,8 +1209,90 @@
             return;
         }
         closeRenewModal(false);
+        archiveOpen = true;
         loadOrganise();
     }
+
+    function renderArchive() {
+        const panel = document.getElementById('organise-archive');
+        const countEl = document.getElementById('organise-archive-count');
+        const toggle = document.getElementById('organise-archive-btn');
+        if (countEl) countEl.textContent = organiseArchive.length ? String(organiseArchive.length) : '';
+        if (toggle) toggle.classList.toggle('is-active', archiveOpen);
+        if (!panel) return;
+        if (!archiveOpen) {
+            panel.style.display = 'none';
+            return;
+        }
+        panel.style.display = '';
+        if (!organiseArchive.length) {
+            panel.innerHTML = `
+                <h3 class="org-category-heading"><i class="fas fa-archive"></i> Archive</h3>
+                <p class="org-empty">Nothing archived yet. Mark rego or insurance as paid and that payment is kept here. You can also move an old document into the archive from its edit form.</p>`;
+            return;
+        }
+        const groups = new Map();
+        organiseArchive.forEach(row => {
+            const key = row.car_label || 'Other';
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(row);
+        });
+        const blocks = [...groups.entries()].map(([label, rows]) => {
+            const body = rows.map(row => {
+                const bits = [];
+                if (row.paid_on) bits.push(`Paid ${formatDate(row.paid_on)}`);
+                if (row.covered_until) bits.push(`covered until ${formatDate(row.covered_until)}`);
+                if (row.provider) bits.push(escapeHtml(row.provider));
+                if (row.cost != null) bits.push(`$${parseFloat(row.cost).toFixed(2)}`);
+                if (row.next_due) bits.push(`next renewal ${formatDate(row.next_due)}`);
+                const icon = row.icon ? `${escapeHtml(row.icon)} ` : '';
+                return `
+                <div class="org-archive-row">
+                    <div class="org-archive-main">
+                        <div class="org-archive-title">${icon}${escapeHtml(row.title)}</div>
+                        <div class="org-archive-meta">${bits.join(' · ')}</div>
+                    </div>
+                    <button type="button" class="org-btn-delete admin-only" onclick="organiseDeleteArchive(${row.id})" title="Remove from archive"><i class="fas fa-trash"></i></button>
+                </div>`;
+            }).join('');
+            return `
+            <div class="org-archive-group">
+                <div class="org-archive-car">${escapeHtml(label)}</div>
+                ${body}
+            </div>`;
+        }).join('');
+        panel.innerHTML = `
+            <h3 class="org-category-heading"><i class="fas fa-archive"></i> Archive</h3>
+            ${blocks}`;
+    }
+
+    window.organiseDeleteArchive = function (id) {
+        if (!confirm('Remove this from the archive?')) return;
+        fetch(`/api/organise/archive/${id}`, { method: 'DELETE' })
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success) { alert(res.error || 'Failed to remove'); return; }
+                organiseArchive = organiseArchive.filter(row => row.id !== id);
+                renderArchive();
+            })
+            .catch(() => alert('Network error'));
+    };
+
+    window.organiseMoveToArchive = function (id) {
+        const item = organiseItems.find(i => i.id === id);
+        if (!item) return;
+        const name = item.title || 'this document';
+        if (!confirm(`Move "${name}" to the archive as paid? It leaves the current list. Use Mark paid instead if you still need next year's renewal on the car.`)) return;
+        closeModal();
+        fetch(`/api/organise/${id}/archive`, { method: 'POST' })
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success) { alert(res.error || 'Failed to archive'); return; }
+                archiveOpen = true;
+                loadOrganise();
+            })
+            .catch(() => alert('Network error'));
+    };
 
     window.organiseTogglePaid = function (id) {
         const item = organiseItems.find(i => i.id === id);
@@ -1356,7 +1444,9 @@
             .then(res => {
                 if (res.success) {
                     organiseItems = res.items;
+                    organiseArchive = res.archive || [];
                     renderOrganise();
+                    renderArchive();
                     checkUrgentRenewals(organiseItems);
                     if (typeof loadHeaderNotifications === 'function') loadHeaderNotifications();
                 }
@@ -1381,6 +1471,13 @@
         }
 
         document.getElementById('organise-add-btn')?.addEventListener('click', () => openModal(null));
+        document.getElementById('organise-archive-btn')?.addEventListener('click', () => {
+            archiveOpen = !archiveOpen;
+            renderArchive();
+        });
+        document.getElementById('org-modal-archive')?.addEventListener('click', () => {
+            if (editingItemId) organiseMoveToArchive(editingItemId);
+        });
         document.getElementById('org-modal-close')?.addEventListener('click', closeModal);
         document.getElementById('org-modal-cancel')?.addEventListener('click', closeModal);
         document.getElementById('org-modal-save')?.addEventListener('click', saveItem);

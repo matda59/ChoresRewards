@@ -5199,11 +5199,72 @@ def _organise_parent_id(raw, exclude_id=None):
     return parent_id
 
 
+def _is_vehicle_record(item):
+    if not item or item.parent_id or item.category != 'Car':
+        return False
+    if item.vehicle_make or item.vehicle_model or item.vehicle_year or item.vehicle_rego:
+        return True
+    known = {
+        'Registration / Rego', 'CTP / Green Slip', 'Comprehensive Insurance',
+        'Roadworthy Certificate', 'Road Tax', 'Roadside Assistance',
+        'E-Tag / Toll Account', 'Warranty', 'Car Loan', 'Parking Permit',
+    }
+    return (item.title or '').strip() not in known
+
+
+def _organise_scope_label(item):
+    if not item:
+        return ''
+    parts = [str(p) for p in (item.vehicle_year, item.vehicle_make, item.vehicle_model) if p]
+    name = ' '.join(parts) if parts else (item.title or '')
+    if item.vehicle_rego:
+        return f'{name} · {item.vehicle_rego}'
+    return name
+
+
+def _file_organise_archive(item, paid_on, cost, covered_until, next_due):
+    """Keep a paid period. The live document can stay for the next renewal."""
+    from models import OrganiseItem, OrganiseArchive
+    parent = OrganiseItem.query.get(item.parent_id) if item.parent_id else None
+    if parent:
+        scope = _organise_scope_label(parent)
+    elif item.category == 'Car' and not item.parent_id:
+        scope = _organise_scope_label(item) or item.category or ''
+    else:
+        scope = item.category or ''
+    row = OrganiseArchive(
+        organise_item_id=item.id,
+        title=(item.title or 'Document')[:200],
+        car_label=(scope[:200] or None),
+        provider=item.provider,
+        icon=item.icon,
+        cost=cost,
+        covered_until=covered_until,
+        paid_on=paid_on or date.today(),
+        next_due=next_due,
+    )
+    db.session.add(row)
+    return row
+
+
+def _archive_rows():
+    from models import OrganiseArchive
+    rows = OrganiseArchive.query.order_by(
+        OrganiseArchive.paid_on.desc(),
+        OrganiseArchive.id.desc(),
+    ).all()
+    return [row.to_dict() for row in rows]
+
+
 @routes_bp.route('/api/organise', methods=['GET'])
 def api_organise_list():
     from models import OrganiseItem
     items = OrganiseItem.query.order_by(OrganiseItem.category, OrganiseItem.sort_order, OrganiseItem.id).all()
-    return jsonify({'success': True, 'items': [i.to_dict() for i in items]})
+    return jsonify({
+        'success': True,
+        'items': [i.to_dict() for i in items],
+        'archive': _archive_rows(),
+    })
 
 
 @routes_bp.route('/api/organise', methods=['POST'])
@@ -5279,6 +5340,20 @@ def api_organise_update(item_id):
         if not item:
             return jsonify({'success': False, 'error': 'Item not found'}), 404
         data = request.get_json() or {}
+        if data.get('archive_payment'):
+            if 'cost' in data and data['cost'] not in (None, ''):
+                paid_cost = float(data['cost'])
+            elif 'cost' in data:
+                paid_cost = None
+            else:
+                paid_cost = item.cost
+            _file_organise_archive(
+                item,
+                paid_on=_optional_date(data.get('last_date')) or date.today(),
+                cost=paid_cost,
+                covered_until=item.due_date,
+                next_due=_optional_date(data.get('due_date')) if data.get('due_date') else None,
+            )
         if 'title' in data:
             item.title = str(data['title']).strip()[:200]
             if not item.title:
@@ -5369,6 +5444,53 @@ def api_organise_upload_photo(item_id):
     item.photo_filename = filename
     db.session.commit()
     return jsonify({'success': True, 'photo_url': f'/static/uploads/organise/{filename}'})
+
+
+@routes_bp.route('/api/organise/archive/<int:archive_id>', methods=['DELETE'])
+def api_organise_archive_delete(archive_id):
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    from models import OrganiseArchive
+    row = OrganiseArchive.query.get(archive_id)
+    if not row:
+        return jsonify({'success': False, 'error': 'Archive entry not found'}), 404
+    db.session.delete(row)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@routes_bp.route('/api/organise/<int:item_id>/archive', methods=['POST'])
+def api_organise_move_to_archive(item_id):
+    """File a finished document in the archive and take it off the current list."""
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    from models import OrganiseItem
+    try:
+        item = OrganiseItem.query.get(item_id)
+        if not item:
+            return jsonify({'success': False, 'error': 'Item not found'}), 404
+        if OrganiseItem.query.filter_by(parent_id=item.id).first() or _is_vehicle_record(item):
+            return jsonify({
+                'success': False,
+                'error': 'Archive the documents on this car, not the car itself',
+            }), 400
+        title = item.title
+        _file_organise_archive(
+            item,
+            paid_on=item.last_date or date.today(),
+            cost=item.cost,
+            covered_until=item.due_date,
+            next_due=None,
+        )
+        db.session.delete(item)
+        db.session.commit()
+        log_activity('organise_archived', f"Organise item '{title}' moved to the archive")
+        return jsonify({'success': True, 'archive': _archive_rows()})
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(exc)}), 400
 
 
 @routes_bp.route('/api/organise/<int:item_id>', methods=['DELETE'])

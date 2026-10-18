@@ -8718,6 +8718,59 @@ html.adult-mode .admin-only[data-display="inline-flex"] {
 }
 .org-btn-secondary:hover { background: var(--cr-subtle-panel-border); }
 
+.org-archive-count:empty { display: none; }
+.org-archive-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.3em;
+    height: 1.3em;
+    margin-left: 4px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: rgba(14, 165, 233, 0.18);
+    color: #0369a1;
+    font-size: 0.78em;
+    font-weight: 800;
+}
+.org-quick-btn.is-active {
+    border-color: rgba(14, 165, 233, 0.55);
+    background: rgba(14, 165, 233, 0.12);
+    color: var(--cr-text-primary);
+}
+.org-archive {
+    margin: 4px 0 8px;
+    padding: 4px 2px 8px;
+}
+.org-archive-group { margin-bottom: 12px; }
+.org-archive-car {
+    font-size: 0.82em;
+    font-weight: 700;
+    color: var(--cr-text-secondary);
+    margin: 0 0 6px;
+}
+.org-archive-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    border-radius: 10px;
+    border: 1px solid var(--cr-surface-border);
+    background: var(--cr-surface-1);
+}
+.org-archive-main { flex: 1; min-width: 0; }
+.org-archive-title {
+    font-weight: 700;
+    color: var(--cr-text-primary);
+}
+.org-archive-meta {
+    margin-top: 2px;
+    font-size: 0.82em;
+    color: var(--cr-text-secondary);
+    line-height: 1.35;
+}
+
 .org-btn-danger {
     margin-right: auto;
     background: rgba(239, 68, 68, 0.12);
