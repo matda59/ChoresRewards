@@ -435,10 +435,9 @@
 
         docs.forEach(doc => {
             const sc = doc.paid ? 'ok' : (doc.status || 'neutral');
-            const due = doc.due_date
-                ? `${formatDate(doc.due_date)}${!doc.paid && doc.days_until_due != null ? ' · ' + daysLabel(doc.days_until_due) : ''}`
-                : 'No due date';
+            const due = doc.due_date ? formatDate(doc.due_date) : 'No due date';
             const extra = [
+                !doc.paid && doc.due_date && doc.days_until_due != null ? daysLabel(doc.days_until_due) : '',
                 doc.provider ? escapeHtml(doc.provider) : '',
                 doc.paid ? 'Paid' : '',
                 doc.cost != null ? `$${parseFloat(doc.cost).toFixed(2)}` : '',
