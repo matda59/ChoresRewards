@@ -5667,16 +5667,19 @@ def reset_points():
         if not person:
             return jsonify({'success': False, 'error': 'Person not found'}), 404
         
-        # Validate the new_points value
+        # Cash balances use cents. int() turned 2.50 into 2.
         try:
-            new_points = int(new_points)
-            if new_points < 0:
-                return jsonify({'success': False, 'error': 'Points cannot be negative'}), 400
-        except (ValueError, TypeError):
-            return jsonify({'success': False, 'error': 'Invalid points value. It must be an integer.'}), 400
-        
+            parsed = Decimal(str(new_points).strip())
+        except (InvalidOperation, TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Invalid points value.'}), 400
+        if not parsed.is_finite():
+            return jsonify({'success': False, 'error': 'Invalid points value.'}), 400
+        if parsed < 0:
+            return jsonify({'success': False, 'error': 'Points cannot be negative'}), 400
+        new_points = _round_points(parsed)
+
         old_points = _round_points(person.points)
-        person.points = _round_points(new_points)
+        person.points = new_points
         person.bonus_points = 0
         db.session.commit()
         

@@ -460,10 +460,10 @@
                                     <label style="color: #e2e8f0; font-size: 0.9em; font-weight: 500;">Color:</label>
                                     <input type="color" id="color-picker-settings-{{ person.id }}" value="{{ person.color or '#cccccc' }}" onchange="changePersonColorSettings(event, {{ person.id }})" style="width:32px;height:32px;padding:0;border-radius:6px;border:1.5px solid #bbb;background:none;cursor:pointer;" title="Change person color">
                                 </div>
-                                <button class="reset-points-btn" style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);" onclick="return confirm('Are you sure you want to reset points for this person?') && resetPoints({{ person.id }})" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(76, 175, 80, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(76, 175, 80, 0.3)'">>
+                                <button type="button" class="reset-points-btn" style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);" onclick="return confirm('Are you sure you want to reset points for this person?') && resetPoints({{ person.id }})" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(76, 175, 80, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(76, 175, 80, 0.3)'">
                                     <i class="fas fa-coins" style="margin-right: 6px;"></i>Change Points
                                 </button>
-                                <button class="delete-person-btn" style="background: linear-gradient(135deg, #e53935, #d32f2f); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; box-shadow: 0 2px 8px rgba(229, 57, 53, 0.3);" onclick="return confirm('Are you sure you want to delete this person?') && confirmDeletePerson('{{ person.id }}', '{{ person.name }}')" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(229, 57, 53, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(229, 57, 53, 0.3)'">
+                                <button type="button" class="delete-person-btn" style="background: linear-gradient(135deg, #e53935, #d32f2f); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; box-shadow: 0 2px 8px rgba(229, 57, 53, 0.3);" onclick="confirmDeletePerson('{{ person.id }}', '{{ person.name }}')" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(229, 57, 53, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(229, 57, 53, 0.3)'">
                                     <i class="fas fa-trash" style="margin-right: 6px;"></i>Delete Person
                                 </button>
 
@@ -489,8 +489,9 @@
                                                    style="width:90px; padding:7px 10px; border:2px solid rgba(99,102,241,0.3); border-radius:8px; background:rgba(99,102,241,0.08); color:#fff; text-align:center; font-size:0.95em; font-weight:600;"
                                                    onfocus="this.style.borderColor='#6366f1'; this.style.background='rgba(99,102,241,0.15)'"
                                                    onblur="this.style.borderColor='rgba(99,102,241,0.3)'; this.style.background='rgba(99,102,241,0.08)'"
-                                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
-                                            <button onclick="setPersonPin({{ person.id }})"
+                                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
+                                                   onkeydown="if (event.key === 'Enter') { event.preventDefault(); setPersonPin({{ person.id }}); }">
+                                            <button type="button" onclick="setPersonPin({{ person.id }})"
                                                     style="padding:7px 12px; border:none; border-radius:8px; background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; font-size:0.85em; font-weight:600; cursor:pointer;">
                                                 Set PIN
                                             </button>
@@ -1844,6 +1845,7 @@ function setPersonPin(personId) {
     .catch(() => { if (window.showToast) showToast('Error setting PIN', 'error'); });
 }
 </script>
+<script src="{{ url_for('static', filename='js/toast.js') }}"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 
 <!-- Adult PIN unlock overlay (used on every page) -->
