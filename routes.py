@@ -5622,6 +5622,8 @@ def api_vehicle_services_update(item_id, service_id):
     try:
         data = request.get_json() or {}
         item = OrganiseItem.query.get(item_id)
+        previous_next_date = svc.next_service_date
+        previous_next_km = svc.next_service_mileage
         if 'service_type' in data:
             svc.service_type = str(data['service_type']).strip()[:200]
             if not svc.service_type:
@@ -5646,7 +5648,19 @@ def api_vehicle_services_update(item_id, service_id):
             svc.next_service_mileage = int(data['next_service_mileage']) if data['next_service_mileage'] not in (None, '') else None
         if item:
             _bump_vehicle_odometer(item, svc.mileage)
-            if svc.next_service_date is not None or svc.next_service_mileage is not None:
+            # Each log stores the next service that was due after that visit.
+            # Saving notes on an older visit, or re-saving the latest visit
+            # without changing those fields, must not put that old target
+            # back on the car after the plan has been moved.
+            next_changed = (
+                svc.next_service_date != previous_next_date
+                or svc.next_service_mileage != previous_next_km
+            )
+            if (
+                next_changed
+                and (svc.next_service_date is not None or svc.next_service_mileage is not None)
+                and _service_is_latest(item_id, svc.service_date, svc.id)
+            ):
                 _apply_vehicle_next_service(item, svc.next_service_date, svc.next_service_mileage)
         db.session.commit()
         log_activity('vehicle_service_updated', f"Service '{svc.service_type}' updated")
