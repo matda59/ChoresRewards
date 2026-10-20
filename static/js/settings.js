@@ -13,7 +13,7 @@ function resetPoints(personId) {
         body: JSON.stringify({ person_id: personId, new_points: newPoints }),
     })
     .then(response => response.json())
-    .then(data => { if (data.success) window.location.reload(); else alert(data.message || "Failed to reset points"); })
+    .then(data => { if (data.success) window.location.reload(); else alert(data.error || data.message || "Failed to reset points"); })
     .catch(error => console.error("Error resetting points:", error));
 }
 
