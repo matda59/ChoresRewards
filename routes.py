@@ -5178,6 +5178,25 @@ def _apply_vehicle_next_service(item, next_date, next_mileage, overwrite=False):
         item.next_service_mileage = next_mileage
 
 
+def _service_is_latest(item_id, service_date, service_id):
+    """True when no other log for this car is newer than this one."""
+    from models import VehicleService
+    rows = VehicleService.query.filter(
+        VehicleService.organise_item_id == item_id,
+        VehicleService.id != service_id,
+    ).all()
+    if service_date is None:
+        return not any(row.service_date is not None for row in rows)
+    for row in rows:
+        if row.service_date is None:
+            continue
+        if row.service_date > service_date:
+            return False
+        if row.service_date == service_date and row.id > service_id:
+            return False
+    return True
+
+
 def _organise_parent_id(raw, exclude_id=None):
     """Validate a linked-car parent id. Returns int or None."""
     if raw in (None, '', 0, '0'):
@@ -5574,8 +5593,14 @@ def api_vehicle_services_create(item_id):
             next_service_mileage=next_service_mileage,
         )
         db.session.add(svc)
+        db.session.flush()
         _bump_vehicle_odometer(item, mileage)
-        if next_service_date is not None or next_service_mileage is not None:
+        # A backdated receipt stores the interval that followed that visit.
+        # Copying it onto the car would replace a later plan with a past one.
+        if (
+            (next_service_date is not None or next_service_mileage is not None)
+            and _service_is_latest(item_id, service_date, svc.id)
+        ):
             _apply_vehicle_next_service(item, next_service_date, next_service_mileage)
         db.session.commit()
         log_activity('vehicle_service_added', f"Service '{service_type}' added to '{item.title}'")
