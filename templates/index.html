@@ -994,7 +994,9 @@ window.addEventListener('DOMContentLoaded', function() {
                         {% if c.completed and c.date_completed and c.date_completed.date() == current_date %}
                             {% set _ = today_done.append(c) %}
                         {% elif not c.completed %}
-                            {% if not c.days_of_week or c.days_of_week.strip() == '' %}
+                            {# due_date is the day a one-off appears. A later day is not today's work. #}
+                            {% if (not c.is_daily) and c.due_date and c.due_date > current_date %}
+                            {% elif not c.days_of_week or c.days_of_week.strip() == '' %}
                                 {% set _ = today_incomplete.append(c) %}
                             {% else %}
                                 {% set c_days = c.days_of_week.split(',') | map('trim') | map('lower') | list %}
