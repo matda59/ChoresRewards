@@ -4868,6 +4868,51 @@ function deleteReward(rewardId) {
         return STORE_COLORS[Math.max(0, idx) % STORE_COLORS.length];
     }
 
+    function shoppingNameKey(name) {
+        return String(name || '').trim().toLowerCase();
+    }
+
+    function sameGeneralItem(item, name, store) {
+        return !!item && shoppingNameKey(item.name) === shoppingNameKey(name) && item.store === store;
+    }
+
+    function generalCheckedKey(name, store) {
+        return `general::${store}::${shoppingNameKey(name)}`;
+    }
+
+    function legacyGeneralCheckedKey(name) {
+        return `general::${shoppingNameKey(name)}`;
+    }
+
+    // Older lists stored one checkbox per name. Move that tick onto the store
+    // line so a second store can have its own box.
+    function migrateGeneralCheckedKeys() {
+        let changed = false;
+        const groups = new Map();
+        shoppingGeneral.forEach(item => {
+            const nameKey = shoppingNameKey(item.name);
+            if (!groups.has(nameKey)) groups.set(nameKey, []);
+            groups.get(nameKey).push(item);
+        });
+        groups.forEach(items => {
+            if (items.length !== 1) return;
+            const item = items[0];
+            const legacy = legacyGeneralCheckedKey(item.name);
+            const next = generalCheckedKey(item.name, item.store);
+            if (Object.prototype.hasOwnProperty.call(shoppingChecked, legacy)
+                && !Object.prototype.hasOwnProperty.call(shoppingChecked, next)) {
+                shoppingChecked[next] = !!shoppingChecked[legacy];
+                delete shoppingChecked[legacy];
+                changed = true;
+            }
+        });
+        return changed;
+    }
+
+    function shoppingNotice(message) {
+        if (window.showToast) showToast(message, 'info');
+    }
+
     function getPlannedMeals() {
         const map = {};
         document.querySelectorAll('.meal-slot').forEach(slot => {
@@ -4939,10 +4984,18 @@ function deleteReward(rewardId) {
     let dragState = null;
 
     function createItem(name, qty, key, removable, dragData) {
-        const checked = !!shoppingChecked[key];
+        const isGeneral = !!(dragData && dragData.type === 'general');
+        const itemStore = isGeneral ? dragData.fromStore : '';
+        const checked = isGeneral
+            ? !!shoppingChecked[generalCheckedKey(name, itemStore)]
+            : !!shoppingChecked[key];
         const el = document.createElement('div');
         el.className = 'shopping-item' + (checked ? ' shopping-item-checked' : '');
         el.dataset.key = key;
+        if (isGeneral) {
+            el.dataset.itemName = shoppingNameKey(name);
+            el.dataset.itemStore = itemStore || '';
+        }
         const qtyHtml = qty ? `<span class="shopping-item-qty">${qty}</span>` : '';
         const actionHtml = removable
             ? `<button type="button" class="shopping-edit-btn" aria-label="Edit" title="Edit item"><i class="fas fa-pencil"></i></button><button type="button" class="shopping-archive-btn" aria-label="Archive" title="Move to Old Shopping List"><i class="fas fa-box-archive"></i></button><button type="button" class="shopping-remove-btn" aria-label="Delete" title="Delete permanently">&#x2715;</button>`
@@ -4953,7 +5006,12 @@ function deleteReward(rewardId) {
                 <span class="shopping-item-name">${name}${qtyHtml}</span>
             </label>${actionHtml}`;
         el.querySelector('.shopping-checkbox').addEventListener('change', e => {
-            shoppingChecked[key] = e.target.checked;
+            if (isGeneral) {
+                shoppingChecked[generalCheckedKey(name, itemStore)] = e.target.checked;
+                delete shoppingChecked[legacyGeneralCheckedKey(name)];
+            } else {
+                shoppingChecked[key] = e.target.checked;
+            }
             el.classList.toggle('shopping-item-checked', e.target.checked);
             updateBadges();
             debouncedSave();
@@ -4975,16 +5033,19 @@ function deleteReward(rewardId) {
                     if (saved) return;
                     saved = true;
                     const newName = editInput.value.trim();
-                    if (newName && newName.toLowerCase() !== name.toLowerCase()) {
-                        const idx = shoppingGeneral.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
-                        if (idx !== -1) {
-                            const oldKey = `general::${name.toLowerCase()}`;
-                            const wasChecked = shoppingChecked[oldKey];
-                            delete shoppingChecked[oldKey];
+                    if (newName && shoppingNameKey(newName) !== shoppingNameKey(name)) {
+                        const idx = shoppingGeneral.findIndex(i => sameGeneralItem(i, name, itemStore));
+                        const conflict = shoppingGeneral.some(i => sameGeneralItem(i, newName, itemStore));
+                        if (idx !== -1 && !conflict) {
+                            const wasChecked = !!shoppingChecked[generalCheckedKey(name, itemStore)];
+                            delete shoppingChecked[generalCheckedKey(name, itemStore)];
+                            delete shoppingChecked[legacyGeneralCheckedKey(name)];
                             shoppingGeneral[idx].name = newName;
-                            shoppingChecked[`general::${newName.toLowerCase()}`] = wasChecked || false;
+                            shoppingChecked[generalCheckedKey(newName, itemStore)] = wasChecked;
+                            debouncedSave();
+                        } else if (conflict) {
+                            shoppingNotice(`${newName} is already on the ${getStoreName(itemStore)} list`);
                         }
-                        debouncedSave();
                     }
                     renderShoppingList();
                 };
@@ -4995,10 +5056,11 @@ function deleteReward(rewardId) {
                 editInput.addEventListener('blur', doSave);
             });
             el.querySelector('.shopping-archive-btn').addEventListener('click', () => {
-                const item = shoppingGeneral.find(i => i.name.toLowerCase() === name.toLowerCase());
-                shoppingGeneral = shoppingGeneral.filter(i => i.name.toLowerCase() !== name.toLowerCase());
-                delete shoppingChecked[key];
-                if (item && !shoppingArchived.some(a => a.name.toLowerCase() === name.toLowerCase())) {
+                const item = shoppingGeneral.find(i => sameGeneralItem(i, name, itemStore));
+                shoppingGeneral = shoppingGeneral.filter(i => !sameGeneralItem(i, name, itemStore));
+                delete shoppingChecked[generalCheckedKey(name, itemStore)];
+                delete shoppingChecked[legacyGeneralCheckedKey(name)];
+                if (item && !shoppingArchived.some(a => sameGeneralItem(a, name, itemStore))) {
                     shoppingArchived.unshift(item);
                 }
                 renderShoppingList();
@@ -5006,8 +5068,9 @@ function deleteReward(rewardId) {
                 debouncedSave();
             });
             el.querySelector('.shopping-remove-btn').addEventListener('click', () => {
-                shoppingGeneral = shoppingGeneral.filter(i => i.name.toLowerCase() !== name.toLowerCase());
-                delete shoppingChecked[key];
+                shoppingGeneral = shoppingGeneral.filter(i => !sameGeneralItem(i, name, itemStore));
+                delete shoppingChecked[generalCheckedKey(name, itemStore)];
+                delete shoppingChecked[legacyGeneralCheckedKey(name)];
                 renderShoppingList();
                 debouncedSave();
             });
@@ -5034,11 +5097,11 @@ function deleteReward(rewardId) {
     function getDropInsertIndex(container, clientY, dragName) {
         const items = [...container.querySelectorAll('.shopping-general-section .shopping-item')];
         for (let i = 0; i < items.length; i++) {
-            if (items[i].dataset.key === `general::${dragName}`) continue;
+            if (items[i].dataset.itemName === dragName) continue;
             const rect = items[i].getBoundingClientRect();
             if (clientY <= rect.top + rect.height / 2) return { el: items[i], before: true };
         }
-        const last = items.filter(el => el.dataset.key !== `general::${dragName}`).pop();
+        const last = items.filter(el => el.dataset.itemName !== dragName).pop();
         return last ? { el: last, before: false } : null;
     }
 
@@ -5084,8 +5147,20 @@ function deleteReward(rewardId) {
             const isSameGeneral = dragState.fromStore === storeId && dragState.type === 'general';
             if (isCross) {
                 if (dragState.type === 'general') {
-                    const item = shoppingGeneral.find(i => i.name.toLowerCase() === dragState.name);
-                    if (item) { item.store = storeId; debouncedSave(); }
+                    const item = shoppingGeneral.find(i => sameGeneralItem(i, dragState.name, dragState.fromStore));
+                    if (item && item.store !== storeId) {
+                        const conflict = shoppingGeneral.some(i => sameGeneralItem(i, item.name, storeId));
+                        if (conflict) {
+                            shoppingNotice(`${item.name} is already on the ${getStoreName(storeId)} list`);
+                        } else {
+                            const wasChecked = !!shoppingChecked[generalCheckedKey(item.name, item.store)];
+                            delete shoppingChecked[generalCheckedKey(item.name, item.store)];
+                            delete shoppingChecked[legacyGeneralCheckedKey(item.name)];
+                            item.store = storeId;
+                            shoppingChecked[generalCheckedKey(item.name, storeId)] = wasChecked;
+                            debouncedSave();
+                        }
+                    }
                 } else if (dragState.type === 'meal') {
                     const ings = mealIngredients[dragState.mealKey];
                     if (ings) {
@@ -5096,7 +5171,7 @@ function deleteReward(rewardId) {
             } else if (isSameGeneral) {
                 const pos = getDropInsertIndex(container, e.clientY, dragState.name);
                 if (pos) {
-                    const targetName = pos.el.dataset.key.replace('general::', '');
+                    const targetName = pos.el.dataset.itemName || '';
                     const srcIdx = shoppingGeneral.findIndex(i => i.name.toLowerCase() === dragState.name && i.store === storeId);
                     if (srcIdx !== -1) {
                         const [srcItem] = shoppingGeneral.splice(srcIdx, 1);
@@ -5324,7 +5399,7 @@ function deleteReward(rewardId) {
             genDiv.innerHTML += `<div class="shopping-empty-msg">No general items yet &mdash; add some below.</div>`;
         } else {
             storeGeneral.forEach(item => {
-                const itemKey = `general::${item.name.toLowerCase()}`;
+                const itemKey = generalCheckedKey(item.name, storeId);
                 if (!shoppingChecked[itemKey]) unchecked++;
                 genDiv.appendChild(createItem(
                     item.name, '', itemKey, true,
@@ -6072,6 +6147,7 @@ function deleteReward(rewardId) {
     }
 
     function renderShoppingList() {
+        if (migrateGeneralCheckedKeys()) debouncedSave();
         renderStoresRow();
         storeConfig.forEach(store => {
             const container = document.getElementById(`shopping-${store.id}-items`);
@@ -6103,15 +6179,15 @@ function deleteReward(rewardId) {
                 <button type="button" class="shopping-restore-btn" title="Restore to shopping list"><i class="fas fa-rotate-left"></i> Restore</button>
                 <button type="button" class="shopping-remove-btn" title="Delete permanently">&#x2715;</button>`;
             row.querySelector('.shopping-restore-btn').addEventListener('click', () => {
-                if (!shoppingGeneral.some(g => g.name.toLowerCase() === item.name.toLowerCase())) {
+                if (!shoppingGeneral.some(g => sameGeneralItem(g, item.name, item.store))) {
                     shoppingGeneral.push(item);
                 }
-                shoppingArchived = shoppingArchived.filter(a => a.name.toLowerCase() !== item.name.toLowerCase());
+                shoppingArchived = shoppingArchived.filter(a => !sameGeneralItem(a, item.name, item.store));
                 renderShoppingList();
                 debouncedSave();
             });
             row.querySelector('.shopping-remove-btn').addEventListener('click', () => {
-                shoppingArchived = shoppingArchived.filter(a => a.name.toLowerCase() !== item.name.toLowerCase());
+                shoppingArchived = shoppingArchived.filter(a => !sameGeneralItem(a, item.name, item.store));
                 renderArchivedList();
                 debouncedSave();
             });
@@ -6157,7 +6233,9 @@ function deleteReward(rewardId) {
         const name = generalInput?.value.trim();
         if (!name) return;
         const store = generalStoreSelect?.value || storeConfig[0]?.id || 'aldi';
-        if (!shoppingGeneral.some(i => i.name.toLowerCase() === name.toLowerCase())) {
+        if (shoppingGeneral.some(i => sameGeneralItem(i, name, store))) {
+            shoppingNotice(`${name} is already on the ${getStoreName(store)} list`);
+        } else {
             shoppingGeneral.push({ name, store });
             renderShoppingList();
             debouncedSave();
@@ -6174,7 +6252,9 @@ function deleteReward(rewardId) {
         const name = quickInput?.value.trim();
         if (!name) return;
         const store = quickStoreSelect?.value || storeConfig[0]?.id || 'aldi';
-        if (!shoppingGeneral.some(i => i.name.toLowerCase() === name.toLowerCase())) {
+        if (shoppingGeneral.some(i => sameGeneralItem(i, name, store))) {
+            shoppingNotice(`${name} is already on the ${getStoreName(store)} list`);
+        } else {
             shoppingGeneral.push({ name, store });
             renderShoppingList();
             debouncedSave();
