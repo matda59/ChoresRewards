@@ -147,6 +147,7 @@ with app.app_context():
             ('current_odometer', 'INTEGER'),
             ('next_service_date', 'DATE'),
             ('next_service_mileage', 'INTEGER'),
+            ('next_service_explicit', 'BOOLEAN DEFAULT 0'),
             ('parent_id', 'INTEGER'),
         ]
         _org_changed = False

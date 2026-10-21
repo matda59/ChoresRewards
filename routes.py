@@ -3704,19 +3704,40 @@ def _reminder_window(item):
     return max(1, min(365, days))
 
 
+def _latest_service_log(services):
+    """The most recent visit. A dated log beats an undated one; a later id breaks ties."""
+    if not services:
+        return None
+
+    def _key(service):
+        return (
+            service.service_date is not None,
+            service.service_date or date.min,
+            service.id or 0,
+        )
+
+    return max(services, key=_key)
+
+
 def _effective_service_target(car, services):
-    """Next service date, target km, and current km, matching the car card."""
-    from datetime import date as _date
-    dated = [s for s in services if s.next_service_date or s.next_service_mileage is not None]
-    dated.sort(key=lambda s: (s.next_service_date is None, s.next_service_date or _date.max))
-    fallback = dated[0] if dated else None
-    next_date = car.next_service_date or (fallback.next_service_date if fallback else None)
-    if car.next_service_mileage is not None:
+    """Next service date, target km, and current km, matching the car card.
+
+    An older receipt stores the interval that followed that visit. Using the
+    earliest of those dates made a later visit look overdue, and clearing the
+    plan on the car put the same old date back.
+    """
+    if car.next_service_explicit:
+        next_date = car.next_service_date
         next_km = car.next_service_mileage
-    elif fallback is not None:
-        next_km = fallback.next_service_mileage
     else:
-        next_km = None
+        latest = _latest_service_log(services)
+        next_date = car.next_service_date or (latest.next_service_date if latest else None)
+        if car.next_service_mileage is not None:
+            next_km = car.next_service_mileage
+        elif latest is not None:
+            next_km = latest.next_service_mileage
+        else:
+            next_km = None
     odo = car.current_odometer
     mileages = [s.mileage for s in services if s.mileage is not None]
     if mileages:
@@ -5409,10 +5430,14 @@ def api_organise_update(item_id):
             item.vehicle_rego = str(data['vehicle_rego'] or '').strip()[:20] or None
         if 'current_odometer' in data:
             item.current_odometer = _optional_int(data.get('current_odometer'))
-        if 'next_service_date' in data:
-            item.next_service_date = _optional_date(data.get('next_service_date'))
-        if 'next_service_mileage' in data:
-            item.next_service_mileage = _optional_int(data.get('next_service_mileage'))
+        if 'next_service_date' in data or 'next_service_mileage' in data:
+            # The next-service widget sends these keys even when the boxes are
+            # cleared. That save is the plan, including "no next service".
+            if 'next_service_date' in data:
+                item.next_service_date = _optional_date(data.get('next_service_date'))
+            if 'next_service_mileage' in data:
+                item.next_service_mileage = _optional_int(data.get('next_service_mileage'))
+            item.next_service_explicit = True
         if 'parent_id' in data:
             parent_id = _organise_parent_id(data.get('parent_id'), exclude_id=item.id)
             item.parent_id = parent_id
