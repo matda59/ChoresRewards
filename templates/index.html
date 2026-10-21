@@ -3969,26 +3969,28 @@ function deleteReward(rewardId) {
             </div>
             <div class="meal-day-items">
                 {% for meal_key, meal_label, meal_image in meal_types %}
-                {% set cell_value = meal_planner_plan.get(day.date_iso, {}).get(meal_key, '') %}
+                {% set cell_value = meal_planner_plan.get(day.date_iso, {}).get(meal_key, '') | trim %}
                 {% set recurring_state = meal_planner_recurring.get(day.day_full|lower, {}).get(meal_key, {}) %}
+                {% set recurring_value = (recurring_state.get('value', '') or '') | trim %}
                 {% set recurring_enabled = recurring_state.get('enabled', false) %}
+                {% set follows_weekly = recurring_enabled and cell_value and (cell_value | lower) == (recurring_value | lower) %}
                 <div class="meal-slot" data-day="{{ day.date_iso }}" data-meal="{{ meal_key }}" data-weekday="{{ day.day_full|lower }}">
                     <div class="meal-slot-row" draggable="true">
                         <span class="meal-slot-icon">🍽️</span>
                         <span class="meal-display-value{% if not cell_value %} meal-display-empty{% endif %}" data-day="{{ day.date_iso }}" data-meal="{{ meal_key }}">{{ cell_value if cell_value else '—' }}</span>
                         <div class="meal-slot-tools">
-                            <span class="meal-recurring-badge{% if not recurring_enabled or not cell_value %} hidden{% endif %}" data-day="{{ day.date_iso }}" data-meal="{{ meal_key }}" title="Repeats weekly"><i class="fas fa-repeat"></i></span>
+                            <span class="meal-recurring-badge{% if not follows_weekly %} hidden{% endif %}" data-day="{{ day.date_iso }}" data-meal="{{ meal_key }}" title="Repeats weekly"><i class="fas fa-repeat"></i></span>
                             <i class="fas fa-grip-lines meal-drag-cue" title="Drag to swap"></i>
                             <button type="button" class="meal-edit-btn" title="Change meal"><i class="fas fa-pencil"></i></button>
                         </div>
                     </div>
                     <input type="text" class="meal-input" value="{{ cell_value }}" maxlength="120" style="display:none;" aria-hidden="true">
-                    <input type="checkbox" class="meal-recurring-input" {% if recurring_enabled %}checked{% endif %} style="display:none;" aria-hidden="true">
+                    <input type="checkbox" class="meal-recurring-input" {% if follows_weekly %}checked{% endif %} style="display:none;" aria-hidden="true">
                     <div class="meal-inline-picker" style="display:none;">
                         <div class="meal-picker-header">
                             <label class="meal-picker-recurring-wrap" title="Repeat weekly">
                                 <i class="fas fa-repeat"></i>
-                                <input type="checkbox" class="meal-picker-recurring" {% if recurring_enabled %}checked{% endif %}>
+                                <input type="checkbox" class="meal-picker-recurring" {% if follows_weekly %}checked{% endif %}>
                                 <span>Weekly</span>
                             </label>
                         </div>
@@ -4023,6 +4025,7 @@ function deleteReward(rewardId) {
     </div>
 </section>
 
+<script src="{{ url_for('static', filename='js/meal_plan_logic.js') }}?v=20261021a"></script>
 <script>
 (() => {
     const plannerGrid = document.getElementById('meal-planner-editable');
@@ -4369,14 +4372,19 @@ function deleteReward(rewardId) {
         const pickerRecurring = picker.querySelector('.meal-picker-recurring');
         if (slotInput) slotInput.value = value;
         if (slotRecurring && pickerRecurring) slotRecurring.checked = pickerRecurring.checked;
+        delete slot.dataset.stopWeekly;
         syncSlotDisplay(slot);
         closePicker();
         savePlan(true).catch(err => showPlannerToast(err.message || 'Save failed', 'error'));
     }
 
     function clearPickerSlot(slot) {
+        const value = normalizeText(slot.querySelector('.meal-input')?.value);
+        const clearingWeekly = window.MealPlanLogic?.slotIsWeeklyMeal(value, ruleForSlot(slot));
         slot.querySelector('.meal-input').value = '';
         slot.querySelector('.meal-recurring-input').checked = false;
+        if (clearingWeekly) slot.dataset.stopWeekly = '1';
+        else delete slot.dataset.stopWeekly;
         syncSlotDisplay(slot);
         closePicker();
         savePlan(true).catch(err => showPlannerToast(err.message || 'Save failed', 'error'));
@@ -4401,7 +4409,13 @@ function deleteReward(rewardId) {
         picker?.querySelector('.meal-picker-ok')?.addEventListener('click', () => confirmPicker(slot));
         picker?.querySelector('.meal-picker-clear')?.addEventListener('click', () => {
             const cur = normalizeText(slot.querySelector('.meal-input')?.value);
-            if (cur && !confirm(`Clear "${cur}" from this slot?`)) return;
+            if (cur) {
+                const weekly = window.MealPlanLogic?.slotIsWeeklyMeal(cur, ruleForSlot(slot));
+                const message = weekly
+                    ? `Stop "${cur}" repeating every ${weekdayLabel(slot)}? It will also come off the other weeks.`
+                    : `Clear "${cur}" from this day?`;
+                if (!confirm(message)) return;
+            }
             clearPickerSlot(slot);
         });
         picker?.querySelector('.meal-picker-cancel')?.addEventListener('click', closePicker);
@@ -4434,15 +4448,35 @@ function deleteReward(rewardId) {
         pickedSlot = null;
     }
 
+    function weekdayLabel(slot) {
+        const day = slot?.dataset?.weekday || '';
+        return day ? day.charAt(0).toUpperCase() + day.slice(1) : 'week';
+    }
+
+    function ruleForSlot(slot) {
+        return recurringRules?.[slot.dataset.weekday]?.[slot.dataset.meal];
+    }
+
+    function markSlotWeekly(slot) {
+        const cb = slot.querySelector('.meal-recurring-input');
+        if (!cb || !window.MealPlanLogic) return;
+        const value = normalizeText(slot.querySelector('.meal-input')?.value);
+        cb.checked = window.MealPlanLogic.slotIsWeeklyMeal(value, ruleForSlot(slot));
+    }
+
     function swapMealSlots(a, b) {
         if (!a || !b || a === b) return false;
         const aIn = a.querySelector('.meal-input'), bIn = b.querySelector('.meal-input');
-        const aRec = a.querySelector('.meal-recurring-input'), bRec = b.querySelector('.meal-recurring-input');
         if (!aIn || !bIn) return false;
-        const aVal = aIn.value, aChk = aRec?.checked || false;
-        aIn.value = bIn.value; bIn.value = aVal;
-        if (aRec && bRec) { aRec.checked = bRec.checked; bRec.checked = aChk; }
-        syncSlotDisplay(a); syncSlotDisplay(b);
+        const aVal = aIn.value;
+        aIn.value = bIn.value;
+        bIn.value = aVal;
+        delete a.dataset.stopWeekly;
+        delete b.dataset.stopWeekly;
+        markSlotWeekly(a);
+        markSlotWeekly(b);
+        syncSlotDisplay(a);
+        syncSlotDisplay(b);
         return true;
     }
 
@@ -4496,25 +4530,21 @@ function deleteReward(rewardId) {
     }
 
     function collectRecurringPlan() {
-        const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
-        const out = {};
-        days.forEach(d => { out[d] = { breakfast:{enabled:false,value:''}, lunch:{enabled:false,value:''}, dinner:{enabled:false,value:''} }; });
-        plannerGrid.querySelectorAll('.meal-slot').forEach(slot => {
-            const { weekday: wd, meal } = slot.dataset;
-            if (!wd || !meal || !out[wd]) return;
-            out[wd][meal] = {
-                enabled: slot.querySelector('.meal-recurring-input')?.checked || false,
-                value: normalizeText(slot.querySelector('.meal-input')?.value)
-            };
-        });
-        return out;
+        const slots = [...plannerGrid.querySelectorAll('.meal-slot')].map(slot => ({
+            weekday: slot.dataset.weekday,
+            meal: slot.dataset.meal,
+            value: normalizeText(slot.querySelector('.meal-input')?.value),
+            weeklyChecked: !!slot.querySelector('.meal-recurring-input')?.checked,
+            stopWeekly: slot.dataset.stopWeekly === '1'
+        }));
+        if (!window.MealPlanLogic) return {};
+        return window.MealPlanLogic.collectRecurringFromSlots(recurringRules, slots);
     }
 
     function syncRecurringButtons(rules) {
         recurringRules = rules || recurringRules;
         plannerGrid.querySelectorAll('.meal-slot').forEach(slot => {
-            const cb = slot.querySelector('.meal-recurring-input');
-            if (cb) cb.checked = !!recurringRules?.[slot.dataset.weekday]?.[slot.dataset.meal]?.enabled;
+            markSlotWeekly(slot);
             syncSlotDisplay(slot);
         });
     }
@@ -4579,8 +4609,9 @@ function deleteReward(rewardId) {
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'Failed to save');
-        syncRecurringButtons(data.recurring || recurringPlan);
         updatePlanDisplay(data.plan || mealPlan);
+        syncRecurringButtons(data.recurring || recurringPlan);
+        plannerGrid.querySelectorAll('.meal-slot').forEach(slot => delete slot.dataset.stopWeekly);
         mealPlanDirty = false;
         if (!silent) showPlannerToast('Weekly meals saved', 'success');
         // Auto-refresh shopping list
