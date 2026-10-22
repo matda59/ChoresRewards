@@ -4322,6 +4322,7 @@ def settings():
             else:
                 AppSetting.set('quiz_questions_enabled', 'false')
             log_activity('settings_updated', f"Bonus points configuration was updated")
+            success = 'Bonus points settings saved.'
         elif 'gotify_url' in request.form and 'gotify_token' in request.form:
             gotify_url = request.form.get('gotify_url', '').strip()
             gotify_token = request.form.get('gotify_token', '').strip()

@@ -397,6 +397,8 @@
             </nav>
             <div class="settings-content">
                 <h3 class="section-title"><i class="fas fa-cog"></i> General Settings</h3>
+                {% if success %}<div class="success-message"><i class="fas fa-check-circle"></i> {{ success }}</div>{% endif %}
+                {% if error %}<div class="error-message"><i class="fas fa-exclamation-triangle"></i> {{ error }}</div>{% endif %}
                 <section class="settings-section">
                     <h3 class="section-title"><i class="fas fa-trophy"></i> Reward System</h3>
                     <p style="color:rgba(255,255,255,0.6);margin-top:0;">Choose how chores are valued across the household. <strong style="color:rgba(255,255,255,0.8);">Points</strong> uses a virtual currency that kids accumulate and spend on rewards you create. <strong style="color:rgba(255,255,255,0.8);">Cash</strong> tracks a real dollar value — ideal if you run a pocket money system.</p>
