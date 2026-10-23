@@ -237,6 +237,10 @@ class OrganiseItem(db.Model):
     current_odometer = db.Column(db.Integer, nullable=True)
     next_service_date = db.Column(db.Date, nullable=True)
     next_service_mileage = db.Column(db.Integer, nullable=True)
+    # True once the next-service widget is saved. Empty date and km then mean
+    # "no plan", including after the fields are cleared. Until then a car with
+    # no plan of its own can still show the latest service log.
+    next_service_explicit = db.Column(db.Boolean, default=False, nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('organise_item.id', ondelete='CASCADE'), nullable=True)
     vehicle_services = db.relationship('VehicleService', backref='vehicle', lazy=True,
                                        cascade='all, delete-orphan',
@@ -276,6 +280,7 @@ class OrganiseItem(db.Model):
             'current_odometer': self.current_odometer,
             'next_service_date': self.next_service_date.isoformat() if self.next_service_date else None,
             'next_service_mileage': self.next_service_mileage,
+            'next_service_explicit': bool(self.next_service_explicit),
             'parent_id': self.parent_id,
         }
 

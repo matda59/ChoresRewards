@@ -168,15 +168,35 @@
         return serviceMax;
     }
 
+    function latestService(services) {
+        const list = (services || []).slice();
+        list.sort((a, b) => {
+            const aDated = a.service_date ? 1 : 0;
+            const bDated = b.service_date ? 1 : 0;
+            if (aDated !== bDated) return aDated - bDated;
+            const aDate = a.service_date || '';
+            const bDate = b.service_date || '';
+            if (aDate !== bDate) return aDate < bDate ? -1 : 1;
+            return (a.id || 0) - (b.id || 0);
+        });
+        return list.length ? list[list.length - 1] : null;
+    }
+
     function nextServiceInfo(item, services) {
-        const list = services || [];
-        const fromSvc = list.filter(s => s.next_service_date || s.next_service_mileage != null);
-        fromSvc.sort((a, b) => String(a.next_service_date || '9999').localeCompare(String(b.next_service_date || '9999')));
-        const fallback = fromSvc[0] || null;
-        const date = (item && item.next_service_date) || (fallback && fallback.next_service_date) || null;
+        // A saved plan wins, even when both boxes were cleared. Otherwise only
+        // the latest visit can supply a plan — an older receipt's "next
+        // service" date is the interval after that visit, not the live one.
+        if (item && item.next_service_explicit) {
+            return {
+                date: item.next_service_date || null,
+                km: item.next_service_mileage != null ? item.next_service_mileage : null,
+            };
+        }
+        const latest = latestService(services);
+        const date = (item && item.next_service_date) || (latest && latest.next_service_date) || null;
         const km = (item && item.next_service_mileage != null)
             ? item.next_service_mileage
-            : (fallback && fallback.next_service_mileage != null ? fallback.next_service_mileage : null);
+            : (latest && latest.next_service_mileage != null ? latest.next_service_mileage : null);
         return { date, km };
     }
 
