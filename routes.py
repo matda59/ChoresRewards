@@ -2297,9 +2297,12 @@ def api_shopping_list():
             store = re.sub(r'[^a-z0-9\-]', '', str(item.get('store', 'aldi')).strip().lower())[:50]
             if not store:
                 store = 'aldi'
-            if name and name.lower() not in seen:
+            # The same name can be on two store lists. Milk at Aldi and milk
+            # at Woolworths are different lines. A repeat at one store is not.
+            identity = (name.lower(), store)
+            if name and identity not in seen:
                 clean_general.append({'name': name, 'store': store})
-                seen.add(name.lower())
+                seen.add(identity)
 
         clean_hidden = {}
         for store_id, meal_keys in hidden.items():
@@ -2333,9 +2336,10 @@ def api_shopping_list():
                 continue
             name = str(item.get('name', '')).strip()[:80]
             store = re.sub(r'[^a-z0-9\-]', '', str(item.get('store', '')).strip().lower())[:50]
-            if name and name.lower() not in seen_arch:
+            identity = (name.lower(), store)
+            if name and identity not in seen_arch:
                 clean_archived.append({'name': name, 'store': store})
-                seen_arch.add(name.lower())
+                seen_arch.add(identity)
 
         payload = {'checked': clean_checked, 'general': clean_general, 'hidden': clean_hidden, 'active': clean_active, 'meal_order': clean_meal_order, 'archived': clean_archived}
         AppSetting.set('shopping_list_json', _json.dumps(payload))
