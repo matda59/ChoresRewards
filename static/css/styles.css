@@ -1044,6 +1044,7 @@
     position: sticky;
     top: 0;
     z-index: 500;
+    overflow: visible;
     background: var(--cr-header-bg-1);
 }
 
@@ -4359,12 +4360,17 @@ label,
     box-shadow: 0 2px 10px rgba(76,175,80,0.3);
 }
 
-/* Chore emoji picker */
+/* Chore emoji picker.
+   The grid stays in normal flow (not an overlay). The Add Chores card and the
+   following Redeemed Rewards section both paint their own layers, so an
+   absolutely positioned grid was covered by the next section. */
 .chore-emoji-picker-wrap {
     position: relative;
-    display: inline-flex;
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 8px;
+    width: min(320px, 100%);
 }
 
 .chore-emoji-preview-btn {
@@ -4386,10 +4392,8 @@ label,
 }
 
 .chore-emoji-grid {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    z-index: 500;
+    position: static;
+    z-index: 2;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
@@ -4397,7 +4401,10 @@ label,
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: 12px;
     padding: 10px;
-    width: 280px;
+    width: 100%;
+    max-height: min(360px, 55vh);
+    overflow-y: auto;
+    box-sizing: border-box;
     box-shadow: 0 8px 24px rgba(0,0,0,0.45);
 }
 
@@ -9640,6 +9647,14 @@ body.side-nav-body-collapsed { padding-left: 8px; }
     overflow: hidden;
 }
 .header-notif-wrap.is-open .header-notif-panel { display: flex; }
+/* Floated onto document.body while open so the phone/APK header and the
+   section under it cannot clip or cover the list. */
+.header-notif-panel.is-floating {
+    position: fixed;
+    display: flex;
+    z-index: 10050;
+    right: auto;
+}
 .header-notif-head {
     display: flex;
     align-items: center;
@@ -9656,6 +9671,8 @@ body.side-nav-body-collapsed { padding-left: 8px; }
 }
 .header-notif-body {
     overflow-y: auto;
+    min-height: 0;
+    flex: 1 1 auto;
     padding: 0 8px 8px;
 }
 .header-notif-group-label {

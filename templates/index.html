@@ -28,7 +28,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20260927a">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20261024a">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -9699,10 +9699,33 @@ document.addEventListener('click', function (e) {
         toggleQuickAdd(false);
     }
     const notifWrap = document.getElementById('header-notif-wrap');
-    if (notifWrap && notifWrap.classList.contains('is-open') && !notifWrap.contains(e.target)) {
+    const notifPanel = document.getElementById('header-notif-panel');
+    if (notifWrap && notifWrap.classList.contains('is-open') && !notifWrap.contains(e.target) && !(notifPanel && notifPanel.contains(e.target))) {
         toggleNotifPanel(false);
     }
 });
+
+let notifPanelHome = null;
+
+function placeNotifPanel() {
+    const btn = document.getElementById('header-notif-btn');
+    const panel = document.getElementById('header-notif-panel');
+    if (!btn || !panel) return;
+    const rect = btn.getBoundingClientRect();
+    const margin = 12;
+    const width = Math.min(380, window.innerWidth - margin * 2);
+    let left = rect.right - width;
+    if (left < margin) left = margin;
+    if (left + width > window.innerWidth - margin) {
+        left = Math.max(margin, window.innerWidth - margin - width);
+    }
+    const top = Math.max(margin, rect.bottom + 8);
+    const maxHeight = Math.max(160, Math.min(window.innerHeight * 0.7, window.innerHeight - top - margin));
+    panel.style.top = top + 'px';
+    panel.style.left = left + 'px';
+    panel.style.width = width + 'px';
+    panel.style.maxHeight = maxHeight + 'px';
+}
 
 function toggleNotifPanel(forceState) {
     const wrap = document.getElementById('header-notif-wrap');
@@ -9714,8 +9737,19 @@ function toggleNotifPanel(forceState) {
     panel.hidden = !open;
     btn.setAttribute('aria-expanded', String(open));
     if (open) {
+        if (!notifPanelHome) notifPanelHome = panel.parentElement;
+        document.body.appendChild(panel);
+        panel.classList.add('is-floating');
+        placeNotifPanel();
         toggleQuickAdd(false);
         loadHeaderNotifications();
+    } else {
+        panel.classList.remove('is-floating');
+        panel.style.top = '';
+        panel.style.left = '';
+        panel.style.width = '';
+        panel.style.maxHeight = '';
+        if (notifPanelHome) notifPanelHome.appendChild(panel);
     }
 }
 
@@ -9824,6 +9858,13 @@ document.getElementById('header-notif-body')?.addEventListener('click', function
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') toggleNotifPanel(false);
 });
+
+window.addEventListener('resize', function () {
+    if (document.getElementById('header-notif-wrap')?.classList.contains('is-open')) placeNotifPanel();
+});
+window.addEventListener('scroll', function () {
+    if (document.getElementById('header-notif-wrap')?.classList.contains('is-open')) placeNotifPanel();
+}, true);
 
 loadHeaderNotifications();
 setInterval(loadHeaderNotifications, 60 * 1000);
