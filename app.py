@@ -1,4 +1,6 @@
-from flask import Flask
+from urllib.parse import unquote
+
+from flask import Flask, abort, request
 from extensions import db
 import fcntl
 import mimetypes
@@ -100,7 +102,7 @@ if quiz_path not in sys.path:
     sys.path.append(os.path.dirname(__file__))
 from quiz_questions import quiz_questions
 
-from routes import routes_bp
+from routes import filename_has_executable_extension, routes_bp
 
 
 # Register the Blueprint
@@ -108,6 +110,21 @@ from routes import routes_bp
 # Main route: pass quiz_questions to template
 
 app.register_blueprint(routes_bp)
+
+
+@app.before_request
+def _block_script_files_under_uploads():
+    """Refuse to serve a script that landed in the public uploads folder.
+
+    Profile photos, reward images, and sounds are static files. Saving one
+    with a PHP, HTML, or server-config name must not make it fetchable.
+    """
+    path = unquote(request.path or '').replace('\\', '/')
+    if not path.lower().startswith('/static/uploads/'):
+        return None
+    name = path.rsplit('/', 1)[-1]
+    if filename_has_executable_extension(name):
+        abort(404)
 
 from usage_page import usage_bp
 app.register_blueprint(usage_bp)

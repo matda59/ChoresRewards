@@ -38,6 +38,66 @@ except ImportError:
 
 routes_bp = Blueprint('routes', __name__)
 
+# Script and server-config suffixes. A file with one of these anywhere in its
+# name must not be stored under static/uploads or sent back to the browser.
+# Gunicorn does not execute PHP, but the upload folder is public, and a
+# front-end web server that maps these extensions would run them.
+EXECUTABLE_UPLOAD_EXTENSIONS = frozenset({
+    'php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phtml', 'phar', 'phps',
+    'pht', 'phpt', 'pgif', 'inc', 'asp', 'aspx', 'asa', 'cer', 'jsp', 'jspx',
+    'cgi', 'pl', 'py', 'pyc', 'sh', 'exe', 'dll', 'so', 'html', 'htm',
+    'xhtml', 'shtml', 'svg', 'js', 'mjs', 'htaccess',
+})
+_BLOCKED_UPLOAD_BASENAMES = frozenset({
+    '.htaccess', '.htpasswd', '.user.ini', 'user.ini', '.php.ini', 'php.ini',
+    'web.config', 'htaccess', 'htpasswd',
+})
+REWARD_IMAGE_EXTENSIONS = frozenset({'png', 'jpg', 'jpeg', 'gif', 'webp'})
+
+
+def filename_has_executable_extension(filename):
+    """True when a name could be executed or interpreted if it were fetched."""
+    if not isinstance(filename, str) or not filename:
+        return False
+    raw_base = filename.replace('\\', '/').rsplit('/', 1)[-1]
+    candidates = [raw_base]
+    cleaned = secure_filename(filename)
+    if cleaned and cleaned not in candidates:
+        candidates.append(cleaned)
+    for name in candidates:
+        if name.lower() in _BLOCKED_UPLOAD_BASENAMES:
+            return True
+        parts = [part for part in name.lower().split('.')[1:] if part]
+        if any(part in EXECUTABLE_UPLOAD_EXTENSIONS for part in parts):
+            return True
+    return False
+
+
+def safe_stored_extension(filename, allowed):
+    """Return a single allowlisted extension such as '.jpg', or None.
+
+    Rejects null bytes and names that hide a script suffix, including
+    double extensions like shell.php.jpg. The caller stores the file under
+    a generated name plus this extension, never the original filename.
+    """
+    if not isinstance(filename, str) or not filename or '\x00' in filename:
+        return None
+    if filename_has_executable_extension(filename):
+        return None
+    cleaned = secure_filename(filename)
+    if not cleaned:
+        return None
+    ext = os.path.splitext(cleaned)[1].lower()
+    allowed_norm = set()
+    for item in allowed:
+        item = str(item).lower()
+        if not item.startswith('.'):
+            item = '.' + item
+        allowed_norm.add(item)
+    if ext not in allowed_norm:
+        return None
+    return ext
+
 
 # ── Quiz Questions storage ─────────────────────────────────────────────────────
 # Questions are stored in a writable JSON file in the instance folder so they can
@@ -1401,7 +1461,11 @@ def _sync_screensaver_photos():
         names = []
     for filename in sorted(names):
         ext = os.path.splitext(filename)[1].lower()
-        if ext not in SCREENSAVER_ALLOWED_EXTS or filename in known:
+        if (
+            filename_has_executable_extension(filename)
+            or ext not in SCREENSAVER_ALLOWED_EXTS
+            or filename in known
+        ):
             continue
         kept.append({'filename': filename, 'uploaded_at': datetime.utcnow().isoformat()})
         changed = True
@@ -1544,8 +1608,8 @@ def api_screensaver_upload():
     photos = _get_screensaver_photos()
     added = 0
     for file in files:
-        ext = os.path.splitext(secure_filename(file.filename))[1].lower()
-        if ext not in SCREENSAVER_ALLOWED_EXTS:
+        ext = safe_stored_extension(file.filename, SCREENSAVER_ALLOWED_EXTS)
+        if not ext:
             continue
         unique_filename = f"ss_{uuid.uuid4().hex[:12]}{ext}"
         file.save(os.path.join(upload_folder, unique_filename))
@@ -1669,7 +1733,13 @@ def add_reward():
         reward_image_file = request.files.get('reward_image_file')
         uploaded_image_url = None
         if reward_image_file and reward_image_file.filename:
-            filename = secure_filename(reward_image_file.filename)
+            ext = safe_stored_extension(reward_image_file.filename, REWARD_IMAGE_EXTENSIONS)
+            if not ext:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid image type. Use png, jpg, gif, or webp.',
+                }), 400
+            filename = f"reward_{uuid.uuid4().hex}{ext}"
             upload_folder = os.path.join(current_app.root_path, current_app.config.get('UPLOAD_FOLDER', UPLOAD_FOLDER), 'rewards')
             os.makedirs(upload_folder, exist_ok=True)
             file_path = os.path.join(upload_folder, filename)
@@ -2079,9 +2149,8 @@ def api_meal_image():
         file = request.files.get('image')
         if not file or not file.filename:
             return jsonify({'success': False, 'error': 'No image provided'}), 400
-        filename = secure_filename(file.filename)
-        ext = os.path.splitext(filename)[1].lower()
-        if ext not in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+        ext = safe_stored_extension(file.filename, {'.jpg', '.jpeg', '.png', '.gif', '.webp'})
+        if not ext:
             return jsonify({'success': False, 'error': 'Invalid file type'}), 400
         unique_filename = f"meal_{uuid.uuid4().hex[:12]}{ext}"
         upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'meals')
@@ -2574,7 +2643,7 @@ UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return safe_stored_extension(filename, ALLOWED_EXTENSIONS) is not None
 
 def get_person_by_name(name):
     """
@@ -4655,7 +4724,7 @@ def _safe_sound_filename(filename):
     name = os.path.basename(filename.strip().replace('\\', '/'))
     if not name or name in ('.', '..'):
         return None
-    if not name.lower().endswith(SOUND_EXTENSIONS):
+    if filename_has_executable_extension(name) or not name.lower().endswith(SOUND_EXTENSIONS):
         return None
     return name
 
@@ -4669,7 +4738,7 @@ def _iter_sound_files(folder):
         return []
     names = []
     for name in os.listdir(folder):
-        if not name.lower().endswith(SOUND_EXTENSIONS):
+        if filename_has_executable_extension(name) or not name.lower().endswith(SOUND_EXTENSIONS):
             continue
         if os.path.isfile(os.path.join(folder, name)):
             names.append(name)
@@ -4715,10 +4784,14 @@ def upload_sound():
     file = request.files['sound_file']
     if file.filename == '':
         return jsonify({'success': False, 'error': 'No selected file'}), 400
-    if not file.filename.lower().endswith(SOUND_EXTENSIONS):
+    if filename_has_executable_extension(file.filename) or not file.filename.lower().endswith(SOUND_EXTENSIONS):
         return jsonify({'success': False, 'error': 'Unsupported file type'}), 400
     filename = secure_filename(file.filename)
-    if not filename or not filename.lower().endswith(SOUND_EXTENSIONS):
+    if (
+        not filename
+        or filename_has_executable_extension(filename)
+        or not filename.lower().endswith(SOUND_EXTENSIONS)
+    ):
         return jsonify({'success': False, 'error': 'Unsupported file type'}), 400
     filepath = os.path.join(_custom_sounds_dir(), filename)
     file.save(filepath)
@@ -5473,9 +5546,8 @@ def api_organise_upload_photo(item_id):
     file = request.files['photo']
     if not file or file.filename == '':
         return jsonify({'success': False, 'error': 'No file selected'}), 400
-    allowed = {'jpg', 'jpeg', 'png', 'webp'}
-    ext = os.path.splitext(secure_filename(file.filename))[1].lower().lstrip('.')
-    if ext not in allowed:
+    ext = safe_stored_extension(file.filename, {'jpg', 'jpeg', 'png', 'webp'})
+    if not ext:
         return jsonify({'success': False, 'error': 'Invalid file type (jpg/png/webp only)'}), 400
     file.seek(0, 2)
     size = file.tell()
@@ -5488,7 +5560,7 @@ def api_organise_upload_photo(item_id):
         old_path = os.path.join(upload_dir, item.photo_filename)
         if os.path.exists(old_path):
             os.remove(old_path)
-    filename = f"{item_id}_{_uuid.uuid4().hex[:8]}.{ext}"
+    filename = f"{item_id}_{_uuid.uuid4().hex[:8]}{ext}"
     file.save(os.path.join(upload_dir, filename))
     item.photo_filename = filename
     db.session.commit()
@@ -6004,8 +6076,14 @@ def edit_reward_image():
             return jsonify({'success': False, 'error': 'Reward not found'}), 404
         image_file = request.files.get('image')
         image_url = request.form.get('image_url')
-        if image_file:
-            filename = secure_filename(str(uuid.uuid4()) + '_' + image_file.filename)
+        if image_file and image_file.filename:
+            ext = safe_stored_extension(image_file.filename, REWARD_IMAGE_EXTENSIONS)
+            if not ext:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid image type. Use png, jpg, gif, or webp.',
+                }), 400
+            filename = f"reward_{uuid.uuid4().hex}{ext}"
             upload_folder = os.path.join(current_app.root_path, current_app.config.get('UPLOAD_FOLDER', UPLOAD_FOLDER))
             os.makedirs(upload_folder, exist_ok=True)
             image_path = os.path.join(upload_folder, filename)
