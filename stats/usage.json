@@ -1,9 +1,9 @@
 {
-  "updated": "2026-10-25T16:30:59Z",
+  "updated": "2026-10-26T16:37:00Z",
   "image": "ghcr.io/matda59/choresrewards",
   "repo": "matda59/ChoresRewards",
   "pulls": {
-    "total": 5593,
+    "total": 5598,
     "daily": [
       {
         "date": "2026-08-28",
@@ -239,13 +239,17 @@
       },
       {
         "date": "2026-10-25",
-        "count": 5
+        "count": 6
+      },
+      {
+        "date": "2026-10-26",
+        "count": 4
       }
     ]
   },
   "installs": {
     "total": 20,
-    "checkins": 146,
+    "checkins": 158,
     "history": [
       {
         "date": "2026-09-27",
@@ -391,6 +395,11 @@
         "date": "2026-10-25",
         "installs": 20,
         "checkins": 146
+      },
+      {
+        "date": "2026-10-26",
+        "installs": 20,
+        "checkins": 158
       }
     ]
   },
