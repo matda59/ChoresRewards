@@ -585,11 +585,10 @@ window.addEventListener('DOMContentLoaded', function() {
         window.PERSON_EARNED_KEYS = {{ person_earned_keys | tojson }};
         window.PERSON_TOTAL_COMPLETED = {{ person_total_completed | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/quiz.js') }}?v=20261104a"></script>
     <script src="{{ url_for('static', filename='js/organise.js') }}?v=20260915a"></script>
     <script>
     // Show quiz as part of celebration overlay
-    let quizShownToday = false;
         function showQuizForBonusCelebration(personId, onDone) {
             // Route through choice screen so player picks brain or body challenge
             showBonusChoiceScreen(personId, onDone);
@@ -609,18 +608,8 @@ window.addEventListener('DOMContentLoaded', function() {
                 onDone(false);
                 return;
             }
-            
-            if (quizShownToday) { 
-                // Quiz already shown today, show button and proceed with regular bonus
-                const btn = document.getElementById('celebration-quiz-btn');
-                btn.textContent = 'Awesome! 🚀 (Regular Bonus)';
-                btn.style.background = '#6366f1';
-                btn.style.display = '';
-                scheduleCelebrationAutoClose();
-                onDone(false); 
-                return; 
-            }
-            quizShownToday = true;
+
+            // Every person who just finished their chores can take the brain quiz.
             showQuizModal(personId, function(correct, skipped) {
                 const btn = document.getElementById('celebration-quiz-btn');
                 
@@ -708,6 +697,16 @@ window.addEventListener('DOMContentLoaded', function() {
         // Show the choice screen (brain or body) instead of jumping straight to quiz
         function showBonusChoiceScreen(personId, onDone) {
             bonusChoiceOnDoneCallback = { personId, onDone };
+            if (celebrationCountdownInterval) {
+                clearInterval(celebrationCountdownInterval);
+                celebrationCountdownInterval = null;
+            }
+            const quizBtn = document.getElementById('celebration-quiz-btn');
+            if (quizBtn) quizBtn.style.display = 'none';
+            const slotContainer = document.getElementById('slot-machine-container');
+            if (slotContainer) slotContainer.style.display = 'none';
+            const bodyScreen = document.getElementById('body-challenge-screen');
+            if (bodyScreen) bodyScreen.style.display = 'none';
             const choiceScreen = document.getElementById('bonus-choice-screen');
             choiceScreen.style.display = 'flex';
         }
@@ -8660,6 +8659,14 @@ function showCelebration(personName, avatarUrl) {
 function closeCelebration() {
     if (celebrationCountdownInterval) { clearInterval(celebrationCountdownInterval); celebrationCountdownInterval = null; }
     document.getElementById('celebration-overlay').style.display = 'none';
+    const quizBtn = document.getElementById('celebration-quiz-btn');
+    if (quizBtn) quizBtn.style.display = 'none';
+    const choiceScreen = document.getElementById('bonus-choice-screen');
+    if (choiceScreen) choiceScreen.style.display = 'none';
+    const bodyScreen = document.getElementById('body-challenge-screen');
+    if (bodyScreen) bodyScreen.style.display = 'none';
+    const quizModal = document.getElementById('quiz-modal');
+    if (quizModal) quizModal.remove();
     // Hide slot machine container when closing
     const slotContainer = document.getElementById('slot-machine-container');
     if (slotContainer) {

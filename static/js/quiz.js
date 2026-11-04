@@ -1,7 +1,6 @@
 // Quiz modal logic for bonus points after all chores are completed
 // Requires quiz_questions to be available globally (imported from backend or as a static file)
 
-let quizHasBeenShownToday = false;
 const quizQuestionQueues = {};
 const lastQuestionIdByPool = {};
 
@@ -55,9 +54,11 @@ function getNextQuestionFromPool(poolKey, questions) {
 }
 
 function showQuizModal(personId, onResult) {
-    if (quizHasBeenShownToday) return;
-    quizHasBeenShownToday = true;
-    
+  // Each person who finishes their chores gets their own quiz.
+  // A page-wide "already shown" flag used to skip everyone after the first person.
+  const leftoverModal = document.getElementById('quiz-modal');
+  if (leftoverModal) leftoverModal.remove();
+
   const allQuestions = Array.isArray(window.quiz_questions) ? window.quiz_questions : [];
   const questionsWithIds = allQuestions.map((question, index) => ({
     ...question,
@@ -181,4 +182,8 @@ function showQuizModal(personId, onResult) {
         skipBtn.style.transition = 'background 0.2s';
         skipBtn.style.background = '#eee';
     });
+}
+
+if (typeof module === 'object' && module.exports) {
+  module.exports = { showQuizModal };
 }
