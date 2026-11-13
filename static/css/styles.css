@@ -566,6 +566,21 @@
     contain-intrinsic-size: auto 250px;
 }
 
+/* Side-nav jumps pin real sizes before scrolling. While this is set, skipped
+   sections lay out so contain-intrinsic-size remembers their true height. */
+body.nav-measuring .collapsible-section,
+body.nav-measuring .meal-planner-section,
+body.nav-measuring .organise-section,
+body.nav-measuring .notes-kanban-section,
+body.nav-measuring .shopping-list-section,
+body.nav-measuring .completed-rewards,
+body.nav-measuring .add-rewards-modern,
+body.nav-measuring .events-section,
+body.nav-measuring .meal-library-grid,
+body.nav-measuring .org-list-wrap {
+    content-visibility: visible !important;
+}
+
 /* Custom radio button for setup wizard bonus points */
 .bonus-mode-label {
     position: relative;
@@ -9221,12 +9236,22 @@ a.side-nav-link.side-nav-btn {
     /* Prevent Font Awesome from affecting layout */
     line-height: 48px;
     text-align: center;
+    /* First tap must click. A hover-only response (tooltip / scale) makes
+       touch screens swallow the first press and require a second one. */
+    touch-action: manipulation;
 }
-.side-nav-btn:hover,
-a.side-nav-link.side-nav-btn:hover {
+.side-nav-btn:active,
+a.side-nav-link.side-nav-btn:active {
     background: rgba(255,255,255,0.1);
     color: #e2e8f0;
-    transform: scale(1.08);
+}
+@media (hover: hover) and (pointer: fine) {
+    .side-nav-btn:hover,
+    a.side-nav-link.side-nav-btn:hover {
+        background: rgba(255,255,255,0.1);
+        color: #e2e8f0;
+        transform: scale(1.08);
+    }
 }
 .side-nav-btn.side-nav-active {
     background: rgba(96,165,250,0.18);
@@ -9254,8 +9279,10 @@ a.side-nav-link.side-nav-btn::after {
     z-index: 9999;
     transform: none;
 }
-.side-nav-btn:hover::after,
-a.side-nav-link.side-nav-btn:hover::after { opacity: 1; }
+@media (hover: hover) and (pointer: fine) {
+    .side-nav-btn:hover::after,
+    a.side-nav-link.side-nav-btn:hover::after { opacity: 1; }
+}
 
 .side-nav-divider {
     width: 32px;
@@ -9325,10 +9352,17 @@ body.side-nav-body-collapsed { padding-left: 8px; }
 [data-theme="light"] a.side-nav-link.side-nav-btn {
     color: rgba(15,23,42,0.4);
 }
-[data-theme="light"] .side-nav-btn:hover,
-[data-theme="light"] a.side-nav-link.side-nav-btn:hover {
+[data-theme="light"] .side-nav-btn:active,
+[data-theme="light"] a.side-nav-link.side-nav-btn:active {
     background: rgba(15,23,42,0.08);
     color: var(--text-color);
+}
+@media (hover: hover) and (pointer: fine) {
+    [data-theme="light"] .side-nav-btn:hover,
+    [data-theme="light"] a.side-nav-link.side-nav-btn:hover {
+        background: rgba(15,23,42,0.08);
+        color: var(--text-color);
+    }
 }
 [data-theme="light"] .side-nav-btn.side-nav-active {
     background: rgba(37,99,235,0.15);

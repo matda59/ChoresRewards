@@ -28,7 +28,7 @@
         <meta http-equiv="Pragma" content="no-cache">
         <meta http-equiv="Expires" content="0">
         <title>ChoresRewards</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20261024a">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20261114a">
         <!-- Add Font Awesome for icons -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
@@ -9435,19 +9435,148 @@ function doRedeemReward(rewardId) {
 <script>
 // ── Side navigation ──────────────────────────────────────────────────────────
 (function() {
+    // Off-screen sections use content-visibility: auto with a guessed height
+    // (contain-intrinsic-size). The first jump is computed from those guesses,
+    // so it stops short; the second click works because the browser has now
+    // remembered the real heights. Pin real sizes before every jump.
+    const SKIPPED_SECTIONS = '.collapsible-section, .meal-planner-section, .organise-section, .notes-kanban-section, .shopping-list-section, .completed-rewards, .add-rewards-modern, .events-section, .meal-library-grid, .org-list-wrap';
+    let navToken = 0;
+    let holdGen = 0;
+
+    function persistOpen(section) {
+        if (!section.id) return;
+        try {
+            const key = 'collapsible_states';
+            const states = JSON.parse(localStorage.getItem(key) || '{}');
+            states[section.id] = 'open';
+            localStorage.setItem(key, JSON.stringify(states));
+        } catch (err) {}
+    }
+
+    // Lay the skipped sections out for real. contain-intrinsic-size only
+    // remembers that height after a painted frame, so callers must keep the
+    // hold until the jump finishes and then releaseSections().
+    function holdSections() {
+        const gen = ++holdGen;
+        document.body.classList.add('nav-measuring');
+        const nodes = [...document.querySelectorAll(SKIPPED_SECTIONS)];
+        nodes.forEach((el) => {
+            if (!el.hasAttribute('data-nav-cv')) el.setAttribute('data-nav-cv', el.style.contentVisibility);
+            el.style.contentVisibility = 'visible';
+        });
+        void document.documentElement.offsetHeight;
+        return { gen: gen, nodes: nodes };
+    }
+
+    function releaseSections(held) {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (held.gen !== holdGen) return;
+                held.nodes.forEach((el) => {
+                    el.style.contentVisibility = el.getAttribute('data-nav-cv') || '';
+                    el.removeAttribute('data-nav-cv');
+                });
+                document.body.classList.remove('nav-measuring');
+            });
+        });
+    }
+
+    function sectionTop(section) {
+        return Math.max(0, section.getBoundingClientRect().top + window.scrollY - 16);
+    }
+
+    function scrollToSection(section, behavior) {
+        const token = ++navToken;
+        if (section.classList.contains('collapsed')) {
+            section.classList.remove('collapsed');
+            persistOpen(section);
+        }
+        const held = holdSections();
+        const top = sectionTop(section);
+        const smooth = behavior !== 'auto';
+        // An in-progress smooth scroll swallows a new one. Park on the current
+        // pixel first so this jump always starts clean.
+        window.scrollTo({ top: window.scrollY, behavior: 'auto' });
+        window.scrollTo({ top: top, behavior: smooth ? 'smooth' : 'auto' });
+        if (!smooth) {
+            releaseSections(held);
+            return;
+        }
+
+        let userMoved = false;
+        let finished = false;
+        const onWheel = () => { userMoved = true; };
+        let touchY = null;
+        const onTouchStart = (e) => {
+            touchY = e.touches && e.touches[0] ? e.touches[0].clientY : null;
+        };
+        const onTouchMove = (e) => {
+            if (touchY == null || !e.touches || !e.touches[0]) return;
+            if (Math.abs(e.touches[0].clientY - touchY) > 12) userMoved = true;
+        };
+        window.addEventListener('wheel', onWheel, { passive: true, capture: true });
+        window.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+        window.addEventListener('touchmove', onTouchMove, { passive: true, capture: true });
+
+        const cleanup = () => {
+            window.removeEventListener('scrollend', finish);
+            window.removeEventListener('wheel', onWheel, true);
+            window.removeEventListener('touchstart', onTouchStart, true);
+            window.removeEventListener('touchmove', onTouchMove, true);
+        };
+        const finish = () => {
+            if (finished) return;
+            if (token !== navToken) {
+                finished = true;
+                cleanup();
+                return;
+            }
+            finished = true;
+            cleanup();
+            if (userMoved) {
+                releaseSections(held);
+                return;
+            }
+            // Correct on the next frame. A scrollend from the parking jump, or a
+            // smooth scroll that raced this callback, can leave us short. The
+            // real heights are still held, so this last instant jump sticks.
+            requestAnimationFrame(() => {
+                if (token !== navToken) return;
+                const delta = section.getBoundingClientRect().top - 16;
+                const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+                const atEnd = window.scrollY >= maxScroll - 2;
+                if (Math.abs(delta) > 2 && !atEnd) {
+                    window.scrollTo({ top: sectionTop(section), behavior: 'auto' });
+                }
+                releaseSections(held);
+            });
+        };
+        // Listen on the next frame so the parking scrollTo's scrollend — which
+        // fires immediately and used to cancel the jump — is not the one we hear.
+        requestAnimationFrame(() => {
+            if (token !== navToken || finished) return;
+            window.addEventListener('scrollend', finish);
+        });
+        setTimeout(finish, 1200);
+    }
+
     // Section scroll buttons (now real links so they also work from other pages)
     document.querySelectorAll('#side-nav .side-nav-btn[data-target]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const section = document.getElementById(btn.dataset.target);
             if (!section) return;
             e.preventDefault();
-            if (section.classList.contains('collapsed')) section.classList.remove('collapsed');
-            const top = section.getBoundingClientRect().top + window.scrollY - 16;
-            window.scrollTo({ top, behavior: 'smooth' });
+            btn.focus({ preventScroll: true });
+            scrollToSection(section, 'smooth');
             document.querySelectorAll('#side-nav .side-nav-btn').forEach(b => b.classList.remove('side-nav-active'));
             btn.classList.add('side-nav-active');
         });
     });
+
+    if (location.hash) {
+        const hashed = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+        if (hashed) scrollToSection(hashed, 'auto');
+    }
 
     // Mirror the existing admin lock button behaviour
     const lockBtn = document.getElementById('side-nav-lock-btn');
