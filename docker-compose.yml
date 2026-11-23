@@ -13,6 +13,9 @@ services:
       - CHORESREWARDS_TELEMETRY=on
       # - CR_SECRET_KEY=replace-with-a-long-random-string
       # - CR_COOKIE_SECURE=0   # plain HTTP on a LAN only; HTTPS sets Secure itself
+      # Read-only assistant key. Leave unset to disable. At least 32 characters.
+      # Generate: python -c "import secrets; print(secrets.token_urlsafe(32))"
+      # - CR_READONLY_API_KEY=replace-with-the-generated-value
     restart: always
 
 volumes:
