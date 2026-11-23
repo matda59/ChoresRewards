@@ -17,6 +17,29 @@ mimetypes.add_type('video/ogg', '.ogv')
 app = Flask(__name__)
 
 
+_WEAK_SECRET_KEYS = frozenset({
+    'secret', 'changeme', 'change-me', 'password', 'password123',
+    'dev', 'development', 'default', 'flask', 'choresrewards',
+    'changemeplease', 'your-secret-key', 'secret-key', 'change_me',
+})
+
+
+def _env_secret_key():
+    """Return CR_SECRET_KEY or SECRET_KEY when it is long enough to be a real key."""
+    raw = os.environ.get('CR_SECRET_KEY') or os.environ.get('SECRET_KEY') or ''
+    key = raw.strip()
+    if not key:
+        return None
+    if key.lower() in _WEAK_SECRET_KEYS or len(key) < 16:
+        print(
+            '[auth] Ignoring CR_SECRET_KEY/SECRET_KEY because it is shorter than '
+            '16 characters or a known placeholder. Using the key stored in the '
+            'instance folder instead. Set CR_SECRET_KEY to a long random string.'
+        )
+        return None
+    return key
+
+
 def _load_secret_key(flask_app):
     """Return the Flask session signing key, without publishing it.
 
@@ -37,7 +60,7 @@ def _load_secret_key(flask_app):
     the next and login would not stick. They now take an exclusive lock on the
     key file: the first writer stores the key, and the others wait and read it.
     """
-    env_key = os.environ.get('CR_SECRET_KEY') or os.environ.get('SECRET_KEY')
+    env_key = _env_secret_key()
     if env_key:
         return env_key
 
@@ -78,6 +101,12 @@ def _load_secret_key(flask_app):
 
 
 app.secret_key = _load_secret_key(app)
+# HttpOnly and SameSite=Lax always. Secure is decided per request so a LAN
+# http:// address still accepts the cookie, and https:// (Caddy, Cloudflare)
+# marks it Secure. Override with CR_COOKIE_SECURE=0 or 1.
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False
 # Configure SQLite database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -128,6 +157,10 @@ def _block_script_files_under_uploads():
 
 from usage_page import usage_bp
 app.register_blueprint(usage_bp)
+
+from auth_guard import ProxyAwareSessionInterface, install_auth
+app.session_interface = ProxyAwareSessionInterface()
+install_auth(app)
 
 # Create database tables
 with app.app_context():

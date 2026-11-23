@@ -11,6 +11,8 @@
     'use strict';
     var lockoutTimer = null;
     var pinLocked = false;
+    var autoSubmitTimer = null;
+    var PIN_MAX = 64;
 
     // -- DOM helpers --
     function show(id) {
@@ -55,6 +57,12 @@
             .then(function (res) {
                 if (res.ok && res.data.success) {
                     clearMasterPinLockout();
+                    // The logged-out response is only the PIN shell. Reload so the
+                    // real page, which is rendered after the session exists, loads.
+                    if (document.body && document.body.getAttribute('data-login-shell') === '1') {
+                        window.location.reload();
+                        return;
+                    }
                     hideLoginOverlay();
                     if (typeof window.checkAuthStatus === 'function') {
                         window.checkAuthStatus();
@@ -129,6 +137,10 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.authenticated) {
+                    if (document.body && document.body.getAttribute('data-login-shell') === '1') {
+                        window.location.reload();
+                        return;
+                    }
                     hideLoginOverlay();
                 } else {
                     showLoginOverlay();
@@ -138,15 +150,19 @@
                 showLoginOverlay();
             });
 
+        function readMasterPin() {
+            var inp = document.getElementById('master-pin-input');
+            return (inp ? inp.value : '').replace(/[\r\n]/g, '').slice(0, PIN_MAX);
+        }
+
         var submitBtn = document.getElementById('master-pin-submit');
         if (submitBtn) {
             submitBtn.addEventListener('click', function () {
                 if (pinLocked) return;
-                var inp = document.getElementById('master-pin-input');
-                var pin = (inp ? inp.value : '').replace(/\D/g, '').slice(0, 4);
+                var pin = readMasterPin();
                 var err = document.getElementById('master-pin-error');
-                if (pin.length !== 4) {
-                    if (err) err.textContent = 'Please enter a 4-digit PIN.';
+                if (pin.length < 4) {
+                    if (err) err.textContent = 'Enter at least 4 characters.';
                     return;
                 }
                 submitMasterLogin(pin);
@@ -155,12 +171,27 @@
 
         var pinInput = document.getElementById('master-pin-input');
         if (pinInput) {
+            pinInput.maxLength = PIN_MAX;
+            pinInput.removeAttribute('pattern');
             pinInput.addEventListener('input', function () {
                 if (pinLocked) return;
-                var val = pinInput.value.replace(/\D/g, '').slice(0, 4);
-                pinInput.value = val;
-                if (val.length === 4) {
-                    submitMasterLogin(val);
+                if (autoSubmitTimer) {
+                    clearTimeout(autoSubmitTimer);
+                    autoSubmitTimer = null;
+                }
+                var val = pinInput.value.replace(/[\r\n]/g, '').slice(0, PIN_MAX);
+                if (pinInput.value !== val) pinInput.value = val;
+                var shortPin = /^\d{0,4}$/.test(val);
+                pinInput.style.width = shortPin ? '' : '220px';
+                pinInput.style.letterSpacing = shortPin ? '' : 'normal';
+                pinInput.style.fontSize = shortPin ? '' : '1.15em';
+                // A 4-digit PIN still unlocks on its own. The short wait lets a
+                // longer PIN or passphrase keep being typed.
+                if (/^\d{4}$/.test(val)) {
+                    autoSubmitTimer = setTimeout(function () {
+                        autoSubmitTimer = null;
+                        if (!pinLocked && pinInput.value === val) submitMasterLogin(val);
+                    }, 350);
                 }
             });
             pinInput.addEventListener('keydown', function (e) {
@@ -170,8 +201,12 @@
                 }
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    var val = pinInput.value.replace(/\D/g, '').slice(0, 4);
-                    if (val.length === 4) submitMasterLogin(val);
+                    if (autoSubmitTimer) {
+                        clearTimeout(autoSubmitTimer);
+                        autoSubmitTimer = null;
+                    }
+                    var val = readMasterPin();
+                    if (val.length >= 4) submitMasterLogin(val);
                 }
             });
         }

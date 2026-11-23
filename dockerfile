@@ -14,6 +14,7 @@ RUN chmod +x start.sh
 
 # Copy the application code
 COPY app.py .
+COPY auth_guard.py .
 COPY models.py .
 COPY usage_stats.py .
 COPY usage_page.py .

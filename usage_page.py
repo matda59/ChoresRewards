@@ -12,7 +12,8 @@ usage_bp = Blueprint("usage", __name__)
 
 
 def _allowed():
-    return session.get("adult_mode", False) or session.get("authenticated", False)
+    # The sidebar only shows this page with the padlock unlocked.
+    return session.get("adult_mode", False)
 
 
 @usage_bp.route("/usage", methods=["GET", "POST"])
