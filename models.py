@@ -54,18 +54,14 @@ class Person(db.Model):
     rewards = db.relationship('Reward', backref='person', lazy=True)
 
     def set_pin(self, raw_pin):
-        """Hash and store a 4-digit PIN for this person."""
-        hashed = bcrypt.hashpw(raw_pin.encode('utf-8'), bcrypt.gensalt())
+        """Hash and store a PIN or passphrase for this person."""
+        hashed = bcrypt.hashpw(str(raw_pin).encode('utf-8'), bcrypt.gensalt())
         self.pin = hashed.decode('utf-8')
 
     def check_pin(self, raw_pin):
         """Return True if raw_pin matches the stored bcrypt hash."""
-        if not self.pin:
-            return False
-        try:
-            return bcrypt.checkpw(raw_pin.encode('utf-8'), self.pin.encode('utf-8'))
-        except Exception:
-            return False
+        from auth_guard import pin_matches
+        return pin_matches(raw_pin, self.pin)
 
     def set_points(self, new_points):
         """

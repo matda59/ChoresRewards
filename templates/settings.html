@@ -486,12 +486,11 @@
                                             {% endif %}
                                         </div>
                                         <div style="display:flex; gap:6px; align-items:center; justify-content:center;">
-                                            <input type="password" id="pin-input-{{ person.id }}" maxlength="4" pattern="\d{4}"
-                                                   placeholder="4-digit PIN"
-                                                   style="width:90px; padding:7px 10px; border:2px solid rgba(99,102,241,0.3); border-radius:8px; background:rgba(99,102,241,0.08); color:#fff; text-align:center; font-size:0.95em; font-weight:600;"
+                                            <input type="password" id="pin-input-{{ person.id }}" maxlength="64"
+                                                   placeholder="PIN or passphrase"
+                                                   style="width:160px; padding:7px 10px; border:2px solid rgba(99,102,241,0.3); border-radius:8px; background:rgba(99,102,241,0.08); color:#fff; text-align:center; font-size:0.95em; font-weight:600;"
                                                    onfocus="this.style.borderColor='#6366f1'; this.style.background='rgba(99,102,241,0.15)'"
                                                    onblur="this.style.borderColor='rgba(99,102,241,0.3)'; this.style.background='rgba(99,102,241,0.08)'"
-                                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
                                                    onkeydown="if (event.key === 'Enter') { event.preventDefault(); setPersonPin({{ person.id }}); }">
                                             <button type="button" onclick="setPersonPin({{ person.id }})"
                                                     style="padding:7px 12px; border:none; border-radius:8px; background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; font-size:0.85em; font-weight:600; cursor:pointer;">
@@ -530,24 +529,24 @@
                     <form method="POST" action="/settings" style="max-width:360px;">
                         <div style="margin-bottom:10px;">
                             <label style="display:block;color:rgba(255,255,255,0.8);font-size:0.88em;margin-bottom:4px;">Current PIN</label>
-                            <input type="password" name="current_pin" maxlength="4" pattern="\d{4}" inputmode="numeric"
+                            <input type="password" name="current_pin" maxlength="64"
                                    placeholder="••••" autocomplete="current-password"
                                    style="width:100%;padding:8px 12px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;font-size:1.1em;text-align:center;"
-                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+>
                         </div>
                         <div style="margin-bottom:10px;">
                             <label style="display:block;color:rgba(255,255,255,0.8);font-size:0.88em;margin-bottom:4px;">New PIN</label>
-                            <input type="password" name="new_pin" maxlength="4" pattern="\d{4}" inputmode="numeric"
+                            <input type="password" name="new_pin" maxlength="64"
                                    placeholder="••••" autocomplete="new-password"
                                    style="width:100%;padding:8px 12px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;font-size:1.1em;text-align:center;"
-                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+>
                         </div>
                         <div style="margin-bottom:14px;">
                             <label style="display:block;color:rgba(255,255,255,0.8);font-size:0.88em;margin-bottom:4px;">Confirm New PIN</label>
-                            <input type="password" name="confirm_pin" maxlength="4" pattern="\d{4}" inputmode="numeric"
+                            <input type="password" name="confirm_pin" maxlength="64"
                                    placeholder="••••" autocomplete="new-password"
                                    style="width:100%;padding:8px 12px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;font-size:1.1em;text-align:center;"
-                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+>
                         </div>
                         <input type="hidden" name="change_pin" value="1">
                         <button type="submit" class="save-btn"><i class="fas fa-key" style="margin-right:7px;"></i>Change PIN</button>
@@ -559,17 +558,17 @@
                     <form method="POST" action="/settings" style="max-width:360px;">
                         <div style="margin-bottom:10px;">
                             <label style="display:block;color:rgba(255,255,255,0.8);font-size:0.88em;margin-bottom:4px;">New PIN</label>
-                            <input type="password" name="new_pin" maxlength="4" pattern="\d{4}" inputmode="numeric"
+                            <input type="password" name="new_pin" maxlength="64"
                                    placeholder="••••" autocomplete="new-password"
                                    style="width:100%;padding:8px 12px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;font-size:1.1em;text-align:center;"
-                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+>
                         </div>
                         <div style="margin-bottom:14px;">
                             <label style="display:block;color:rgba(255,255,255,0.8);font-size:0.88em;margin-bottom:4px;">Confirm PIN</label>
-                            <input type="password" name="confirm_pin" maxlength="4" pattern="\d{4}" inputmode="numeric"
+                            <input type="password" name="confirm_pin" maxlength="64"
                                    placeholder="••••" autocomplete="new-password"
                                    style="width:100%;padding:8px 12px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(255,255,255,0.06);color:#fff;font-size:1.1em;text-align:center;"
-                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+>
                         </div>
                         <input type="hidden" name="set_master_pin" value="1">
                         <button type="submit" class="save-btn"><i class="fas fa-lock" style="margin-right:7px;"></i>Set App PIN</button>
@@ -1820,8 +1819,8 @@ function toggleAdminRole(personId, isAdmin) {
 function setPersonPin(personId) {
     const input = document.getElementById('pin-input-' + personId);
     const pin = input.value.trim();
-    if (!/^\d{4}$/.test(pin)) {
-        if (window.showToast) showToast('Enter a 4-digit PIN', 'warning');
+    if (pin.length < 4 || pin.length > 64) {
+        if (window.showToast) showToast('PIN must be 4 to 64 characters', 'warning');
         return;
     }
     fetch('/settings', {

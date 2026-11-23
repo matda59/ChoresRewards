@@ -540,10 +540,9 @@
         </label>
         <div class="person-pin-field" style="display:none; margin-top:0.4rem;">
           <span class="wz-label" style="color:#a5b4fc;">Adult PIN <span style="color:#ef4444;">*</span></span>
-          <input type="password" name="person_pin[]" maxlength="4" pattern="\d{4}" placeholder="4-digit PIN"
+          <input type="password" name="person_pin[]" maxlength="64" placeholder="PIN (4+ characters)"
                  class="wz-input pin-field" autocomplete="new-password"
                  style="border-color:rgba(99,102,241,0.4);"
-                 oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
                  onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(99,102,241,0.4)'">
           <span class="wz-hint" style="color:rgba(165,180,252,0.6);"><i class="fas fa-info-circle" style="color:#6366f1;"></i> The first adult's PIN becomes the shared App PIN used to unlock the app</span>
         </div>
@@ -923,10 +922,9 @@ function addPerson() {
           </label>
           <div class="person-pin-field" style="display:none; margin-top:0.4rem;">
             <span class="wz-label" style="color:#a5b4fc;">Adult PIN <span style="color:#ef4444;">*</span></span>
-            <input type="password" name="person_pin[]" maxlength="4" pattern="\\d{4}" placeholder="4-digit PIN"
+            <input type="password" name="person_pin[]" maxlength="64" placeholder="PIN (4+ characters)"
                    class="wz-input pin-field" autocomplete="new-password"
                    style="border-color:rgba(99,102,241,0.4);"
-                   oninput="this.value=this.value.replace(/\\D/g,'').slice(0,4)"
                    onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(99,102,241,0.4)'">
             <span class="wz-hint" style="color:rgba(165,180,252,0.6);"><i class="fas fa-info-circle" style="color:#6366f1;"></i> The first adult's PIN becomes the shared App PIN used to unlock the app</span>
           </div>
@@ -1056,7 +1054,7 @@ document.getElementById('setup-form').addEventListener('submit', function(e) {
     const pin = row.querySelector('input[name="person_pin[]"]');
     if (cb && cb.checked) {
       const pinVal = pin ? pin.value.trim() : '';
-      if (/^\d{4}$/.test(pinVal)) {
+      if (pinVal.length >= 4 && pinVal.length <= 64) {
         hasAdminWithPin = true;
         const hidden = row.querySelector('.person-admin-index');
         if (hidden) { hidden.name = 'person_is_admin[]'; hidden.value = idx; }
@@ -1075,7 +1073,7 @@ document.getElementById('setup-form').addEventListener('submit', function(e) {
       const list = document.getElementById('people-list');
       list.parentNode.insertBefore(errBox, list);
     }
-    errBox.innerHTML = '<i class="fas fa-exclamation-circle" style="margin-right:0.4em;"></i> Please mark at least one person as an <strong>Adult</strong> and enter their 4-digit PIN.';
+    errBox.innerHTML = '<i class="fas fa-exclamation-circle" style="margin-right:0.4em;"></i> Please mark at least one person as an <strong>Adult</strong> and enter a PIN of at least 4 characters.';
     errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 });

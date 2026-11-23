@@ -49,20 +49,22 @@ def test_sound_delete_cannot_remove_a_file_outside_the_sounds_folder():
     os.write(fd, b'keep-me')
     os.close(fd)
     try:
+        with client.session_transaction() as sess:
+            sess.clear()
         anonymous = client.post('/api/sounds/delete', json={'filename': sentinel})
-        assert anonymous.status_code == 403
+        assert anonymous.status_code == 401
         assert os.path.exists(sentinel)
 
         with client.session_transaction() as sess:
             sess['authenticated'] = True
             sess['adult_mode'] = True
         escaped = client.post('/api/sounds/delete', json={'filename': sentinel})
-        assert escaped.status_code == 404
+        assert escaped.status_code in (400, 404)
         assert os.path.exists(sentinel)
 
         relative = os.path.relpath(sentinel, os.path.join(app.root_path, 'static', 'sounds'))
         traversed = client.post('/api/sounds/delete', json={'filename': relative})
-        assert traversed.status_code == 404
+        assert traversed.status_code in (400, 404)
         assert os.path.exists(sentinel)
     finally:
         if os.path.exists(sentinel):
@@ -72,7 +74,7 @@ def test_sound_delete_cannot_remove_a_file_outside_the_sounds_folder():
 def test_adult_can_still_delete_a_sound_inside_the_folder():
     app.config['TESTING'] = True
     client = app.test_client()
-    sounds_dir = os.path.join(app.root_path, 'static', 'sounds')
+    sounds_dir = os.path.join(app.root_path, 'static', 'uploads', 'sounds')
     os.makedirs(sounds_dir, exist_ok=True)
     filename = f'test-keep-{uuid.uuid4().hex[:8]}.mp3'
     path = os.path.join(sounds_dir, filename)
@@ -80,9 +82,13 @@ def test_adult_can_still_delete_a_sound_inside_the_folder():
         handle.write(b'not-audio')
     try:
         with client.session_transaction() as sess:
+            sess['authenticated'] = True
             sess['adult_mode'] = True
-        denied = app.test_client().post('/api/sounds/delete', json={'filename': filename})
-        assert denied.status_code == 403
+        stranger = app.test_client()
+        with stranger.session_transaction() as sess:
+            sess.clear()
+        denied = stranger.post('/api/sounds/delete', json={'filename': filename})
+        assert denied.status_code == 401
         assert os.path.exists(path)
 
         removed = client.post('/api/sounds/delete', json={'filename': filename})
@@ -97,8 +103,10 @@ def test_adult_can_still_delete_a_sound_inside_the_folder():
 def test_anonymous_upload_of_a_sound_is_rejected():
     app.config['TESTING'] = True
     client = app.test_client()
+    with client.session_transaction() as sess:
+        sess.clear()
     response = client.post('/api/sounds/upload', data={})
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 def test_child_session_cannot_permanently_delete_a_daily_chore():
@@ -109,8 +117,10 @@ def test_child_session_cannot_permanently_delete_a_daily_chore():
         chore = _daily_chore(person)
         person_id, chore_id = person.id, chore.id
     try:
+        with client.session_transaction() as sess:
+            sess.clear()
         anonymous = client.post('/delete_daily_chore', json={'chore_id': chore_id})
-        assert anonymous.status_code == 403
+        assert anonymous.status_code == 401
         with app.app_context():
             assert db.session.get(Chore, chore_id).deleted is False
 

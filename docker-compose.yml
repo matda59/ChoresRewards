@@ -11,6 +11,8 @@ services:
       - TZ=Australia/Adelaide  # Adjust this to your actual timezone
       - ENABLE_GOOGLE_CALENDAR=true
       - CHORESREWARDS_TELEMETRY=on
+      # - CR_SECRET_KEY=replace-with-a-long-random-string
+      # - CR_COOKIE_SECURE=0   # plain HTTP on a LAN only; HTTPS sets Secure itself
     restart: always
 
 volumes:

@@ -26,6 +26,8 @@ from urllib.parse import quote
 import re
 import json as _json
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+import fcntl
+from auth_guard import acceptable_secret, pin_matches, start_family_session
 
 try:
     from google.oauth2 import service_account as _gsa
@@ -328,48 +330,107 @@ GOOGLE_CALENDAR_CACHE = {
 }
 
 # ── PIN Brute-Force Protection ─────────────────────────────────────────────────
-_PIN_ATTEMPTS = {}        # {key: {'count': int, 'locked_until': float|None}}
+# Shared across Gunicorn workers via the instance folder. time.time() is used
+# because each process has its own monotonic clock.
+_PIN_ATTEMPTS = {}        # in-memory fallback when the instance folder is not writable
 _MAX_PIN_ATTEMPTS = 3     # failures before lockout
 _PIN_LOCKOUT_SECONDS = 120 # lockout duration
 
 def _rl_key():
-    """Rate-limit key: client IP (respects X-Forwarded-For for reverse proxies)."""
-    forwarded = request.headers.get('X-Forwarded-For', '')
-    ip = forwarded.split(',')[0].strip() if forwarded else (request.remote_addr or '0.0.0.0')
-    return f'pin:{ip}'
+    """Rate-limit key: the client IP, preferring the proxy headers Caddy and Cloudflare set."""
+    for header in ('CF-Connecting-IP', 'X-Real-IP', 'X-Forwarded-For'):
+        value = (request.headers.get(header) or '').split(',')[0].strip()
+        if value:
+            return f'pin:{value}'
+    return f'pin:{request.remote_addr or "0.0.0.0"}'
+
+def _rl_store_path():
+    try:
+        folder = current_app.instance_path
+        os.makedirs(folder, exist_ok=True)
+        return os.path.join(folder, 'pin_attempts.json')
+    except Exception:
+        return None
+
+def _rl_prune(data, now):
+    if len(data) <= 1000:
+        return
+    cutoff = now - _PIN_LOCKOUT_SECONDS * 2
+    stale = [
+        key for key, entry in list(data.items())
+        if not isinstance(entry, dict) or not entry.get('locked_until') or entry['locked_until'] < cutoff
+    ]
+    for key in stale:
+        data.pop(key, None)
+
+def _rl_update(mutator):
+    """Run mutator(store) under an exclusive lock so every worker shares one counter."""
+    path = _rl_store_path()
+    if not path:
+        return mutator(_PIN_ATTEMPTS)
+    lock_path = path + '.lock'
+    with open(lock_path, 'a+', encoding='utf-8') as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            data = {}
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as handle:
+                        loaded = _json.load(handle)
+                    if isinstance(loaded, dict):
+                        data = loaded
+                except Exception:
+                    data = {}
+            result = mutator(data)
+            tmp = path + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as handle:
+                _json.dump(data, handle)
+            os.replace(tmp, path)
+            return result
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 def _rl_check(key):
     """Return (allowed, retry_after_seconds). allowed=False when IP is locked out."""
-    now = _time.monotonic()
-    entry = _PIN_ATTEMPTS.get(key)
-    if entry and entry.get('locked_until') and now < entry['locked_until']:
-        return False, max(1, int(entry['locked_until'] - now) + 1)
-    return True, 0
+    now = _time.time()
+
+    def mutate(data):
+        entry = data.get(key) if isinstance(data.get(key), dict) else {}
+        locked = entry.get('locked_until') or 0
+        if locked and now < locked:
+            return False, max(1, int(locked - now) + 1)
+        return True, 0
+
+    return _rl_update(mutate)
 
 def _rl_fail(key):
     """Record a failed attempt. Returns remaining attempts (0 = just locked out)."""
-    now = _time.monotonic()
-    entry = _PIN_ATTEMPTS.setdefault(key, {'count': 0, 'locked_until': None})
-    if entry.get('locked_until') and now >= entry['locked_until']:
-        entry['count'] = 0
-        entry['locked_until'] = None
-    entry['count'] += 1
-    if entry['count'] >= _MAX_PIN_ATTEMPTS:
-        entry['locked_until'] = now + _PIN_LOCKOUT_SECONDS
-        entry['count'] = 0
-        # Prevent unbounded growth from many IPs
-        if len(_PIN_ATTEMPTS) > 1000:
-            cutoff = now - _PIN_LOCKOUT_SECONDS * 2
-            stale = [k for k, v in list(_PIN_ATTEMPTS.items())
-                     if not v.get('locked_until') or v['locked_until'] < cutoff]
-            for k in stale:
-                _PIN_ATTEMPTS.pop(k, None)
-        return 0
-    return _MAX_PIN_ATTEMPTS - entry['count']
+    now = _time.time()
+
+    def mutate(data):
+        entry = data.get(key) if isinstance(data.get(key), dict) else {'count': 0, 'locked_until': 0}
+        locked = entry.get('locked_until') or 0
+        if locked and now >= locked:
+            entry = {'count': 0, 'locked_until': 0}
+        entry['count'] = int(entry.get('count') or 0) + 1
+        if entry['count'] >= _MAX_PIN_ATTEMPTS:
+            entry['locked_until'] = now + _PIN_LOCKOUT_SECONDS
+            entry['count'] = 0
+            data[key] = entry
+            _rl_prune(data, now)
+            return 0
+        data[key] = entry
+        return _MAX_PIN_ATTEMPTS - entry['count']
+
+    return _rl_update(mutate)
 
 def _rl_success(key):
     """Clear attempt record after a successful login."""
-    _PIN_ATTEMPTS.pop(key, None)
+    def mutate(data):
+        data.pop(key, None)
+        return None
+
+    _rl_update(mutate)
 
 
 def is_google_calendar_feature_enabled():
@@ -1536,7 +1597,7 @@ def settings_screensaver():
 
 @routes_bp.route('/api/screensaver/config', methods=['GET'])
 def api_screensaver_config():
-    """Public (session-only) config endpoint polled by the screensaver overlay on every page."""
+    """Screensaver settings for a logged-in page. Photos and timing stay behind the session."""
     settings = _get_screensaver_settings()
     photos = _sync_screensaver_photos()
     return jsonify({
@@ -1906,29 +1967,28 @@ def api_person_login():
     if not data or 'person_id' not in data:
         return jsonify({'success': False, 'error': 'Person ID required'}), 400
     person_id = data['person_id']
-    pin = str(data.get('pin', '')).strip()
+    pin = str(data.get('pin', '')).strip()[:256]
 
     person = Person.query.get(int(person_id))
     if not person:
         return jsonify({'success': False, 'error': 'Person not found'}), 404
 
-    if person.pin:
-        if not pin or not person.check_pin(pin):
-            remaining = _rl_fail(rl_key)
-            if remaining == 0:
-                return jsonify({'success': False, 'error': f'Too many wrong attempts. Locked for {_PIN_LOCKOUT_SECONDS}s.', 'retry_after': _PIN_LOCKOUT_SECONDS}), 429
-            word = 'attempt' if remaining == 1 else 'attempts'
-            return jsonify({'success': False, 'error': f'Incorrect PIN — {remaining} {word} left'}), 401
+    # A member with no PIN must not become a session. The master PIN is the
+    # front door; this endpoint only accepts a stored PIN.
+    if not acceptable_secret(pin) or not person.check_pin(pin):
+        remaining = _rl_fail(rl_key)
+        if remaining == 0:
+            return jsonify({'success': False, 'error': f'Too many wrong attempts. Locked for {_PIN_LOCKOUT_SECONDS}s.', 'retry_after': _PIN_LOCKOUT_SECONDS}), 429
+        word = 'attempt' if remaining == 1 else 'attempts'
+        return jsonify({'success': False, 'error': f'Incorrect PIN — {remaining} {word} left'}), 401
 
     _rl_success(rl_key)
-    session['authenticated'] = True
-    session['person_id'] = person.id
-    session['person_name'] = person.name
-    session['adult_mode'] = bool(person.is_admin)
-    if person.is_admin:
-        session['adult_name'] = person.name
-    else:
-        session.pop('adult_name', None)
+    start_family_session(
+        adult=bool(person.is_admin),
+        adult_name=person.name if person.is_admin else None,
+        person_id=person.id,
+        person_name=person.name,
+    )
 
     return jsonify({
         'success': True,
@@ -1958,31 +2018,22 @@ def api_adult_login():
     data = request.get_json()
     if not data or 'pin' not in data:
         return jsonify({'success': False, 'error': 'PIN is required'}), 400
-    pin = str(data['pin'])
+    pin = str(data['pin']).strip()[:256]
 
     # Try each admin person's PIN first
     admins = Person.query.filter_by(is_admin=True).all()
     for person in admins:
-        if person.check_pin(pin):
+        if acceptable_secret(pin) and person.check_pin(pin):
             _rl_success(rl_key)
-            session['authenticated'] = True
-            session['adult_mode'] = True
-            session['adult_name'] = person.name
+            start_family_session(adult=True, adult_name=person.name, person_id=person.id, person_name=person.name)
             return jsonify({'success': True, 'adult_name': person.name})
 
     # Fallback: master PIN
-    import bcrypt as _bcrypt
     master_pin_hash = AppSetting.get('master_pin')
-    if master_pin_hash:
-        try:
-            if _bcrypt.checkpw(pin.encode('utf-8'), master_pin_hash.encode('utf-8')):
-                _rl_success(rl_key)
-                session['authenticated'] = True
-                session['adult_mode'] = True
-                session['adult_name'] = 'Admin'
-                return jsonify({'success': True, 'adult_name': 'Admin'})
-        except Exception:
-            pass
+    if master_pin_hash and acceptable_secret(pin) and pin_matches(pin, master_pin_hash):
+        _rl_success(rl_key)
+        start_family_session(adult=True, adult_name='Admin')
+        return jsonify({'success': True, 'adult_name': 'Admin'})
 
     remaining = _rl_fail(rl_key)
     if remaining == 0:
@@ -3031,14 +3082,14 @@ def setup_wizard():
         at_least_one_admin_pin = False
         for idx in admin_indices:
             pin = person_pins[idx].strip() if idx < len(person_pins) else ''
-            if pin and pin.isdigit() and len(pin) == 4:
+            if acceptable_secret(pin):
                 at_least_one_admin_pin = True
             else:
                 name = people_names[idx].strip() if idx < len(people_names) else f'Person {idx+1}'
-                errors.append(f'{name} is marked as an adult but needs a valid 4-digit PIN.')
+                errors.append(f'{name} is marked as an adult but needs a PIN of 4 to 64 characters.')
 
         if not errors and not at_least_one_admin_pin:
-            errors.append('At least one adult account with a 4-digit PIN is required.')
+            errors.append('At least one adult account with a PIN of 4 to 64 characters is required.')
 
         if errors:
             people = Person.query.all()
@@ -3123,7 +3174,6 @@ def setup_wizard():
 def api_login():
     # New login endpoint to verify pin and create session
     # AppSetting already imported at top
-    import bcrypt
     rl_key = _rl_key()
     rl_ok, retry_after = _rl_check(rl_key)
     if not rl_ok:
@@ -3132,15 +3182,14 @@ def api_login():
     data = request.get_json()
     if not data or 'pin' not in data:
         return jsonify({'success': False, 'error': 'PIN is required'}), 400
-    pin = data['pin']
+    pin = str(data['pin']).strip()[:256]
     master_pin_hash = AppSetting.get('master_pin')
     if not master_pin_hash:
+        pin_matches(pin, None)
         return jsonify({'success': False, 'error': 'Master PIN not set'}), 500
-    if bcrypt.checkpw(pin.encode('utf-8'), master_pin_hash.encode('utf-8')):
+    if acceptable_secret(pin) and pin_matches(pin, master_pin_hash):
         _rl_success(rl_key)
-        session['authenticated'] = True
-        session['adult_mode'] = True
-        session['adult_name'] = 'Admin'
+        start_family_session(adult=True, adult_name='Admin')
         return jsonify({'success': True, 'adult_name': 'Admin'})
     else:
         remaining = _rl_fail(rl_key)
@@ -3944,6 +3993,10 @@ def api_notifications():
             })
 
         alerts.sort(key=lambda a: (0 if a['severity'] == 'overdue' else 1, a['days']))
+        # Car rego, service dates, and other organise alerts are marked admin_only.
+        # The bell used to hide those only in JavaScript.
+        if not session.get('adult_mode', False):
+            alerts = [a for a in alerts if not a.get('admin_only')]
 
         tz_name = AppSetting.get('timezone', 'UTC')
         try:
@@ -4371,8 +4424,8 @@ def settings():
                 new_pin = str(data.get('new_pin', '')).strip()
                 if not person_id or not new_pin:
                     return jsonify({'success': False, 'error': 'Person ID and new PIN are required.'}), 400
-                if not new_pin.isdigit() or len(new_pin) != 4:
-                    return jsonify({'success': False, 'error': 'PIN must be exactly 4 digits.'}), 400
+                if not acceptable_secret(new_pin):
+                    return jsonify({'success': False, 'error': 'PIN must be 4 to 64 characters.'}), 400
                 person = Person.query.get(int(person_id))
                 if not person:
                     return jsonify({'success': False, 'error': 'Person not found.'}), 404
@@ -4447,8 +4500,8 @@ def settings():
             confirm_pin = request.form.get('confirm_pin', '').strip()
             if not new_pin or not confirm_pin:
                 error = 'Both fields are required.'
-            elif not new_pin.isdigit() or len(new_pin) != 4:
-                error = 'PIN must be exactly 4 digits.'
+            elif not acceptable_secret(new_pin):
+                error = 'PIN must be 4 to 64 characters.'
             elif new_pin != confirm_pin:
                 error = 'PINs do not match.'
             else:
@@ -4470,7 +4523,9 @@ def settings():
                 error = "All fields are required."
             elif new_pin != confirm_pin:
                 error = "New PIN and confirmation do not match."
-            elif not bcrypt.checkpw(current_pin.encode('utf-8'), master_pin.encode('utf-8')):
+            elif not acceptable_secret(new_pin):
+                error = "PIN must be 4 to 64 characters."
+            elif not pin_matches(current_pin, master_pin):
                 error = "Current PIN is incorrect."
             else:
                 hashed_new_pin = bcrypt.hashpw(new_pin.encode('utf-8'), bcrypt.gensalt())
@@ -4517,8 +4572,8 @@ def settings():
             new_pin = request.form.get('new_pin', '').strip()
             if not person_id or not new_pin:
                 error = 'Person ID and new PIN are required.'
-            elif not new_pin.isdigit() or len(new_pin) != 4:
-                error = 'PIN must be exactly 4 digits.'
+            elif not acceptable_secret(new_pin):
+                error = 'PIN must be 4 to 64 characters.'
             else:
                 person = Person.query.get(int(person_id))
                 if not person:

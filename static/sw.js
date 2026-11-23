@@ -1,7 +1,6 @@
 // ChoresRewards Service Worker
-const CACHE_NAME = 'choresrewards-v6';
+const CACHE_NAME = 'choresrewards-v7';
 const STATIC_ASSETS = [
-  '/',
   '/static/css/styles.css',
   '/static/js/main.js',
   '/static/js/side_nav.js',

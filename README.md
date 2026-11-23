@@ -124,6 +124,23 @@ docker run -d \
 
 Open `http://localhost:3112` and complete the setup wizard.
 
+### Session secret
+
+The PIN is enforced by the server. Sessions are signed with `CR_SECRET_KEY` or `SECRET_KEY` when one of those is set to at least 16 characters. Otherwise the first boot writes a random key to `/app/instance/secret_key`. Set the same long random key on every container if you run more than one.
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+```yaml
+environment:
+  - CR_SECRET_KEY=paste-that-value
+```
+
+The session cookie is HttpOnly and SameSite=Lax. It is marked Secure when the browser is on HTTPS (`X-Forwarded-Proto: https` from Caddy or Cloudflare). `CR_COOKIE_SECURE=1` forces Secure, and `CR_COOKIE_SECURE=0` leaves it off for a plain `http://` LAN address.
+
+If the site is reachable on the internet, put Cloudflare Access in front of it (email one-time PIN, allow-list of family emails) as a second layer. The app PIN is still the lock inside the house.
+
 Map **both** volumes. Uploads (avatars, reward photos, screensaver pictures, organise photos) live under `/app/static/uploads` and will disappear on container update if that path is not persisted.
 
 ### Docker Compose

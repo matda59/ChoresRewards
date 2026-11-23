@@ -13,6 +13,8 @@
     let _adultMode = false;
     let _adultName = null;    let _lockoutTimer = null;
     let _pinLocked = false;
+    let _autoSubmitTimer = null;
+    const PIN_MAX = 64;
     // ── DOM helpers ───────────────────────────────────────────────────────────
     function getEl(id) { return document.getElementById(id); }
 
@@ -175,15 +177,35 @@
             });
         }
 
-        // PIN overlay: digit input auto-submit at 4 chars
+        // PIN overlay. A 4-digit PIN still submits itself. A longer PIN or
+        // passphrase is sent with Enter.
         const pinInput = getEl('adult-pin-input');
         if (pinInput) {
+            pinInput.maxLength = PIN_MAX;
+            pinInput.removeAttribute('pattern');
+            pinInput.setAttribute('inputmode', 'text');
+            const hint = pinInput.closest('#adult-pin-box');
+            if (hint) {
+                const hintText = hint.querySelector('p');
+                if (hintText) hintText.textContent = 'Enter your PIN';
+            }
             pinInput.addEventListener('input', function () {
                 if (_pinLocked) return;
-                const val = pinInput.value.replace(/\D/g, '').slice(0, 4);
-                pinInput.value = val;
-                if (val.length === 4) {
-                    attemptAdultLogin(val);
+                if (_autoSubmitTimer) {
+                    clearTimeout(_autoSubmitTimer);
+                    _autoSubmitTimer = null;
+                }
+                const val = pinInput.value.replace(/[\r\n]/g, '').slice(0, PIN_MAX);
+                if (pinInput.value !== val) pinInput.value = val;
+                const shortPin = /^\d{0,4}$/.test(val);
+                pinInput.style.width = shortPin ? '120px' : '220px';
+                pinInput.style.letterSpacing = shortPin ? '8px' : 'normal';
+                pinInput.style.fontSize = shortPin ? '2em' : '1.15em';
+                if (/^\d{4}$/.test(val)) {
+                    _autoSubmitTimer = setTimeout(function () {
+                        _autoSubmitTimer = null;
+                        if (!_pinLocked && pinInput.value === val) attemptAdultLogin(val);
+                    }, 350);
                 }
             });
         }
@@ -194,8 +216,12 @@
             pinForm.addEventListener('submit', function (e) {
                 e.preventDefault();
                 if (_pinLocked) return;
-                const val = (getEl('adult-pin-input').value || '').replace(/\D/g, '').slice(0, 4);
-                if (val.length === 4) {
+                if (_autoSubmitTimer) {
+                    clearTimeout(_autoSubmitTimer);
+                    _autoSubmitTimer = null;
+                }
+                const val = (getEl('adult-pin-input').value || '').replace(/[\r\n]/g, '').slice(0, PIN_MAX);
+                if (val.length >= 4) {
                     attemptAdultLogin(val);
                 }
             });
