@@ -7,6 +7,11 @@ Flask session the real boundary: reading or changing family data requires
 ``CR_READONLY_API_KEY``, when set to at least 32 characters, lets a trusted
 automation read an allowlist of GET endpoints without a session. It cannot
 change data, open a session, or trip the PIN lockout.
+
+``CR_WRITE_API_KEY`` is a second key for everyday changes (chores, rewards,
+meals, shopping lines, notes). It is disabled when unset, short, or equal to
+the read-only key. It cannot open settings, manage family members, upload
+files, or run the daily chore reset.
 """
 
 import hashlib
@@ -288,8 +293,8 @@ class ProxyAwareSessionInterface(SecureCookieSessionInterface):
         return proto.split(',')[0].strip().lower() == 'https'
 
     def save_session(self, app, session, response):
-        # The read-only key is not a browser login. Skip the cookie even if a
-        # view touched the session object, so a key request cannot create or
+        # An API key is not a browser login. Skip the cookie even if a view
+        # touched the session object, so a key request cannot create or
         # refresh one.
         try:
             if getattr(g, 'cr_api_key_request', False):
@@ -300,7 +305,12 @@ class ProxyAwareSessionInterface(SecureCookieSessionInterface):
 
 
 _READONLY_API_KEY_ENV = 'CR_READONLY_API_KEY'
+_WRITE_API_KEY_ENV = 'CR_WRITE_API_KEY'
 _MIN_API_KEY_LEN = 32
+# Compared only when a real key is not configured, so the number of digest
+# compares does not reveal which key is enabled.
+_API_KEY_DUMMY = 'choresrewards-api-key-timing-pad-not-a-secret'
+_write_key_equal_warned = False
 _API_KEY_MAX_FAILURES = 8
 _API_KEY_WINDOW_SECONDS = 300
 _API_KEY_MEMORY = {}
@@ -334,6 +344,50 @@ def readonly_api_allows(method, path):
     return _READONLY_SERVICE_PATH.match(path) is not None
 
 
+# Everyday changes only. Settings, logins, family-member management, uploads,
+# and the whole-document saves (they wipe a list when the body is partial)
+# are intentionally absent. GET / is absent because that page runs the reset.
+_WRITE_API_EXACT = frozenset({
+    ('POST', '/add_chore'),
+    ('POST', '/edit_chore'),
+    ('POST', '/add_daily_chore'),
+    ('POST', '/edit_daily_chore'),
+    ('POST', '/delete_chore'),
+    ('POST', '/delete_daily_chore'),
+    ('POST', '/complete_chore'),
+    ('POST', '/undo_complete_chore'),
+    ('POST', '/api/extra_chores/claim'),
+    ('POST', '/add_reward'),
+    ('POST', '/edit_reward'),
+    ('POST', '/delete_reward'),
+    ('POST', '/complete_reward'),
+    ('POST', '/award_bonus_points'),
+    ('POST', '/reset_points'),
+    ('POST', '/api/meal_planner/slot'),
+    ('POST', '/api/meal_planner/recurring'),
+    ('POST', '/api/meal_planner/suggestions/items'),
+    ('POST', '/api/meal_planner/suggestions/remove'),
+    ('POST', '/api/meal_ingredients/items'),
+    ('POST', '/api/meal_ingredients/items/remove'),
+    ('POST', '/api/shopping_list/items'),
+    ('POST', '/api/shopping_list/items/check'),
+    ('POST', '/api/shopping_list/items/remove'),
+    ('POST', '/api/notes/cards'),
+    ('POST', '/api/notes/cards/update'),
+    ('POST', '/api/notes/cards/remove'),
+    ('POST', '/api/dashboard_notes/notes'),
+    ('POST', '/api/dashboard_notes/notes/update'),
+    ('POST', '/api/dashboard_notes/notes/remove'),
+})
+
+
+def write_api_allows(method, path):
+    """True for one everyday change. The write key is checked separately."""
+    method = (method or 'GET').upper()
+    path = normalise_path(path)
+    return (method, path) in _WRITE_API_EXACT
+
+
 def _configured_readonly_api_key():
     """The key, or None when the feature is off.
 
@@ -359,6 +413,57 @@ def _announce_readonly_api_key():
         )
         return
     print('[auth] Read-only API key is enabled for allowlisted GET requests.')
+
+
+def _configured_write_api_key():
+    """The write key, or None when that feature is off.
+
+    Unset, blank, and short values disable it. The same string as the
+    read-only key also disables it, so one leaked read key cannot be reused
+    to change family data.
+    """
+    global _write_key_equal_warned
+    raw = os.environ.get(_WRITE_API_KEY_ENV)
+    if raw is None:
+        return None
+    key = str(raw).strip()
+    if len(key) < _MIN_API_KEY_LEN:
+        return None
+    read_key = _configured_readonly_api_key()
+    if read_key is not None and _api_key_matches(key, read_key):
+        if not _write_key_equal_warned:
+            print(
+                '[auth] CR_WRITE_API_KEY matches CR_READONLY_API_KEY. '
+                'The write key is disabled until the two values differ.'
+            )
+            _write_key_equal_warned = True
+        return None
+    _write_key_equal_warned = False
+    return key
+
+
+def _announce_write_api_key():
+    raw = os.environ.get(_WRITE_API_KEY_ENV)
+    if raw is None or not str(raw).strip():
+        return
+    key = str(raw).strip()
+    if len(key) < _MIN_API_KEY_LEN:
+        print(
+            '[auth] Ignoring CR_WRITE_API_KEY because it is shorter than '
+            '32 characters. The write API is disabled.'
+        )
+        return
+    if _configured_write_api_key() is None:
+        return
+    print('[auth] Write API key is enabled for allowlisted family changes.')
+
+
+def _presented_matches(presented, expected):
+    """Constant-time match. A missing key still pays for one digest compare."""
+    if not expected:
+        _api_key_matches(presented, _API_KEY_DUMMY)
+        return False
+    return _api_key_matches(presented, expected)
 
 
 def _presented_api_key():
@@ -509,28 +614,64 @@ def _api_key_error(message, status, retry_after=None):
     return response
 
 
-def _readonly_api_key_gate(method, path):
-    """Authorise a key read, refuse anything else the key tries, or stay out of the way.
+def _audit_api_key_write(response):
+    """One stdout line per write the write key was allowed to attempt.
+
+    The line names the endpoint, method, time, and key type. It never includes
+    the key, the body, or the query string.
+    """
+    if not getattr(g, 'cr_write_api', False):
+        return
+    method = (request.method or '').upper()
+    if method in ('GET', 'HEAD', 'OPTIONS'):
+        return
+    stamp = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    path = normalise_path(request.path)
+    status = getattr(response, 'status_code', 0)
+    print(
+        f'[api-key] write method={method} path={path} key_type=write at={stamp} status={status}',
+        flush=True,
+    )
+
+
+def _api_key_gate(method, path):
+    """Authorise a key, refuse anything else it tries, or stay out of the way.
 
     Returns a response when this request must stop. Returns None when the
-    normal session rules should run, or when the key already allowed the read
-    (``g.cr_readonly_api`` is set in that case).
+    normal session rules should run, or when a key already allowed it.
+    A matching write key sets ``g.cr_write_api``. A matching read sets
+    ``g.cr_readonly_api``. Either sets ``g.cr_api_key_request`` so the
+    session cookie is not saved.
     """
-    expected = _configured_readonly_api_key()
     presented = _presented_api_key()
-    if expected is None or presented is None:
+    read_key = _configured_readonly_api_key()
+    write_key = _configured_write_api_key()
+    if presented is None or (read_key is None and write_key is None):
         return None
     g.cr_api_key_request = True
-    matches = _api_key_matches(presented, expected)
-    if matches and readonly_api_allows(method, path):
+    # Always compare both slots so a disabled key does not return early.
+    read_ok = _presented_matches(presented, read_key)
+    write_ok = _presented_matches(presented, write_key)
+    if write_ok and (write_api_allows(method, path) or readonly_api_allows(method, path)):
+        g.cr_write_api = True
         g.cr_readonly_api = True
         return None
-    if matches:
+    if read_ok and readonly_api_allows(method, path):
+        g.cr_readonly_api = True
+        return None
+    if read_ok and not write_ok:
         return _api_key_error('API key is read-only', 403)
+    if write_ok or read_ok:
+        return _api_key_error('API key cannot access this', 403)
     retry_after = _note_bad_api_key()
     if retry_after:
         return _api_key_error('Too many attempts. Try again shortly.', 429, retry_after)
     return _api_key_error('Invalid API key', 401)
+
+
+def _readonly_api_key_gate(method, path):
+    """Backwards-compatible name for the combined key gate."""
+    return _api_key_gate(method, path)
 
 
 def sees_adult_alerts():
@@ -548,24 +689,27 @@ def sees_adult_alerts():
 def install_auth(app):
     """Attach the session gate. Call this after the other before_request hooks."""
     _announce_readonly_api_key()
+    _announce_write_api_key()
 
     @app.before_request
     def _require_family_session():
         if request.method == 'OPTIONS':
             return None
-        if not _origin_allowed():
-            return _json_error('Cross-site request blocked', 403)
 
         path = normalise_path(request.path)
         method = request.method.upper()
         # A presented key is the credential for this request. It is checked
         # before the public-login shortcuts so it cannot open a session, post
         # the PIN, or land on the home page (that page runs the daily reset).
-        denial = _readonly_api_key_gate(method, path)
+        # A key that was actually accepted skips the Origin check. A browser
+        # session, a missing key, and a rejected key do not.
+        denial = _api_key_gate(method, path)
         if denial is not None:
             return denial
-        if getattr(g, 'cr_readonly_api', False):
+        if getattr(g, 'cr_write_api', False) or getattr(g, 'cr_readonly_api', False):
             return None
+        if not _origin_allowed():
+            return _json_error('Cross-site request blocked', 403)
         if is_public_request(method, path):
             return None
         if path == '/setup' and _setup_is_open():
@@ -589,6 +733,7 @@ def install_auth(app):
 
     @app.after_request
     def _keep_family_responses_private(response):
+        _audit_api_key_write(response)
         path = normalise_path(request.path).lower()
         if path.startswith('/static/') and not path.startswith('/static/uploads/'):
             return response

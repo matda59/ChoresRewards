@@ -184,6 +184,91 @@ Anything else is refused, including `POST`, settings, uploads, and the home page
 
 When the header is present it is the only credential checked for that request. A normal browser session does not send it, so PIN login stays the same.
 
+### Write API key
+
+`CR_WRITE_API_KEY` is a second key for the same assistant. It can read everything the read-only key can read, and it can make the everyday changes in the table below. Generate a different value. If it is unset, blank, shorter than 32 characters, or the same string as `CR_READONLY_API_KEY`, the write key is disabled (the read-only key keeps working).
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+```yaml
+environment:
+  - CR_READONLY_API_KEY=paste-the-read-key
+  - CR_WRITE_API_KEY=paste-a-different-write-key
+```
+
+Restart the container after setting it (`docker compose up -d`, or restart the Unraid container). Send it the same way as the read-only key. A query string is ignored.
+
+```bash
+curl -sS -H "Authorization: Bearer $CR_WRITE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Pack lunch","assigned_to":"Will","points":1}' \
+  http://localhost:3112/add_chore
+```
+
+```bash
+curl -sS -H "X-API-Key: $CR_WRITE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Milk","store":"aldi"}' \
+  http://localhost:3112/api/shopping_list/items
+```
+
+```bash
+curl -sS -H "Authorization: Bearer $CR_WRITE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"date":"2026-11-23","meal":"dinner","value":"Pasta"}' \
+  http://localhost:3112/api/meal_planner/slot
+```
+
+The write key does not set a session cookie, does not open the home page (that page runs the daily chore reset), and does not share the PIN lockout. A wrong key for either API key counts toward the same limit: 8 failures in 5 minutes from one address, then `429`. A correct key still works during that window. Each allowed write prints one audit line to the container log (`method`, `path`, `key_type=write`, timestamp, status). The key itself is not logged.
+
+A browser session is still checked for `Origin`. A request that presents a valid write key for an allowlisted change is not, because the key is the credential rather than the cookie.
+
+| Method and path | What it does | JSON body |
+|---|---|---|
+| `POST /add_chore` | Add a one-off or repeating chore | `{"title","assigned_to","points","is_daily","due_datetime","days_of_week","icon"}`. `assigned_to` is the person's name. `days_of_week` makes it repeat. |
+| `POST /edit_chore` | Edit a chore, including who it is assigned to | `{"chore_id","title","assigned_to","points","days_of_week","icon","is_daily"}` |
+| `POST /add_daily_chore` | Add an every-day chore | `{"title","assigned_to","points"}` |
+| `POST /edit_daily_chore` | Edit an every-day chore | `{"chore_id","title","assigned_to","points","days_of_week"}` |
+| `POST /delete_chore` | Delete a one-off chore. A daily chore is skipped today unless `permanent` is true | `{"chore_id","permanent"}` |
+| `POST /delete_daily_chore` | Permanently remove a daily chore | `{"chore_id"}` |
+| `POST /complete_chore` | Mark a chore done and award points when it is on time | `{"chore_id"}` |
+| `POST /undo_complete_chore` | Undo that completion | `{"chore_id"}` |
+| `POST /api/extra_chores/claim` | Put one catalog extra chore on a person's list | `{"extra_id","person_id"}` |
+| `POST /add_reward` | Add a reward. No file upload | `{"title","points_required","assigned_to","description","image_url"}` |
+| `POST /edit_reward` | Edit a reward | `{"reward_id","title","description","points_required","assigned_to"}` |
+| `POST /delete_reward` | Remove a reward | `{"reward_id"}` |
+| `POST /complete_reward` | Redeem a reward and spend the points | `{"reward_id"}` |
+| `POST /award_bonus_points` | Award the configured bonus | `{"person_id","bonus_points"}` |
+| `POST /reset_points` | Set someone's points balance | `{"person_id","new_points"}` |
+| `POST /api/meal_planner/slot` | Set or clear one meal on one date | `{"date":"YYYY-MM-DD","meal":"dinner","value":"Pasta"}`. `meal` is breakfast, lunch, or dinner. An empty `value` clears that slot. |
+| `POST /api/meal_planner/recurring` | Set one weekday repeat | `{"weekday":"monday","meal":"dinner","value":"Pasta","enabled":true}` |
+| `POST /api/meal_planner/suggestions/items` | Add one meal name to the suggestion list | `{"text":"Tacos"}` |
+| `POST /api/meal_planner/suggestions/remove` | Remove one suggestion | `{"text":"Tacos"}` |
+| `POST /api/meal_ingredients/items` | Add one ingredient to a meal | `{"meal":"pasta","name":"Tomatoes","store":"aldi","qty":"1 tin"}` |
+| `POST /api/meal_ingredients/items/remove` | Remove that ingredient | `{"meal":"pasta","name":"Tomatoes"}` |
+| `POST /api/shopping_list/items` | Add one manual shopping line | `{"name":"Milk","store":"aldi"}` |
+| `POST /api/shopping_list/items/check` | Tick or untick a line | `{"name":"Milk","store":"aldi","checked":true}` or `{"key":"meal::pasta::tomatoes","checked":true}` |
+| `POST /api/shopping_list/items/remove` | Remove one manual line | `{"name":"Milk","store":"aldi"}` |
+| `POST /api/notes/cards` | Add a To Do / kanban card | `{"text":"Book dentist","column_id":"col-todo"}`. `column_id` is optional. |
+| `POST /api/notes/cards/update` | Edit, tick, or move a card | `{"id","text","checked","column_id"}` |
+| `POST /api/notes/cards/remove` | Clear a card | `{"id"}` |
+| `POST /api/dashboard_notes/notes` | Add a dashboard post-it | `{"text":"Bins tonight","color":"#fef08a","text_size":"md"}` |
+| `POST /api/dashboard_notes/notes/update` | Edit a post-it | `{"id","text","color","text_size"}` |
+| `POST /api/dashboard_notes/notes/remove` | Remove a post-it | `{"id"}` |
+
+The write key cannot:
+
+- open `GET /` or anything else that runs the daily chore reset
+- change settings, the master PIN, logins, or logouts
+- add, delete, or rename family members
+- upload files, avatars, sounds, or photos
+- replace a whole shopping list, note board, dashboard, meal week, or ingredient library in one body (those page saves stay on the logged-in session, because a partial body would wipe the rest)
+- create bills, vehicle service logs, or Google Calendar events (the calendar is only read into the chore summary; the app does not store its own events)
+
+`X-API-Key` works on these calls too. The read-only key still cannot call any of them.
+
 Map **both** volumes. Uploads (avatars, reward photos, screensaver pictures, organise photos) live under `/app/static/uploads` and will disappear on container update if that path is not persisted.
 
 ### Docker Compose
@@ -201,6 +286,7 @@ services:
       - TZ=Australia/Adelaide
       - ENABLE_GOOGLE_CALENDAR=true
       # - CR_READONLY_API_KEY=paste-that-value
+      # - CR_WRITE_API_KEY=paste-a-different-value
     restart: always
 
 volumes:

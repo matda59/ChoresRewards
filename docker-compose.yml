@@ -16,6 +16,8 @@ services:
       # Read-only assistant key. Leave unset to disable. At least 32 characters.
       # Generate: python -c "import secrets; print(secrets.token_urlsafe(32))"
       # - CR_READONLY_API_KEY=replace-with-the-generated-value
+      # Write key for the same assistant. Must be different from the read-only key.
+      # - CR_WRITE_API_KEY=replace-with-a-different-generated-value
     restart: always
 
 volumes:

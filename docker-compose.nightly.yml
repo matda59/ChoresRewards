@@ -18,6 +18,7 @@ services:
       - ENABLE_GOOGLE_CALENDAR=true
       - CHORESREWARDS_TELEMETRY=off
       # - CR_READONLY_API_KEY=replace-with-the-generated-value
+      # - CR_WRITE_API_KEY=replace-with-a-different-generated-value
     restart: unless-stopped
 
 volumes:
