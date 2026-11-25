@@ -132,6 +132,10 @@ if quiz_path not in sys.path:
 from quiz_questions import quiz_questions
 
 from routes import filename_has_executable_extension, routes_bp
+from models import format_tech_minutes, minutes_from_points
+
+app.jinja_env.filters['tech_time'] = format_tech_minutes
+app.jinja_env.filters['as_minutes'] = minutes_from_points
 
 
 # Register the Blueprint
@@ -235,6 +239,10 @@ with app.app_context():
         if 'extra_id' not in chore_cols:
             db.session.execute(text('ALTER TABLE chore ADD COLUMN extra_id VARCHAR(32)'))
             db.session.commit()
+
+    # Tech time keeps a ledger table (tech_time_entry). create_all() above
+    # creates it on an existing database and does not rewrite person.points
+    # or chore rows. Weeks expire by summing the current Monday only.
 
     # Clear stale upload references: null any avatar/image_url that points to a
     # file that no longer exists on disk (happens after container rebuilds when

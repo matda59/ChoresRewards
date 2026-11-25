@@ -167,7 +167,7 @@
                     <p style="color:var(--cr-text-secondary);margin-top:0;">
                         These optional jobs appear when a kid taps <strong style="color:var(--cr-text-primary);">Earn more</strong> on a reward, or on their kanban after they finish today’s listed chores.
                         <strong style="color:var(--cr-text-primary);">Min age</strong> hides a job from younger kids — a 4-year-old will not see Cook dinner.
-                        Values use the household’s current {% if reward_system == 'cash' %}cash{% else %}points{% endif %} system.
+                        Values use the household’s current {% if reward_system == 'cash' %}cash{% elif reward_system == 'tech_time' %}tech time (minutes){% else %}points{% endif %} system.
                     </p>
                     {% if success %}<div class="success-message"><i class="fas fa-check-circle"></i> {{ success }}</div>{% endif %}
                     {% if error %}<div class="error-message"><i class="fas fa-exclamation-triangle"></i> {{ error }}</div>{% endif %}
@@ -186,6 +186,7 @@
     </main>
     <script>
     const isCash = {{ (reward_system == 'cash') | tojson }};
+    const isTechTime = {{ (reward_system == 'tech_time') | tojson }};
     let extras = {{ extra_chores | default([], true) | tojson }};
 
     function esc(value) {
@@ -193,7 +194,7 @@
     }
 
     function addExtraRow(extra) {
-        extra = extra || { id: '', title: '', points: isCash ? 1 : 2, min_age: 5, icon: '', enabled: true };
+        extra = extra || { id: '', title: '', points: isTechTime ? 5 : (isCash ? 1 : 2), min_age: 5, icon: '', enabled: true };
         const list = document.getElementById('extras-list');
         const card = document.createElement('div');
         card.className = 'extra-card';
@@ -202,8 +203,8 @@
             '<input type="hidden" class="js-id" value="' + esc(extra.id || '') + '">' +
             '<label class="extra-field title"><span class="extra-label">Title</span>' +
             '<input class="extra-input js-title" maxlength="100" value="' + esc(extra.title || '') + '" placeholder="Vacuum a room"></label>' +
-            '<label class="extra-field points"><span class="extra-label">' + (isCash ? 'Cash' : 'Points') + '</span>' +
-            '<input class="extra-input js-points" type="number" min="0" step="' + (isCash ? '0.01' : '0.5') + '" value="' + esc(extra.points) + '"></label>' +
+            '<label class="extra-field points"><span class="extra-label">' + (isTechTime ? 'Minutes' : (isCash ? 'Cash' : 'Points')) + '</span>' +
+            '<input class="extra-input js-points" type="number" min="0" step="' + (isTechTime ? '1' : (isCash ? '0.01' : '0.5')) + '" value="' + esc(extra.points) + '"></label>' +
             '<label class="extra-field age"><span class="extra-label">Min age</span>' +
             '<input class="extra-input js-min-age" type="number" min="0" max="18" value="' + esc(extra.min_age || 0) + '"></label>' +
             '<label class="extra-field icon"><span class="extra-label">Icon</span>' +

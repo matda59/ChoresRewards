@@ -12,7 +12,12 @@ from flask import Blueprint, current_app, g, jsonify, redirect, render_template,
 import requests
 from zoneinfo import ZoneInfo
 from extensions import db
-from models import Person, Chore, Reward, ActivityLog, log_activity, AppSetting, PersonStreak, PersonBadge, BADGE_DEFINITIONS
+from models import (
+    Person, Chore, Reward, ActivityLog, log_activity, AppSetting,
+    PersonStreak, PersonBadge, BADGE_DEFINITIONS, TechTimeEntry,
+    current_tech_week_start, format_tech_minutes, minutes_from_points,
+    tech_time_balance, tech_time_balances, week_start_for_instant,
+)
 from flask import session, redirect, url_for
 from flask import session
 from collections import defaultdict
@@ -1657,6 +1662,7 @@ def api_screensaver_chore_summary():
             'completed': len(person_chores) - len(remaining_chores),
             'remaining': len(remaining_chores),
             'chores': [c.title for c in remaining_chores[:6]],
+            'tech_minutes': 0,
         })
 
     events = []
@@ -1667,7 +1673,21 @@ def api_screensaver_chore_summary():
     except Exception:
         events = []
 
-    return jsonify({'success': True, 'people': people, 'events': events})
+    reward_mode = AppSetting.get_reward_system()
+    week_start = current_tech_week_start()
+    balances = tech_time_balances([person.id for person in family], week_start)
+    for row, person in zip(people, family):
+        minutes = balances.get(person.id, 0)
+        row['tech_minutes'] = minutes
+        row['tech_time_display'] = format_tech_minutes(minutes)
+
+    return jsonify({
+        'success': True,
+        'reward_mode': reward_mode,
+        'tech_week_start': week_start.isoformat(),
+        'people': people,
+        'events': events,
+    })
 
 
 @routes_bp.route('/api/screensaver/upload', methods=['POST'])
@@ -2101,7 +2121,21 @@ def api_person_points():
     person = Person.query.filter_by(name=name).first()
     if not person:
         return jsonify({'success': False, 'error': 'Person not found'}), 404
-    return jsonify({'success': True, 'points': _round_points(person.points + person.bonus_points)})
+    reward_mode = AppSetting.get_reward_system()
+    if reward_mode == 'tech_time':
+        minutes = tech_time_balance(person.id)
+        return jsonify({
+            'success': True,
+            'points': minutes,
+            'tech_minutes': minutes,
+            'tech_time_display': format_tech_minutes(minutes),
+            'reward_mode': reward_mode,
+        })
+    return jsonify({
+        'success': True,
+        'points': _round_points(person.points + person.bonus_points),
+        'reward_mode': reward_mode,
+    })
 
 
 @routes_bp.route('/api/meal_planner', methods=['GET', 'POST'])
@@ -3027,6 +3061,7 @@ def index():
         celebrate_avatar=celebrate_avatar,
         master_pin_set=bool(master_pin),
         reward_system=reward_system,
+        tech_minutes_by_person=tech_time_balances([person.id for person in family]),
         meal_planner_week_start=meal_planner_week_start.isoformat(),
         meal_planner_week_days=meal_planner_week_days,
         meal_planner_plan=meal_planner_plan,
@@ -3173,7 +3208,9 @@ def setup_wizard():
                 AppSetting.set('master_pin', person.pin)
                 break
 
-        AppSetting.set('reward_system', reward_system)
+        if reward_system not in ('points', 'cash', 'tech_time'):
+            reward_system = 'points'
+        AppSetting.set_reward_system(reward_system)
         AppSetting.set('bonus_mode', bonus_mode)
         AppSetting.set('bonus_static', bonus_static)
         AppSetting.set('bonus_min', bonus_min)
@@ -3435,17 +3472,47 @@ def complete_chore():
             chore.assigned_to = person.name
 
         points_awarded = 0
+        minutes_awarded = 0
         bonus_awarded = 0
         overdue = False
         new_badges = []
         current_streak = 0
+        reward_system = AppSetting.get_reward_system()
         if person:
-            now = datetime.now(timezone.utc)
-            overdue = _chore_is_overdue(chore, now)
+            overdue = _chore_is_overdue(chore, now_utc)
 
             if not overdue:
-                person.points = _round_points(person.points + chore.points)
-                points_awarded = _round_points(chore.points)
+                if reward_system == 'tech_time':
+                    # Minutes live in the weekly ledger. person.points stays put
+                    # so switching back to points or cash restores that balance.
+                    minutes_awarded = minutes_from_points(chore.points)
+                    if minutes_awarded:
+                        db.session.add(TechTimeEntry(
+                            person_id=person.id,
+                            minutes=minutes_awarded,
+                            week_start=week_start_for_instant(now_utc),
+                            source='chore',
+                            chore_id=chore.id,
+                        ))
+                    award_line = (
+                        f"Chore '{chore.title}' was completed and "
+                        f"{minutes_awarded} tech time minutes were awarded"
+                    )
+                    gotify_line = (
+                        f"Chore '{chore.title}' was completed by {chore.assigned_to}. "
+                        f"{minutes_awarded} tech time minutes awarded."
+                    )
+                else:
+                    person.points = _round_points(person.points + chore.points)
+                    points_awarded = _round_points(chore.points)
+                    award_line = (
+                        f"Chore '{chore.title}' was completed and "
+                        f"{points_awarded} points were awarded"
+                    )
+                    gotify_line = (
+                        f"Chore '{chore.title}' was completed by {chore.assigned_to}. "
+                        f"{points_awarded} points awarded."
+                    )
                 db.session.commit()
                 session['celebrate_person'] = chore.assigned_to
                 if person.avatar:
@@ -3454,7 +3521,7 @@ def complete_chore():
                     session['celebrate_avatar'] = 'default_avatar.png'
                 log_activity(
                     'chore_completed',
-                    f"Chore '{chore.title}' was completed and {points_awarded} points were awarded",
+                    award_line,
                     user_name=chore.assigned_to
                 )                # --- Gotify notification for completed chores ---
                 gotify_notify_chores_completed = AppSetting.get('gotify_notify_chores_completed', 'false') == 'true'
@@ -3465,12 +3532,11 @@ def complete_chore():
                 if gotify_notify_chores_completed and gotify_url and gotify_token:
                     if not gotify_notify_people or str(chore.assigned_to_id) in gotify_notify_people:
                         try:
-                            msg = f"Chore '{chore.title}' was completed by {chore.assigned_to}. {points_awarded} points awarded."
                             requests.post(
                                 f"{gotify_url.rstrip('/')}/message?token={gotify_token}",
                                 json={
                                     "title": "Chore Completed",
-                                    "message": msg,
+                                    "message": gotify_line,
                                     "priority": 5
                                 },
                                 timeout=5
@@ -3481,9 +3547,19 @@ def complete_chore():
                 new_badges, current_streak = check_and_award_badges(person, chore.date_completed)
             else:
                 db.session.commit()
+                if reward_system == 'tech_time':
+                    overdue_line = (
+                        f"Chore '{chore.title}' was completed but was overdue. "
+                        "No tech time awarded."
+                    )
+                else:
+                    overdue_line = (
+                        f"Chore '{chore.title}' was completed but was overdue. "
+                        "No points awarded."
+                    )
                 log_activity(
                     'chore_completed',
-                    f"Chore '{chore.title}' was completed but was overdue. No points awarded.",
+                    overdue_line,
                     user_name=chore.assigned_to
                 )
                 new_badges, current_streak = [], 0
@@ -3491,6 +3567,11 @@ def complete_chore():
             db.session.commit()
 
         completed, total = Chore.calculate_weekly_progress(chore.assigned_to)
+        tech_minutes = tech_time_balance(person.id) if person else 0
+        if reward_system == 'tech_time':
+            shown_balance = tech_minutes
+        else:
+            shown_balance = _round_points(person.points + person.bonus_points) if person else 0
 
         return jsonify({
             'success': True,
@@ -3500,8 +3581,12 @@ def complete_chore():
                 'completed': completed,
                 'total': total
             },
-            'new_points': _round_points(person.points + person.bonus_points) if person else 0,
+            'new_points': shown_balance,
             'points_awarded': _round_points(points_awarded),
+            'minutes_awarded': minutes_awarded,
+            'tech_minutes': tech_minutes,
+            'tech_time_display': format_tech_minutes(tech_minutes),
+            'reward_mode': reward_system,
             'bonus_awarded': _round_points(bonus_awarded),
             'overdue': overdue,
             'new_badges': new_badges,
@@ -3532,6 +3617,7 @@ def undo_complete_chore():
         # were never given — the toast still offers Undo in that case.
         completed_at = _completion_instant_utc(chore)
         awarded_points = not _chore_is_overdue(chore, completed_at) if completed_at else True
+        reward_system = AppSetting.get_reward_system()
 
         chore.completed = False
         chore.date_completed = None
@@ -3539,7 +3625,37 @@ def undo_complete_chore():
         person = _person_for_assignment(chore.assigned_to_id, chore.assigned_to)
         if person and chore.assigned_to != person.name:
             chore.assigned_to = person.name
-        if person and awarded_points:
+        if person and awarded_points and reward_system == 'tech_time':
+            # Reverse the latest credit this chore still has open. Daily reset
+            # leaves earlier days' credits in place, so only today's award is removed.
+            open_credit = None
+            for entry in TechTimeEntry.query.filter(
+                TechTimeEntry.chore_id == chore.id,
+                TechTimeEntry.source.in_(('chore', 'undo')),
+            ).order_by(TechTimeEntry.id.asc()):
+                if entry.source == 'chore' and entry.minutes > 0:
+                    open_credit = entry
+                elif entry.source == 'undo':
+                    open_credit = None
+            minutes = 0
+            if open_credit is not None:
+                minutes = open_credit.minutes
+                week_start = open_credit.week_start
+            if minutes:
+                db.session.add(TechTimeEntry(
+                    person_id=person.id,
+                    minutes=-minutes,
+                    week_start=week_start,
+                    source='undo',
+                    chore_id=chore.id,
+                ))
+            db.session.commit()
+            log_activity(
+                'chore_undone',
+                f"Chore '{chore.title}' was undone and {minutes} tech time minutes were deducted",
+                user_name=chore.assigned_to
+            )
+        elif person and awarded_points:
             person.points = _round_points(max(0, person.points - chore.points))
             db.session.commit()
             log_activity(
@@ -3550,19 +3666,33 @@ def undo_complete_chore():
         else:
             db.session.commit()
             if person:
-                log_activity(
-                    'chore_undone',
-                    f"Chore '{chore.title}' was undone. No points were deducted because it was completed overdue.",
-                    user_name=chore.assigned_to
-                )
+                if reward_system == 'tech_time':
+                    undo_line = (
+                        f"Chore '{chore.title}' was undone. No tech time was deducted "
+                        "because it was completed overdue."
+                    )
+                else:
+                    undo_line = (
+                        f"Chore '{chore.title}' was undone. No points were deducted "
+                        "because it was completed overdue."
+                    )
+                log_activity('chore_undone', undo_line, user_name=chore.assigned_to)
 
         completed, total = Chore.calculate_weekly_progress(chore.assigned_to)
+        tech_minutes = tech_time_balance(person.id) if person else 0
+        if reward_system == 'tech_time':
+            shown_balance = tech_minutes
+        else:
+            shown_balance = _round_points(person.points + person.bonus_points) if person else 0
         return jsonify({
             'success': True,
             'assigned_to': chore.assigned_to,
             'chore_id': chore.id,
             'chore_title': chore.title,
-            'new_points': _round_points(person.points + person.bonus_points) if person else 0,
+            'new_points': shown_balance,
+            'tech_minutes': tech_minutes,
+            'tech_time_display': format_tech_minutes(tech_minutes),
+            'reward_mode': reward_system,
             'progress': {
                 'completed': completed,
                 'total': total
@@ -3634,6 +3764,7 @@ def delete_person():
         if not person:
             print(f"[delete_person] Person id {person_id} not found.")
             return jsonify({'success': False, 'error': 'Person not found'}), 404
+        TechTimeEntry.query.filter_by(person_id=person.id).delete(synchronize_session=False)
         db.session.delete(person)
         db.session.commit()
         log_activity('family_member_deleted', f"Family member '{person.name}' was deleted from the system")
@@ -4159,6 +4290,33 @@ def award_bonus_points():
                 return jsonify({'success': False, 'message': 'Bonus points already awarded today.'}), 400
 
         bonus_points_value = _round_points(float(bonus_points))
+        reward_system = AppSetting.get_reward_system()
+        if reward_system == 'tech_time':
+            # Bonus uses the active currency. Points and cash balances stay as they were.
+            minutes = minutes_from_points(bonus_points_value)
+            if minutes:
+                db.session.add(TechTimeEntry(
+                    person_id=person.id,
+                    minutes=minutes,
+                    week_start=current_tech_week_start(),
+                    source='bonus',
+                ))
+            person.last_bonus_awarded = datetime.now(timezone.utc)
+            db.session.commit()
+            balance = tech_time_balance(person.id)
+            log_activity(
+                'bonus_points_awarded',
+                f"{minutes} bonus tech time minutes were awarded to {person.name}",
+                user_name=person.name
+            )
+            return jsonify({
+                'success': True,
+                'new_points': balance,
+                'bonus_awarded': minutes,
+                'tech_minutes': balance,
+                'tech_time_display': format_tech_minutes(balance),
+                'reward_mode': reward_system,
+            })
         # Add bonus points to permanent points and reset bonus_points
         person.points = _round_points(person.points + bonus_points_value)
         person.bonus_points = 0
@@ -4418,6 +4576,7 @@ def profile(person_id):
         total_badges=len(BADGE_DEFINITIONS),
         total_completed=total_completed,
         reward_system=reward_system,
+        tech_minutes=tech_time_balance(person.id) if reward_system == 'tech_time' else None,
     )
 
 @routes_bp.route('/settings', methods=['GET', 'POST'])
@@ -4708,7 +4867,9 @@ def settings():
         gcal_sa_email=gcal_sa_email,
         error=error,
         success=success,
-        person_ages=person_ages
+        person_ages=person_ages,
+        reward_system=AppSetting.get_reward_system(),
+        tech_minutes_by_person=tech_time_balances([person.id for person in family]),
     )
 
 
@@ -5926,6 +6087,78 @@ def reset_points():
     except Exception as e:
         db.session.rollback()
         log_activity('system_error', f"Error resetting points: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+def _parse_minute_delta(raw):
+    """A whole number of minutes to add or subtract. Zero is rejected by the caller."""
+    if isinstance(raw, bool) or raw is None:
+        raise ValueError('Enter a whole number of minutes.')
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, float):
+        if not raw.is_integer():
+            raise ValueError('Enter a whole number of minutes.')
+        return int(raw)
+    text = str(raw).strip()
+    if not re.fullmatch(r'-?\d+', text):
+        raise ValueError('Enter a whole number of minutes.')
+    return int(text)
+
+
+@routes_bp.route('/adjust_tech_time', methods=['POST'])
+def adjust_tech_time():
+    """Adult correction of this week's tech-time balance.
+
+    ``minutes`` is a delta: positive adds, negative subtracts. The row is
+    stored against the current week, so it expires with that week. Points
+    and cash balances are not changed.
+    """
+    _guard = _adult_required()
+    if _guard:
+        return _guard
+    try:
+        data = request.get_json(silent=True) or {}
+        person = Person.query.get(data.get('person_id'))
+        if not person:
+            return jsonify({'success': False, 'error': 'Person not found'}), 404
+        try:
+            delta = _parse_minute_delta(data.get('minutes'))
+        except ValueError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 400
+        if delta == 0:
+            return jsonify({'success': False, 'error': 'Enter minutes to add or subtract, other than zero.'}), 400
+        if abs(delta) > 100000:
+            return jsonify({'success': False, 'error': 'That is too many minutes for one adjustment.'}), 400
+        note = str(data.get('note') or '').replace('\n', ' ').replace('\r', ' ').strip()
+        if len(note) > 200:
+            note = note[:200]
+        week_start = current_tech_week_start()
+        db.session.add(TechTimeEntry(
+            person_id=person.id,
+            minutes=delta,
+            week_start=week_start,
+            source='adjustment',
+            note=note or None,
+        ))
+        db.session.commit()
+        balance = tech_time_balance(person.id, week_start)
+        verb = 'Added' if delta > 0 else 'Subtracted'
+        detail = f"{verb} {abs(delta)} tech time minutes for {person.name}."
+        if note:
+            detail = f"{detail} Note: {note}."
+        detail = f"{detail} Balance is now {format_tech_minutes(balance)}."
+        log_activity('tech_time_adjusted', detail, user_name=person.name)
+        return jsonify({
+            'success': True,
+            'tech_minutes': balance,
+            'tech_time_display': format_tech_minutes(balance),
+            'person_name': person.name,
+            'message': detail,
+        })
+    except Exception as e:
+        db.session.rollback()
+        log_activity('system_error', f"Error adjusting tech time: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 400
     
 @routes_bp.route('/complete_reward', methods=['POST'])

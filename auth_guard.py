@@ -363,6 +363,7 @@ _WRITE_API_EXACT = frozenset({
     ('POST', '/complete_reward'),
     ('POST', '/award_bonus_points'),
     ('POST', '/reset_points'),
+    ('POST', '/adjust_tech_time'),
     ('POST', '/api/meal_planner/slot'),
     ('POST', '/api/meal_planner/recurring'),
     ('POST', '/api/meal_planner/suggestions/items'),

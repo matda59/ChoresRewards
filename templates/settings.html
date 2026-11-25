@@ -401,7 +401,7 @@
                 {% if error %}<div class="error-message"><i class="fas fa-exclamation-triangle"></i> {{ error }}</div>{% endif %}
                 <section class="settings-section">
                     <h3 class="section-title"><i class="fas fa-trophy"></i> Reward System</h3>
-                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Choose how chores are valued across the household. <strong style="color:rgba(255,255,255,0.8);">Points</strong> uses a virtual currency that kids accumulate and spend on rewards you create. <strong style="color:rgba(255,255,255,0.8);">Cash</strong> tracks a real dollar value — ideal if you run a pocket money system.</p>
+                    <p style="color:rgba(255,255,255,0.6);margin-top:0;">Choose how chores are valued across the household. <strong style="color:rgba(255,255,255,0.8);">Points</strong> uses a virtual currency that kids accumulate and spend on rewards you create. <strong style="color:rgba(255,255,255,0.8);">Cash</strong> tracks a real dollar value — ideal if you run a pocket money system. <strong style="color:rgba(255,255,255,0.8);">Tech Time</strong> earns weekend screen minutes. Each chore is worth the minutes you set, the balance is shown in hours and minutes, and unused time expires when Monday starts in your timezone.</p>
                     <form method="POST" action="/settings" id="reward-system-form" style="margin-bottom: 1.5em;">
                         <label class="reward-system-label{% if reward_system == 'points' %} selected{% endif %}" style="margin-right: 12px;">
                             <input type="radio" class="reward-system-radio" name="reward_system" value="points" {% if reward_system == 'points' %}checked{% endif %}>
@@ -411,6 +411,11 @@
                         <label class="reward-system-label{% if reward_system == 'cash' %} selected{% endif %}" style="margin-right: 12px;">
                             <input type="radio" class="reward-system-radio" name="reward_system" value="cash" {% if reward_system == 'cash' %}checked{% endif %}>
                             <i class="fas fa-money-bill-wave" style="color:{% if reward_system == 'cash' %}#fff{% else %}#4ade80{% endif %};"></i> Cash
+                            <i class="fas fa-check reward-check"></i>
+                        </label>
+                        <label class="reward-system-label{% if reward_system == 'tech_time' %} selected{% endif %}" style="margin-right: 12px;">
+                            <input type="radio" class="reward-system-radio" name="reward_system" value="tech_time" {% if reward_system == 'tech_time' %}checked{% endif %}>
+                            <i class="fas fa-tv" style="color:{% if reward_system == 'tech_time' %}#fff{% else %}#38bdf8{% endif %};"></i> Tech Time
                             <i class="fas fa-check reward-check"></i>
                         </label>
                         <button type="submit" class="save-btn" style="margin-left: 18px;">Save Reward System</button>
@@ -446,7 +451,11 @@
                             <div style="width: 100%; margin-bottom: 16px;">
                                 <span class="person-name" data-person-id="{{ person.id }}" contenteditable="true" onblur="renamePerson(this, '{{ person.id }}')" style="font-size: 1.2em; font-weight: 700; color: #fff; display: block; margin-bottom: 8px; border: none; background: transparent; text-align: center; outline: none; cursor: text; padding: 4px 8px; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">{{ person.name }}</span>
                                 <div style="font-size: 0.95em; color: #94a3b8; margin-bottom: 12px; font-weight: 500;">
+                                    {% if reward_system == 'tech_time' %}
+                                    <span style="color: #38bdf8;">●</span> {{ person.name }}: {{ tech_minutes_by_person.get(person.id, 0)|tech_time }}
+                                    {% else %}
                                     <span style="color: #4CAF50;">●</span> {{ person.points + person.bonus_points }} Points
+                                    {% endif %}
                                 </div>
                             </div>
                             
@@ -462,9 +471,15 @@
                                     <label style="color: #e2e8f0; font-size: 0.9em; font-weight: 500;">Color:</label>
                                     <input type="color" id="color-picker-settings-{{ person.id }}" value="{{ person.color or '#cccccc' }}" onchange="changePersonColorSettings(event, {{ person.id }})" style="width:32px;height:32px;padding:0;border-radius:6px;border:1.5px solid #bbb;background:none;cursor:pointer;" title="Change person color">
                                 </div>
+                                {% if reward_system == 'tech_time' %}
+                                <button type="button" class="adjust-tech-time-btn" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);" onclick="adjustTechTime({{ person.id }}, {{ person.name|tojson }})">
+                                    <i class="fas fa-tv" style="margin-right: 6px;"></i>Adjust Tech Time
+                                </button>
+                                {% else %}
                                 <button type="button" class="reset-points-btn" style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);" onclick="return confirm('Are you sure you want to reset points for this person?') && resetPoints({{ person.id }})" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(76, 175, 80, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(76, 175, 80, 0.3)'">
                                     <i class="fas fa-coins" style="margin-right: 6px;"></i>Change Points
                                 </button>
+                                {% endif %}
                                 <button type="button" class="delete-person-btn" style="background: linear-gradient(135deg, #e53935, #d32f2f); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; box-shadow: 0 2px 8px rgba(229, 57, 53, 0.3);" onclick="confirmDeletePerson('{{ person.id }}', '{{ person.name }}')" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(229, 57, 53, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(229, 57, 53, 0.3)'">
                                     <i class="fas fa-trash" style="margin-right: 6px;"></i>Delete Person
                                 </button>
@@ -587,7 +602,7 @@
                                         <span class="chore-title">{{ chore.title }}</span>
                                         <div class="chore-card-meta">
                                             <span class="chore-meta-chip chip-person chore-assigned-to">{{ chore.assigned_to }}</span>
-                                            <span class="chore-meta-chip chip-points"><i class="fas fa-star" style="font-size:0.7em;"></i>&nbsp;<span class="chore-points">{{ chore.points }}</span></span>
+                                            <span class="chore-meta-chip chip-points">{% if reward_system == 'tech_time' %}<i class="fas fa-clock" style="font-size:0.7em;"></i>&nbsp;<span class="chore-points">{{ chore.points|as_minutes }}</span>m{% else %}<i class="fas fa-star" style="font-size:0.7em;"></i>&nbsp;<span class="chore-points">{{ chore.points }}</span>{% endif %}</span>
                                             <span class="chore-meta-chip {% if chore.is_daily %}chip-daily{% else %}chip-oneoff{% endif %}">{% if chore.is_daily %}<i class="fas fa-sync-alt" style="font-size:0.7em;"></i>&nbsp;Daily{% else %}<i class="fas fa-bolt" style="font-size:0.7em;"></i>&nbsp;One-off{% endif %}</span>
                                             {% if chore.completed %}<span class="chore-meta-chip chip-done"><i class="fas fa-check" style="font-size:0.7em;"></i>&nbsp;Done</span>{% endif %}
                                             <span class="chore-meta-chip chip-days chore-days">{% if chore.days_of_week %}{% set days = chore.days_of_week.split(',') if chore.days_of_week is string else chore.days_of_week %}{% set short_days = days|map('trim')|map('lower')|list %}{% for d in short_days %}{% if not loop.first %}, {% endif %}{% if d == 'monday' %}Mon{% elif d == 'tuesday' %}Tue{% elif d == 'wednesday' %}Wed{% elif d == 'thursday' %}Thu{% elif d == 'friday' %}Fri{% elif d == 'saturday' %}Sat{% elif d == 'sunday' %}Sun{% else %}{{ d }}{% endif %}{% endfor %}{% else %}{% if chore.is_daily %}Daily{% else %}-{% endif %}{% endif %}</span>
@@ -1237,8 +1252,8 @@
                     <option value="{{ person.name }}">{{ person.name }}</option>
                     {% endfor %}
                 </select><br />
-                <label for="editChorePoints">Points:</label><br />
-                <input type="number" id="editChorePoints" name="points" min="0" step="0.01" required style="width: 100%; margin-bottom: 10px; padding: 5px; border-radius: 6px; border: 1px solid #555; background: #333; color: white;" /><br />
+                <label for="editChorePoints">{% if reward_system == 'tech_time' %}Minutes{% elif reward_system == 'cash' %}Cash{% else %}Points{% endif %}:</label><br />
+                <input type="number" id="editChorePoints" name="points" min="0" step="{% if reward_system == 'tech_time' %}1{% else %}0.01{% endif %}" required style="width: 100%; margin-bottom: 10px; padding: 5px; border-radius: 6px; border: 1px solid #555; background: #333; color: white;" /><br />
                 <label style="display:block; color:#fff; font-weight:600; margin-bottom:6px;">Icon:</label>
                 <div class="chore-emoji-picker-wrap" style="margin-bottom:12px;">
                     <button type="button" id="editChoreEmojiBtn" class="chore-emoji-preview-btn" title="Click to choose an icon">

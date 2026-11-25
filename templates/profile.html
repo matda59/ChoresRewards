@@ -43,9 +43,9 @@
             </div>
             <div class="profile-stat">
                 <div class="profile-stat-value">
-                    {% if reward_system == 'cash' %}${{ '%.2f' % (person.points + person.bonus_points) }}{% else %}{{ '%.0f' % (person.points + person.bonus_points) }}{% endif %}
+                    {% if reward_system == 'tech_time' %}{{ person.name }}: {{ (tech_minutes or 0)|tech_time }}{% elif reward_system == 'cash' %}${{ '%.2f' % (person.points + person.bonus_points) }}{% else %}{{ '%.0f' % (person.points + person.bonus_points) }}{% endif %}
                 </div>
-                <div class="profile-stat-label">{% if reward_system == 'cash' %}Balance{% else %}Points{% endif %}</div>
+                <div class="profile-stat-label">{% if reward_system == 'tech_time' %}Tech Time{% elif reward_system == 'cash' %}Balance{% else %}Points{% endif %}</div>
             </div>
             <div class="profile-stat">
                 <div class="profile-stat-value">🔥 {{ streak.current_streak if streak else 0 }}</div>
