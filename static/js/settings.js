@@ -20,31 +20,6 @@ function resetPoints(personId) {
 // Expose to global scope for inline HTML onclick
 window.resetPoints = resetPoints;
 
-function adjustTechTime(personId, personName) {
-    const raw = prompt('Minutes to add (positive) or subtract (negative) for ' + personName + ':', '');
-    if (raw === null) return;
-    const text = String(raw).trim();
-    if (!/^-?\d+$/.test(text) || parseInt(text, 10) === 0) {
-        alert('Enter a whole number of minutes, other than zero. Use a minus to subtract.');
-        return;
-    }
-    const noteRaw = prompt('Optional note for the activity log:', '');
-    if (noteRaw === null) return;
-    fetch('/adjust_tech_time', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ person_id: personId, minutes: parseInt(text, 10), note: noteRaw.trim() }),
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) window.location.reload();
-        else alert(data.error || 'Failed to adjust tech time');
-    })
-    .catch(error => console.error('Error adjusting tech time:', error));
-}
-
-window.adjustTechTime = adjustTechTime;
-
 // Confirm delete person function
 function confirmDeletePerson(personId, personName) {
     if (confirm(`Are you sure you want to delete ${personName}? This action cannot be undone.`)) {

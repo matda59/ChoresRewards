@@ -464,6 +464,7 @@ window.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tech_time_adjust.js') }}?v=20261125b"></script>
 <script src="{{ url_for('static', filename='js/auth_profile.js') }}"></script>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 <body>
@@ -1037,7 +1038,7 @@ window.addEventListener('DOMContentLoaded', function() {
                     <div class="dash-person-row">
                         <img class="dash-person-avatar" src="{{ url_for('static', filename=('uploads/' + person.avatar) if person.avatar else 'default_avatar.png') }}" alt="{{ person.name }}">
                         <div class="dash-person-info">
-                            <div class="dash-person-name">{{ person.name }}{% if reward_system == 'tech_time' %}: {{ tech_minutes_by_person.get(person.id, 0)|tech_time }}{% endif %}</div>
+                            <div data-tech-balance-for="{{ person.id }}" class="dash-person-name">{{ person.name }}{% if reward_system == 'tech_time' %}: {{ tech_minutes_by_person.get(person.id, 0)|tech_time }}{% endif %}</div>
                             <div class="dash-person-chores">
                                 {% if today_incomplete %}
                                     {{ today_incomplete[:2] | map(attribute='title') | join(', ') }}{% if today_incomplete|length > 2 %} +{{ today_incomplete|length - 2 }} more{% endif %}
@@ -6465,9 +6466,9 @@ function deleteReward(rewardId) {
                     <span class="chore-points-badge tech-time-balance" title="Weekend tech time for {{ person.name }}">
                         <i class="fas fa-tv" style="color:#38bdf8; margin-right:4px;"></i>
                         <span class="tech-time-who">{{ person.name }}:</span>
-                        <span class="chore-points-value">{{ tech_minutes_by_person.get(person.id, 0)|tech_time }}</span>
+                        <span class="chore-points-value" data-tech-minutes-for="{{ person.id }}">{{ tech_minutes_by_person.get(person.id, 0)|tech_time }}</span>
                     </span>
-                    <button type="button" class="admin-only adjust-tech-time-btn" onclick="adjustTechTime({{ person.id }}, {{ person.name|tojson }})" style="margin-top:6px;background:#0284c7;color:#fff;border:none;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:0.8em;">Adjust</button>
+                    <button type="button" class="admin-only adjust-tech-time-btn" data-person-id="{{ person.id }}" data-person-name="{{ person.name }}" style="margin-top:8px;min-height:44px;background:#0284c7;color:#fff;border:none;border-radius:10px;padding:10px 18px;cursor:pointer;font-size:1em;font-weight:700;">Adjust</button>
                     {% else %}
                     <div class="balance-label">{% if reward_system == 'cash' %}Balance{% else %}Points{% endif %}</div>
                     <span class="chore-points-badge" title="Total {{ 'cash' if reward_system == 'cash' else 'points' }} for {{ person.name }}">
@@ -8960,30 +8961,6 @@ function deleteChore(choreId) {
         } else { alert(data.message || "Failed to delete chore"); }
     })
     .catch(error => console.error("Error deleting chore:", error));
-}
-
-// Reset points function
-function adjustTechTime(personId, personName) {
-    const raw = prompt('Minutes to add (positive) or subtract (negative) for ' + personName + ':', '');
-    if (raw === null) return;
-    const text = String(raw).trim();
-    if (!/^-?\d+$/.test(text) || parseInt(text, 10) === 0) {
-        alert('Enter a whole number of minutes, other than zero. Use a minus to subtract.');
-        return;
-    }
-    const noteRaw = prompt('Optional note for the activity log:', '');
-    if (noteRaw === null) return;
-    fetch('/adjust_tech_time', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ person_id: personId, minutes: parseInt(text, 10), note: noteRaw.trim() }),
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) window.location.reload();
-        else alert(data.error || 'Failed to adjust tech time');
-    })
-    .catch(error => console.error('Error adjusting tech time:', error));
 }
 
 function resetPoints(personId) {

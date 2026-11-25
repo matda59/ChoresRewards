@@ -452,7 +452,7 @@
                                 <span class="person-name" data-person-id="{{ person.id }}" contenteditable="true" onblur="renamePerson(this, '{{ person.id }}')" style="font-size: 1.2em; font-weight: 700; color: #fff; display: block; margin-bottom: 8px; border: none; background: transparent; text-align: center; outline: none; cursor: text; padding: 4px 8px; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">{{ person.name }}</span>
                                 <div style="font-size: 0.95em; color: #94a3b8; margin-bottom: 12px; font-weight: 500;">
                                     {% if reward_system == 'tech_time' %}
-                                    <span style="color: #38bdf8;">●</span> {{ person.name }}: {{ tech_minutes_by_person.get(person.id, 0)|tech_time }}
+                                    <span style="color: #38bdf8;">●</span> <span data-tech-balance-for="{{ person.id }}">{{ person.name }}: {{ tech_minutes_by_person.get(person.id, 0)|tech_time }}</span>
                                     {% else %}
                                     <span style="color: #4CAF50;">●</span> {{ person.points + person.bonus_points }} Points
                                     {% endif %}
@@ -472,7 +472,7 @@
                                     <input type="color" id="color-picker-settings-{{ person.id }}" value="{{ person.color or '#cccccc' }}" onchange="changePersonColorSettings(event, {{ person.id }})" style="width:32px;height:32px;padding:0;border-radius:6px;border:1.5px solid #bbb;background:none;cursor:pointer;" title="Change person color">
                                 </div>
                                 {% if reward_system == 'tech_time' %}
-                                <button type="button" class="adjust-tech-time-btn" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);" onclick="adjustTechTime({{ person.id }}, {{ person.name|tojson }})">
+                                <button type="button" class="adjust-tech-time-btn" data-person-id="{{ person.id }}" data-person-name="{{ person.name }}" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; padding: 12px 16px; min-height: 48px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);">
                                     <i class="fas fa-tv" style="margin-right: 6px;"></i>Adjust Tech Time
                                 </button>
                                 {% else %}
@@ -1862,6 +1862,7 @@ function setPersonPin(personId) {
 }
 </script>
 <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tech_time_adjust.js') }}?v=20261125b"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 
 <!-- Adult PIN unlock overlay (used on every page) -->
