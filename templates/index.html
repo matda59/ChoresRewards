@@ -97,6 +97,10 @@
             height: 200%;
             background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
             animation: shimmer 2s infinite;
+            /* The shimmer is painted above the in-flow buttons. Without this,
+               every tap hits the decoration and the card cannot be closed. */
+            pointer-events: none;
+            z-index: 0;
         }
         .celebration-title {
             font-size: 3em;
@@ -573,7 +577,8 @@ window.addEventListener('DOMContentLoaded', function() {
             <button class="challenge-skip-link" onclick="challengeComplete(false)">Too hard, skip</button>
         </div>
 
-        <button id="celebration-quiz-btn" class="celebration-close" style="display:none;" onclick="closeCelebration()">Awesome! 🚀</button>
+        <button id="celebration-quiz-btn" class="celebration-close" type="button" onclick="closeCelebration()">Continue</button>
+    <script src="{{ url_for('static', filename='js/celebration.js') }}?v=20261125a"></script>
     <script>
         // Quiz questions loaded from backend Python list
         window.quiz_questions = {{ quiz_questions|tojson }};
@@ -610,7 +615,9 @@ window.addEventListener('DOMContentLoaded', function() {
             }
 
             // Every person who just finished their chores can take the brain quiz.
+            pauseCelebrationAutoClose();
             showQuizModal(personId, function(correct, skipped) {
+                if (!allDoneCelebrationOpen) return;
                 const btn = document.getElementById('celebration-quiz-btn');
                 
                 // Log the quiz result
@@ -674,21 +681,44 @@ window.addEventListener('DOMContentLoaded', function() {
         let challengeOnDoneCallback = null;
         let bonusChoiceOnDoneCallback = null;
         let celebrationCountdownInterval = null;
+        var allDoneCelebrationOpen = false;
 
-        // Start a 5-second countdown in the "Awesome" button, then auto-close
+        function stopCelebrationTimers() {
+            pauseCelebrationAutoClose();
+            if (challengeTimerInterval) {
+                clearInterval(challengeTimerInterval);
+                challengeTimerInterval = null;
+            }
+        }
+
+        function pauseCelebrationAutoClose() {
+            if (celebrationCountdownInterval) {
+                clearInterval(celebrationCountdownInterval);
+                celebrationCountdownInterval = null;
+            }
+        }
+
+        // Count down on the Continue button, then close. About 8 seconds.
         function scheduleCelebrationAutoClose() {
-            if (celebrationCountdownInterval) { clearInterval(celebrationCountdownInterval); celebrationCountdownInterval = null; }
+            pauseCelebrationAutoClose();
             const btn = document.getElementById('celebration-quiz-btn');
-            const baseText = btn.textContent;
-            let secs = 5;
-            btn.textContent = baseText + '  (' + secs + ')';
+            const ms = (window.Celebration && window.Celebration.DISMISS_MS) || 8000;
+            let secs = Math.max(1, Math.round(ms / 1000));
+            const baseText = btn
+                ? (btn.textContent.replace(/\s+\(\d+\)$/, '').trim() || 'Continue')
+                : 'Continue';
+            if (btn) {
+                btn.setAttribute('data-base-label', baseText);
+                btn.style.display = '';
+                btn.disabled = false;
+                btn.textContent = baseText + '  (' + secs + ')';
+            }
             celebrationCountdownInterval = setInterval(() => {
                 secs--;
                 if (secs <= 0) {
-                    clearInterval(celebrationCountdownInterval);
-                    celebrationCountdownInterval = null;
+                    pauseCelebrationAutoClose();
                     closeCelebration();
-                } else {
+                } else if (btn) {
                     btn.textContent = baseText + '  (' + secs + ')';
                 }
             }, 1000);
@@ -697,12 +727,8 @@ window.addEventListener('DOMContentLoaded', function() {
         // Show the choice screen (brain or body) instead of jumping straight to quiz
         function showBonusChoiceScreen(personId, onDone) {
             bonusChoiceOnDoneCallback = { personId, onDone };
-            if (celebrationCountdownInterval) {
-                clearInterval(celebrationCountdownInterval);
-                celebrationCountdownInterval = null;
-            }
             const quizBtn = document.getElementById('celebration-quiz-btn');
-            if (quizBtn) quizBtn.style.display = 'none';
+            if (quizBtn) quizBtn.style.display = '';
             const slotContainer = document.getElementById('slot-machine-container');
             if (slotContainer) slotContainer.style.display = 'none';
             const bodyScreen = document.getElementById('body-challenge-screen');
@@ -712,13 +738,16 @@ window.addEventListener('DOMContentLoaded', function() {
         }
 
         function chooseBonusType(type) {
+            if (!allDoneCelebrationOpen) return;
             const choiceScreen = document.getElementById('bonus-choice-screen');
             choiceScreen.style.display = 'none';
-            const { personId, onDone } = bonusChoiceOnDoneCallback;
+            const { personId, onDone } = bonusChoiceOnDoneCallback || {};
+            if (!onDone) return;
             if (type === 'brain') {
-                // Run the existing quiz flow
+                pauseCelebrationAutoClose();
                 showQuizForBonusCelebration_inner(personId, onDone);
             } else if (type === 'body') {
+                pauseCelebrationAutoClose();
                 showBodyChallengeScreen(onDone);
             } else {
                 // skip — regular bonus
@@ -8337,13 +8366,9 @@ function completeChore(choreId) {
                         const wasExtra = choreElemClone?.classList.contains('chore-extra');
                         refreshEarnMorePrompt(column);
                         if (regularLeft.length === 0 && personName && !wasExtra) {
-                            // Show celebration overlay immediately when last listed chore completed
-                            document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
-                            document.getElementById('celebration-avatar').src = avatarUrl;
-                            document.getElementById('celebration-overlay').style.display = 'flex';
-                            playCelebrationSound();
-                            // Then show bonus animation and awarding
-                            showCelebrationWithBonus(personName, avatarUrl, personId);
+                            if (showAllDoneCelebration(personName, avatarUrl, personId)) {
+                                showCelebrationWithBonus(personName, avatarUrl, personId);
+                            }
                         }
                     }
                 }
@@ -8481,6 +8506,32 @@ function updateColumnPoints(personName) {
         .catch(() => {});
 }
 
+function showAllDoneCelebration(personName, avatarUrl, personId) {
+    const logic = window.Celebration;
+    const day = logic ? logic.dayKey(new Date()) : '';
+    const who = logic ? logic.personKey(personId, personName) : String(personId || personName || '');
+    if (logic && logic.alreadyCelebrated(window.localStorage, who, day)) {
+        return false;
+    }
+    if (logic) logic.rememberCelebrated(window.localStorage, who, day);
+    allDoneCelebrationOpen = true;
+    document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
+    const avatar = document.getElementById('celebration-avatar');
+    if (avatar) avatar.src = avatarUrl || '';
+    const overlay = document.getElementById('celebration-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    const btn = document.getElementById('celebration-quiz-btn');
+    if (btn) {
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.textContent = 'Continue';
+        btn.setAttribute('data-base-label', 'Continue');
+    }
+    playCelebrationSound();
+    scheduleCelebrationAutoClose();
+    return true;
+}
+
 function showCelebrationWithBonus(personName, avatarUrl, personId) {
     if (bonusAwardingInProgress) {
         console.log('Bonus awarding already in progress, ignoring duplicate call.');
@@ -8490,6 +8541,10 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
     console.log('Starting celebration with bonus for:', personName, 'ID:', personId);
     // Show the quiz modal before awarding bonus
     showQuizForBonusCelebration(personId, function(correct) {
+        if (!allDoneCelebrationOpen) {
+            bonusAwardingInProgress = false;
+            return;
+        }
         // After quiz, fetch bonus settings and award points
         fetch('/api/bonus_settings')
         .then(response => response.json())
@@ -8510,6 +8565,7 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
             // If mode is 'none', do nothing
             if (bonusMode === 'none') {
                 bonusAwardingInProgress = false;
+                scheduleCelebrationAutoClose();
                 return;
             }
             if (bonusMode === 'static') {
@@ -8523,11 +8579,8 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
                 })
                 .then(response => response.json())
                 .then(data => {
+                    if (!allDoneCelebrationOpen) return;
                     if (data.success) {
-                        document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
-                        document.getElementById('celebration-avatar').src = avatarUrl;
-                        document.getElementById('celebration-overlay').style.display = 'flex';
-                        playCelebrationSound();
                         updateColumnPoints(personName);
                     } else if ((data.message || data.error || '').includes('already awarded today')) {
                         // Do not show overlay or slot machine
@@ -8553,6 +8606,7 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
                 })
                 .then(response => response.json())
                 .then(data => {
+                    if (!allDoneCelebrationOpen) return;
                     if (data.success) {
                         const slotContainer = document.getElementById('slot-machine-container');
                         const slotDisplay = document.getElementById('slot-machine-display');
@@ -8599,11 +8653,10 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
                                         console.log('Victory sound not supported');
                                     }
                                 }, 200);
-                                document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
-                                document.getElementById('celebration-avatar').src = avatarUrl;
-                                document.getElementById('celebration-overlay').style.display = 'flex';
-                                playCelebrationSound();
-                                updateColumnPoints(personName);
+                                if (allDoneCelebrationOpen) {
+                                    updateColumnPoints(personName);
+                                    scheduleCelebrationAutoClose();
+                                }
                             }
                         }, intervalTime);
                     } else if ((data.message || data.error || '').includes('already awarded today')) {
@@ -8621,57 +8674,48 @@ function showCelebrationWithBonus(personName, avatarUrl, personId) {
             } else {
                 // Unknown bonus mode, fallback to static bonus awarding
                 console.warn('Unknown bonus mode:', bonusMode);
-                document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
-                document.getElementById('celebration-avatar').src = avatarUrl;
-                document.getElementById('celebration-overlay').style.display = 'flex';
-                playCelebrationSound();
                 bonusAwardingInProgress = false;
+                scheduleCelebrationAutoClose();
             }
         })
         .catch(error => {
             console.error('Error fetching bonus settings:', error);
-            showCelebrationWithBonusFallback(personName, avatarUrl, personId);
             bonusAwardingInProgress = false;
+            if (allDoneCelebrationOpen) scheduleCelebrationAutoClose();
         });
     });
 }
 
 const awesomeButton = document.querySelector('.celebration-close');
 if (awesomeButton) {
-    awesomeButton.addEventListener('click', () => {
-        if (bonusAwardingInProgress) {
-            console.log('Awesome button clicked but bonus awarding is still in progress. Ignoring click.');
-            return;
-        }
+    awesomeButton.addEventListener('click', (event) => {
+        event.stopPropagation();
         closeCelebration();
     });
 }
 
 // Backup celebration function (without slot machine)
 function showCelebration(personName, avatarUrl) {
-    document.getElementById('celebration-message').textContent = personName + " completed all their chores!";
-    document.getElementById('celebration-avatar').src = avatarUrl;
-    document.getElementById('celebration-overlay').style.display = 'flex';
-    playCelebrationSound();
+    showAllDoneCelebration(personName, avatarUrl, null);
 }
 
 // Close celebration function
 function closeCelebration() {
-    if (celebrationCountdownInterval) { clearInterval(celebrationCountdownInterval); celebrationCountdownInterval = null; }
-    document.getElementById('celebration-overlay').style.display = 'none';
-    const quizBtn = document.getElementById('celebration-quiz-btn');
-    if (quizBtn) quizBtn.style.display = 'none';
+    allDoneCelebrationOpen = false;
+    bonusAwardingInProgress = false;
+    if (typeof stopCelebrationTimers === 'function') stopCelebrationTimers();
+    const overlay = document.getElementById('celebration-overlay');
+    if (overlay) overlay.style.display = 'none';
     const choiceScreen = document.getElementById('bonus-choice-screen');
     if (choiceScreen) choiceScreen.style.display = 'none';
     const bodyScreen = document.getElementById('body-challenge-screen');
     if (bodyScreen) bodyScreen.style.display = 'none';
     const quizModal = document.getElementById('quiz-modal');
     if (quizModal) quizModal.remove();
-    // Hide slot machine container when closing
     const slotContainer = document.getElementById('slot-machine-container');
-    if (slotContainer) {
-        slotContainer.style.display = 'none';
-    }
+    if (slotContainer) slotContainer.style.display = 'none';
+    document.body.style.overflow = '';
+    document.body.style.pointerEvents = '';
     // --- Ensure points are up-to-date after celebration ---
     // Find the celebrated person name from the message
     const message = document.getElementById('celebration-message').textContent;
@@ -8688,6 +8732,24 @@ function closeCelebration() {
         }
     }
 }
+
+(function wireCelebrationDismiss() {
+    const overlay = document.getElementById('celebration-overlay');
+    if (!overlay || overlay.dataset.dismissWired === '1') return;
+    overlay.dataset.dismissWired = '1';
+    overlay.addEventListener('click', (event) => {
+        if (overlay.style.display !== 'flex') return;
+        const dismiss = window.Celebration
+            ? window.Celebration.clickShouldDismiss(event.target)
+            : true;
+        if (dismiss) closeCelebration();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        if (!overlay || overlay.style.display !== 'flex') return;
+        closeCelebration();
+    });
+})();
 
 // Audio functions
 function playCelebrationSound() {
