@@ -8,7 +8,7 @@ def save_person_ages(ages):
     db.session.commit()
 
 # dont add code above this
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify, current_app
+from flask import Blueprint, current_app, g, jsonify, redirect, render_template, request, url_for
 import requests
 from zoneinfo import ZoneInfo
 from extensions import db
@@ -309,8 +309,25 @@ def _normalise_quiz_question(raw):
     return cleaned
 
 
+def _write_key_request():
+    """True when this request was authorised by the write API key.
+
+    The session gate only sets the flag for an allowlisted request, and it
+    does not save a session cookie for that request.
+    """
+    return bool(getattr(g, 'cr_write_api', False))
+
+
+def _api_actor_name():
+    if _write_key_request():
+        return 'Assistant'
+    return session.get('person_name') or session.get('adult_name') or None
+
+
 def _adult_required():
     """Return a 403 JSON response if the session is not in adult mode, else None."""
+    if _write_key_request():
+        return None
     if not session.get('adult_mode', False):
         return jsonify({'success': False, 'error': 'Adult authorisation required'}), 403
     return None
@@ -1394,7 +1411,7 @@ def api_extra_chores():
 
 @routes_bp.route('/api/extra_chores/claim', methods=['POST'])
 def api_extra_chores_claim():
-    if not session.get('authenticated', False):
+    if not session.get('authenticated', False) and not _write_key_request():
         return jsonify({'success': False, 'error': 'Login required'}), 401
     try:
         data = request.get_json() or {}
@@ -1784,14 +1801,25 @@ def add_reward():
     if _guard:
         return _guard
     try:
-        title = request.form.get('title')
-        points_required = request.form.get('points_required')
-        assigned_to = request.form.get('assigned_to')
-        description = request.form.get('description')
-        image_url = request.form.get('image_url')
-        stock_image_url = request.form.get('stock_image_url', '').strip()
-        # Optional: handle file upload if present
-        reward_image_file = request.files.get('reward_image_file')
+        if _write_key_request() and any(f and f.filename for f in request.files.values()):
+            return jsonify({'success': False, 'error': 'File uploads are not available to the API key'}), 403
+        if request.is_json:
+            data = request.get_json() or {}
+            title = data.get('title')
+            points_required = data.get('points_required')
+            assigned_to = data.get('assigned_to')
+            description = data.get('description')
+            image_url = data.get('image_url')
+            stock_image_url = str(data.get('stock_image_url', '') or '').strip()
+            reward_image_file = None
+        else:
+            title = request.form.get('title')
+            points_required = request.form.get('points_required')
+            assigned_to = request.form.get('assigned_to')
+            description = request.form.get('description')
+            image_url = request.form.get('image_url')
+            stock_image_url = request.form.get('stock_image_url', '').strip()
+            reward_image_file = request.files.get('reward_image_file')
         uploaded_image_url = None
         if reward_image_file and reward_image_file.filename:
             ext = safe_stored_extension(reward_image_file.filename, REWARD_IMAGE_EXTENSIONS)
@@ -1822,6 +1850,8 @@ def add_reward():
         db.session.add(new_reward)
         db.session.commit()
         log_activity('reward_added', f"Reward '{title}' worth {points_required} points was added for {assigned_to}", user_name=assigned_to)
+        if request.is_json or _write_key_request():
+            return jsonify({'success': True, 'reward_id': new_reward.id, 'title': new_reward.title})
         # --- Gotify notification for reward added ---
         gotify_notify_rewards_added = AppSetting.get('gotify_notify_rewards_added', 'false') == 'true'
         gotify_url = AppSetting.get('gotify_url', '')
@@ -3380,7 +3410,7 @@ def _person_for_assignment(assigned_to_id, assigned_to):
 
 @routes_bp.route('/complete_chore', methods=['POST'])
 def complete_chore():
-    if not session.get('authenticated', False):
+    if not session.get('authenticated', False) and not _write_key_request():
         return jsonify({'success': False, 'error': 'Login required'}), 401
     try:
         chore_id = request.json.get('chore_id')
@@ -3488,7 +3518,7 @@ def complete_chore():
 
 @routes_bp.route('/undo_complete_chore', methods=['POST'])
 def undo_complete_chore():
-    if not session.get('authenticated', False):
+    if not session.get('authenticated', False) and not _write_key_request():
         return jsonify({'success': False, 'error': 'Login required'}), 401
     try:
         chore_id = request.json.get('chore_id')
@@ -6187,3 +6217,458 @@ def edit_reward():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
+
+
+# Granular edits used by the write API key. The page still saves a whole meal
+# week, shopping list, or note board in one POST. A partial body on those
+# routes would wipe the rest, so the routes below change one slot, line, or
+# card. The full-document saves stay off the write-key allowlist.
+
+def _clean_store_id(raw, default='aldi'):
+    store = re.sub(r'[^a-z0-9\-]', '', str(raw or '').strip().lower())[:50]
+    return store or default
+
+
+def _shopping_name_key(name):
+    return str(name or '').strip().lower()
+
+
+def _general_checked_key(name, store):
+    return f'general::{store}::{_shopping_name_key(name)}'
+
+
+def _load_json_setting(key, fallback):
+    try:
+        data = _json.loads(AppSetting.get(key, ''))
+    except Exception:
+        data = None
+    if isinstance(fallback, dict) and not isinstance(data, dict):
+        return {}
+    if isinstance(fallback, list) and not isinstance(data, list):
+        return []
+    return data
+
+
+def _load_shopping_doc():
+    data = _load_json_setting('shopping_list_json', {})
+    if not isinstance(data.get('checked'), dict):
+        data['checked'] = {}
+    if not isinstance(data.get('general'), list):
+        data['general'] = []
+    for field, empty in (('hidden', {}), ('active', []), ('meal_order', []), ('archived', [])):
+        if not isinstance(data.get(field), type(empty)):
+            data[field] = empty
+    return data
+
+
+def _save_shopping_doc(data):
+    payload = {
+        'checked': data.get('checked') or {},
+        'general': data.get('general') or [],
+        'hidden': data.get('hidden') or {},
+        'active': data.get('active') or [],
+        'meal_order': data.get('meal_order') or [],
+        'archived': data.get('archived') or [],
+    }
+    AppSetting.set('shopping_list_json', _json.dumps(payload))
+    return payload
+
+
+def _find_general_item(general, name, store):
+    wanted = _shopping_name_key(name)
+    for item in general:
+        if isinstance(item, dict) and _shopping_name_key(item.get('name')) == wanted and item.get('store') == store:
+            return item
+    return None
+
+
+@routes_bp.route('/api/shopping_list/items', methods=['POST'])
+def api_shopping_list_add_item():
+    """Add one manual shopping line. Does not replace the rest of the list."""
+    data = request.get_json(silent=True) or {}
+    name = str(data.get('name', '')).strip()[:80]
+    if not name:
+        return jsonify({'success': False, 'error': 'name is required'}), 400
+    store = _clean_store_id(data.get('store', 'aldi'))
+    doc = _load_shopping_doc()
+    existing = _find_general_item(doc['general'], name, store)
+    if existing:
+        return jsonify({'success': True, 'already_present': True, 'item': existing})
+    item = {'name': name, 'store': store}
+    doc['general'].append(item)
+    _save_shopping_doc(doc)
+    log_activity('shopping_item_added', f"Shopping item '{name}' was added for {store}", user_name=_api_actor_name())
+    return jsonify({'success': True, 'already_present': False, 'item': item})
+
+
+@routes_bp.route('/api/shopping_list/items/check', methods=['POST'])
+def api_shopping_list_check_item():
+    """Tick or untick one line. Pass name and store, or a meal:: / general:: key."""
+    data = request.get_json(silent=True) or {}
+    checked = bool(data.get('checked', True))
+    doc = _load_shopping_doc()
+    explicit = str(data.get('key', '') or '').strip()
+    if explicit:
+        if '\n' in explicit or len(explicit) > 200 or explicit.count('::') != 2:
+            return jsonify({'success': False, 'error': 'key is not a shopping line'}), 400
+        kind = explicit.split('::', 1)[0]
+        if kind not in ('general', 'meal'):
+            return jsonify({'success': False, 'error': 'key is not a shopping line'}), 400
+        doc['checked'][explicit] = checked
+        _save_shopping_doc(doc)
+        return jsonify({'success': True, 'key': explicit, 'checked': checked})
+    name = str(data.get('name', '')).strip()[:80]
+    if not name:
+        return jsonify({'success': False, 'error': 'name or key is required'}), 400
+    store = _clean_store_id(data.get('store', 'aldi'))
+    if _find_general_item(doc['general'], name, store) is None:
+        return jsonify({'success': False, 'error': 'Item not on the list'}), 404
+    key = _general_checked_key(name, store)
+    doc['checked'][key] = checked
+    doc['checked'].pop(f'general::{_shopping_name_key(name)}', None)
+    _save_shopping_doc(doc)
+    return jsonify({'success': True, 'key': key, 'checked': checked})
+
+
+@routes_bp.route('/api/shopping_list/items/remove', methods=['POST'])
+def api_shopping_list_remove_item():
+    """Remove one manual line. Meal-plan ingredients are not stored as lines."""
+    data = request.get_json(silent=True) or {}
+    name = str(data.get('name', '')).strip()[:80]
+    if not name:
+        return jsonify({'success': False, 'error': 'name is required'}), 400
+    store = _clean_store_id(data.get('store', 'aldi'))
+    doc = _load_shopping_doc()
+    kept = []
+    removed = None
+    for item in doc['general']:
+        same = (
+            removed is None
+            and isinstance(item, dict)
+            and _shopping_name_key(item.get('name')) == _shopping_name_key(name)
+            and item.get('store') == store
+        )
+        if same:
+            removed = item
+            continue
+        kept.append(item)
+    if removed is None:
+        return jsonify({'success': False, 'error': 'Item not on the list'}), 404
+    doc['general'] = kept
+    doc['checked'].pop(_general_checked_key(name, store), None)
+    doc['checked'].pop(f'general::{_shopping_name_key(name)}', None)
+    _save_shopping_doc(doc)
+    log_activity('shopping_item_removed', f"Shopping item '{name}' was removed from {store}", user_name=_api_actor_name())
+    return jsonify({'success': True, 'item': {'name': removed.get('name'), 'store': store}})
+
+
+def _load_notes_doc():
+    data = _load_json_setting('notes_kanban_json', {})
+    columns = data.get('columns') if isinstance(data.get('columns'), list) else []
+    notes = data.get('notes') if isinstance(data.get('notes'), list) else []
+    if not columns:
+        columns = [
+            {'id': 'col-todo', 'title': 'To Do', 'color': '#fef08a'},
+            {'id': 'col-house', 'title': 'House', 'color': '#86efac'},
+            {'id': 'col-reminders', 'title': 'Reminders', 'color': '#93c5fd'},
+        ]
+    return columns, notes
+
+
+def _save_notes_doc(columns, notes):
+    AppSetting.set('notes_kanban_json', _json.dumps({'columns': columns, 'notes': notes}))
+
+
+def _note_id_ok(value):
+    return bool(re.fullmatch(r'[a-z0-9\-]{1,60}', str(value or '')))
+
+
+@routes_bp.route('/api/notes/cards', methods=['POST'])
+def api_notes_add_card():
+    data = request.get_json(silent=True) or {}
+    text = str(data.get('text', '')).strip()[:500]
+    if not text:
+        return jsonify({'success': False, 'error': 'text is required'}), 400
+    columns, notes = _load_notes_doc()
+    column_id = re.sub(r'[^a-z0-9\-]', '', str(data.get('column_id', '')).strip().lower())[:60]
+    known = {col.get('id') for col in columns if isinstance(col, dict)}
+    if column_id and column_id not in known:
+        return jsonify({'success': False, 'error': 'column not found'}), 404
+    if not column_id:
+        column_id = columns[0].get('id') or 'col-todo'
+    card = {
+        'id': 'card-' + uuid.uuid4().hex[:12],
+        'column_id': column_id,
+        'text': text,
+        'checked': False,
+        'order': len(notes),
+        'deleted': False,
+        'deleted_at': '',
+    }
+    notes.append(card)
+    _save_notes_doc(columns, notes)
+    log_activity('note_added', f"Note '{text[:80]}' was added", user_name=_api_actor_name())
+    return jsonify({'success': True, 'note': card})
+
+
+@routes_bp.route('/api/notes/cards/update', methods=['POST'])
+def api_notes_update_card():
+    data = request.get_json(silent=True) or {}
+    note_id = str(data.get('id', '')).strip().lower()
+    if not _note_id_ok(note_id):
+        return jsonify({'success': False, 'error': 'id is required'}), 400
+    columns, notes = _load_notes_doc()
+    card = next((n for n in notes if isinstance(n, dict) and str(n.get('id', '')).lower() == note_id), None)
+    if card is None:
+        return jsonify({'success': False, 'error': 'Note not found'}), 404
+    if 'text' in data:
+        text = str(data.get('text', '')).strip()[:500]
+        if not text:
+            return jsonify({'success': False, 'error': 'text cannot be empty'}), 400
+        card['text'] = text
+    if 'checked' in data:
+        card['checked'] = bool(data.get('checked'))
+    if 'column_id' in data:
+        column_id = re.sub(r'[^a-z0-9\-]', '', str(data.get('column_id', '')).strip().lower())[:60]
+        known = {col.get('id') for col in columns if isinstance(col, dict)}
+        if column_id not in known:
+            return jsonify({'success': False, 'error': 'column not found'}), 404
+        card['column_id'] = column_id
+    _save_notes_doc(columns, notes)
+    return jsonify({'success': True, 'note': card})
+
+
+@routes_bp.route('/api/notes/cards/remove', methods=['POST'])
+def api_notes_remove_card():
+    data = request.get_json(silent=True) or {}
+    note_id = str(data.get('id', '')).strip().lower()
+    if not _note_id_ok(note_id):
+        return jsonify({'success': False, 'error': 'id is required'}), 400
+    columns, notes = _load_notes_doc()
+    card = next((n for n in notes if isinstance(n, dict) and str(n.get('id', '')).lower() == note_id), None)
+    if card is None:
+        return jsonify({'success': False, 'error': 'Note not found'}), 404
+    card['deleted'] = True
+    card['deleted_at'] = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+    _save_notes_doc(columns, notes)
+    log_activity('note_removed', 'A note card was cleared', user_name=_api_actor_name())
+    return jsonify({'success': True, 'note': card})
+
+
+def _load_dashboard_notes():
+    notes = _load_json_setting('dashboard_notes_json', [])
+    return notes if isinstance(notes, list) else []
+
+
+@routes_bp.route('/api/dashboard_notes/notes', methods=['POST'])
+def api_dashboard_notes_add():
+    data = request.get_json(silent=True) or {}
+    text = str(data.get('text', '')).strip()[:500]
+    if not text:
+        return jsonify({'success': False, 'error': 'text is required'}), 400
+    color = str(data.get('color', '')).strip()
+    if color not in DASHBOARD_NOTE_COLORS:
+        color = DASHBOARD_NOTE_COLORS[0]
+    text_size = str(data.get('text_size', 'md')).strip().lower()
+    if text_size not in ('sm', 'md', 'lg'):
+        text_size = 'md'
+    notes = _load_dashboard_notes()
+    note = {
+        'id': 'dash-' + uuid.uuid4().hex[:12],
+        'text': text,
+        'color': color,
+        'text_size': text_size,
+    }
+    notes.append(note)
+    AppSetting.set('dashboard_notes_json', _json.dumps(notes))
+    log_activity('dashboard_note_added', f"Dashboard note '{text[:80]}' was added", user_name=_api_actor_name())
+    return jsonify({'success': True, 'note': note})
+
+
+@routes_bp.route('/api/dashboard_notes/notes/update', methods=['POST'])
+def api_dashboard_notes_update():
+    data = request.get_json(silent=True) or {}
+    note_id = str(data.get('id', '')).strip()
+    if not note_id:
+        return jsonify({'success': False, 'error': 'id is required'}), 400
+    notes = _load_dashboard_notes()
+    note = next((n for n in notes if isinstance(n, dict) and str(n.get('id', '')) == note_id), None)
+    if note is None:
+        return jsonify({'success': False, 'error': 'Note not found'}), 404
+    if 'text' in data:
+        text = str(data.get('text', '')).strip()[:500]
+        if not text:
+            return jsonify({'success': False, 'error': 'text cannot be empty'}), 400
+        note['text'] = text
+    if 'color' in data:
+        color = str(data.get('color', '')).strip()
+        if color not in DASHBOARD_NOTE_COLORS:
+            return jsonify({'success': False, 'error': 'color is not one of the dashboard colours'}), 400
+        note['color'] = color
+    if 'text_size' in data:
+        text_size = str(data.get('text_size', '')).strip().lower()
+        if text_size not in ('sm', 'md', 'lg'):
+            return jsonify({'success': False, 'error': 'text_size must be sm, md, or lg'}), 400
+        note['text_size'] = text_size
+    AppSetting.set('dashboard_notes_json', _json.dumps(notes))
+    return jsonify({'success': True, 'note': note})
+
+
+@routes_bp.route('/api/dashboard_notes/notes/remove', methods=['POST'])
+def api_dashboard_notes_remove():
+    data = request.get_json(silent=True) or {}
+    note_id = str(data.get('id', '')).strip()
+    if not note_id:
+        return jsonify({'success': False, 'error': 'id is required'}), 400
+    notes = _load_dashboard_notes()
+    kept = [n for n in notes if not (isinstance(n, dict) and str(n.get('id', '')) == note_id)]
+    if len(kept) == len(notes):
+        return jsonify({'success': False, 'error': 'Note not found'}), 404
+    AppSetting.set('dashboard_notes_json', _json.dumps(kept))
+    log_activity('dashboard_note_removed', 'A dashboard note was removed', user_name=_api_actor_name())
+    return jsonify({'success': True})
+
+
+@routes_bp.route('/api/meal_planner/slot', methods=['POST'])
+def api_meal_planner_slot():
+    """Set or clear one meal on one date. Other days stay as they are."""
+    data = request.get_json(silent=True) or {}
+    meal = str(data.get('meal', '')).strip().lower()
+    if meal not in MEAL_TYPES:
+        return jsonify({'success': False, 'error': 'meal must be breakfast, lunch, or dinner'}), 400
+    try:
+        day = date.fromisoformat(str(data.get('date', '')).strip())
+    except ValueError:
+        return jsonify({'success': False, 'error': 'date must be YYYY-MM-DD'}), 400
+    value = str(data.get('value', '') or '').strip()[:120]
+    stored = _load_json_setting('meal_planner_plan_json', {})
+    day_key = day.isoformat()
+    day_meals = dict(stored.get(day_key)) if isinstance(stored.get(day_key), dict) else {}
+    if value:
+        day_meals[meal] = value
+    else:
+        day_meals.pop(meal, None)
+    if day_meals:
+        stored[day_key] = day_meals
+    else:
+        stored.pop(day_key, None)
+    stored = _drop_blank_stored_meals(stored)
+    AppSetting.set('meal_planner_plan_json', _json.dumps(stored))
+    log_activity(
+        'meal_planner_updated',
+        f"Meal planner {day_key} {meal} was set to {value or 'cleared'}",
+        user_name=_api_actor_name(),
+    )
+    return jsonify({'success': True, 'date': day_key, 'meal': meal, 'value': value})
+
+
+@routes_bp.route('/api/meal_planner/recurring', methods=['POST'])
+def api_meal_planner_recurring_slot():
+    """Turn one weekday meal repeat on or off. The other repeats stay put."""
+    data = request.get_json(silent=True) or {}
+    weekday = str(data.get('weekday', '')).strip().lower()
+    meal = str(data.get('meal', '')).strip().lower()
+    if weekday not in MEAL_WEEKDAY_KEYS:
+        return jsonify({'success': False, 'error': 'weekday must be a full weekday name'}), 400
+    if meal not in MEAL_TYPES:
+        return jsonify({'success': False, 'error': 'meal must be breakfast, lunch, or dinner'}), 400
+    value = str(data.get('value', '') or '').strip()[:120]
+    enabled = bool(data.get('enabled', bool(value))) and bool(value)
+    raw = _load_json_setting('meal_planner_recurring_json', {})
+    day = dict(raw.get(weekday)) if isinstance(raw.get(weekday), dict) else {}
+    day[meal] = {'enabled': enabled, 'value': value}
+    raw[weekday] = day
+    normalized = _normalize_meal_recurring(raw)
+    AppSetting.set('meal_planner_recurring_json', _json.dumps(normalized))
+    log_activity(
+        'meal_planner_updated',
+        f"Weekly {weekday} {meal} was set to {value or 'cleared'}",
+        user_name=_api_actor_name(),
+    )
+    return jsonify({'success': True, 'weekday': weekday, 'meal': meal, 'enabled': enabled, 'value': value})
+
+
+def _load_suggestion_list():
+    data = _load_json_setting('meal_planner_suggestions_json', [])
+    if not isinstance(data, list):
+        return []
+    return [str(item).strip() for item in data if str(item).strip()]
+
+
+@routes_bp.route('/api/meal_planner/suggestions/items', methods=['POST'])
+def api_meal_suggestion_add():
+    data = request.get_json(silent=True) or {}
+    text = str(data.get('text', '')).strip()[:80]
+    if not text:
+        return jsonify({'success': False, 'error': 'text is required'}), 400
+    suggestions = _load_suggestion_list()
+    if any(item.lower() == text.lower() for item in suggestions):
+        return jsonify({'success': True, 'already_present': True, 'suggestions': suggestions})
+    suggestions.append(text)
+    AppSetting.set('meal_planner_suggestions_json', _json.dumps(suggestions))
+    return jsonify({'success': True, 'already_present': False, 'suggestions': suggestions})
+
+
+@routes_bp.route('/api/meal_planner/suggestions/remove', methods=['POST'])
+def api_meal_suggestion_remove():
+    data = request.get_json(silent=True) or {}
+    text = str(data.get('text', '')).strip()[:80]
+    if not text:
+        return jsonify({'success': False, 'error': 'text is required'}), 400
+    suggestions = _load_suggestion_list()
+    kept = [item for item in suggestions if item.lower() != text.lower()]
+    if len(kept) == len(suggestions):
+        return jsonify({'success': False, 'error': 'Suggestion not found'}), 404
+    AppSetting.set('meal_planner_suggestions_json', _json.dumps(kept))
+    return jsonify({'success': True, 'suggestions': kept})
+
+
+def _clean_ingredient(raw):
+    name = str((raw or {}).get('name', '')).strip()[:80]
+    if not name:
+        return None
+    return {
+        'name': name,
+        'store': _clean_store_id((raw or {}).get('store', 'aldi')),
+        'qty': str((raw or {}).get('qty', '') or '').strip()[:40],
+    }
+
+
+@routes_bp.route('/api/meal_ingredients/items', methods=['POST'])
+def api_meal_ingredient_add():
+    data = request.get_json(silent=True) or {}
+    meal = str(data.get('meal', '')).strip().lower()[:80]
+    item = _clean_ingredient(data)
+    if not meal or item is None:
+        return jsonify({'success': False, 'error': 'meal and name are required'}), 400
+    library = _load_json_setting('meal_ingredients_json', {})
+    rows = library.get(meal) if isinstance(library.get(meal), list) else []
+    if any(isinstance(row, dict) and str(row.get('name', '')).strip().lower() == item['name'].lower() for row in rows):
+        return jsonify({'success': True, 'already_present': True, 'meal': meal, 'item': item})
+    rows.append(item)
+    library[meal] = rows
+    AppSetting.set('meal_ingredients_json', _json.dumps(library))
+    return jsonify({'success': True, 'already_present': False, 'meal': meal, 'item': item})
+
+
+@routes_bp.route('/api/meal_ingredients/items/remove', methods=['POST'])
+def api_meal_ingredient_remove():
+    data = request.get_json(silent=True) or {}
+    meal = str(data.get('meal', '')).strip().lower()[:80]
+    name = str(data.get('name', '')).strip()[:80]
+    if not meal or not name:
+        return jsonify({'success': False, 'error': 'meal and name are required'}), 400
+    library = _load_json_setting('meal_ingredients_json', {})
+    rows = library.get(meal) if isinstance(library.get(meal), list) else []
+    kept = [
+        row for row in rows
+        if not (isinstance(row, dict) and str(row.get('name', '')).strip().lower() == name.lower())
+    ]
+    if len(kept) == len(rows):
+        return jsonify({'success': False, 'error': 'Ingredient not found'}), 404
+    if kept:
+        library[meal] = kept
+    else:
+        library.pop(meal, None)
+    AppSetting.set('meal_ingredients_json', _json.dumps(library))
+    return jsonify({'success': True, 'meal': meal, 'name': name})
