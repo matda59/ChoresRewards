@@ -3,14 +3,23 @@
 The master PIN used to be checked only in the browser. These helpers make the
 Flask session the real boundary: reading or changing family data requires
 ``authenticated``, and the actions the padlock hides require ``adult_mode``.
+
+``CR_READONLY_API_KEY``, when set to at least 32 characters, lets a trusted
+automation read an allowlist of GET endpoints without a session. It cannot
+change data, open a session, or trip the PIN lockout.
 """
 
+import hashlib
+import hmac
+import json
 import os
 import re
+import time
+import fcntl
 from urllib.parse import unquote, urlparse
 
 import bcrypt
-from flask import jsonify, make_response, redirect, render_template, request, session, url_for
+from flask import current_app, g, jsonify, make_response, redirect, render_template, request, session, url_for
 from flask.sessions import SecureCookieSessionInterface
 
 MIN_SECRET_LEN = 4
@@ -278,9 +287,267 @@ class ProxyAwareSessionInterface(SecureCookieSessionInterface):
             return bool(app.config.get('SESSION_COOKIE_SECURE'))
         return proto.split(',')[0].strip().lower() == 'https'
 
+    def save_session(self, app, session, response):
+        # The read-only key is not a browser login. Skip the cookie even if a
+        # view touched the session object, so a key request cannot create or
+        # refresh one.
+        try:
+            if getattr(g, 'cr_api_key_request', False):
+                return
+        except RuntimeError:
+            pass
+        return super().save_session(app, session, response)
+
+
+_READONLY_API_KEY_ENV = 'CR_READONLY_API_KEY'
+_MIN_API_KEY_LEN = 32
+_API_KEY_MAX_FAILURES = 8
+_API_KEY_WINDOW_SECONDS = 300
+_API_KEY_MEMORY = {}
+
+# GET/HEAD only. Kept exact so a new route is not readable until it is added
+# here on purpose. /get_chores is intentionally absent: that handler redirects
+# to the home page, which runs the daily chore reset.
+_READONLY_API_EXACT = frozenset({
+    '/api/screensaver/chore_summary',
+    '/api/meal_planner',
+    '/api/shopping_list',
+    '/api/shopping_stores',
+    '/api/meal_ingredients',
+    '/api/notifications',
+    '/api/notes',
+    '/api/dashboard_notes',
+    '/api/organise',
+})
+
+_READONLY_SERVICE_PATH = re.compile(r'^/api/organise/\d+/services$')
+
+
+def readonly_api_allows(method, path):
+    """True for a read of an allowlisted path. The key is checked separately."""
+    method = (method or 'GET').upper()
+    if method not in ('GET', 'HEAD'):
+        return False
+    path = normalise_path(path)
+    if path in _READONLY_API_EXACT:
+        return True
+    return _READONLY_SERVICE_PATH.match(path) is not None
+
+
+def _configured_readonly_api_key():
+    """The key, or None when the feature is off.
+
+    Unset, blank, and anything shorter than 32 characters all disable it.
+    """
+    raw = os.environ.get(_READONLY_API_KEY_ENV)
+    if raw is None:
+        return None
+    key = raw.strip()
+    if len(key) < _MIN_API_KEY_LEN:
+        return None
+    return key
+
+
+def _announce_readonly_api_key():
+    raw = os.environ.get(_READONLY_API_KEY_ENV)
+    if raw is None or not str(raw).strip():
+        return
+    if _configured_readonly_api_key() is None:
+        print(
+            '[auth] Ignoring CR_READONLY_API_KEY because it is shorter than '
+            '32 characters. The read-only API is disabled.'
+        )
+        return
+    print('[auth] Read-only API key is enabled for allowlisted GET requests.')
+
+
+def _presented_api_key():
+    """Return the key sent in a header, or None when the client did not try.
+
+    Query strings are never read. ``Authorization: Bearer`` and ``X-API-Key``
+    are the only accepted places. If both are sent they have to match.
+    """
+    found = []
+    header_key = request.headers.get('X-API-Key')
+    if header_key is not None and header_key.strip():
+        found.append(header_key.strip())
+    authorization = request.headers.get('Authorization')
+    if authorization:
+        scheme, _, rest = authorization.partition(' ')
+        if scheme.lower() == 'bearer' and rest.strip():
+            found.append(rest.strip())
+    if not found:
+        return None
+    first = found[0]
+    if any(item != first for item in found):
+        return ''
+    return first
+
+
+def _api_key_matches(presented, expected):
+    """Constant-time compare. Digests are fixed length, so a short guess does not return early."""
+    try:
+        presented_bytes = presented.encode('utf-8')
+        expected_bytes = expected.encode('utf-8')
+    except Exception:
+        # Keep the digest compare, and make sure a coding failure cannot match.
+        presented_bytes = b''
+        expected_bytes = b'\x00'
+    if len(presented_bytes) > 8192:
+        presented_bytes = presented_bytes[:8192]
+    return hmac.compare_digest(
+        hashlib.sha256(presented_bytes).digest(),
+        hashlib.sha256(expected_bytes).digest(),
+    )
+
+
+def _api_key_client_ip():
+    for header in ('CF-Connecting-IP', 'X-Real-IP', 'X-Forwarded-For'):
+        value = (request.headers.get(header) or '').split(',')[0].strip()
+        if value:
+            return value[:200]
+    return (request.remote_addr or '0.0.0.0')[:200]
+
+
+def _api_key_attempt_path():
+    try:
+        folder = current_app.instance_path
+        os.makedirs(folder, exist_ok=True)
+        return os.path.join(folder, 'readonly_api_key_attempts.json')
+    except Exception:
+        return None
+
+
+def _prune_api_key_attempts(data, now, window):
+    if len(data) <= 500:
+        return
+    stale = []
+    for key, entry in list(data.items()):
+        fails = entry.get('fails') if isinstance(entry, dict) else None
+        if not fails or not any(
+            isinstance(stamp, (int, float)) and now - float(stamp) < window
+            for stamp in fails
+        ):
+            stale.append(key)
+    for key in stale:
+        data.pop(key, None)
+
+
+def _api_key_attempt_update(mutator):
+    """Share failed-key counts across Gunicorn workers. Separate from the PIN file."""
+    path = _api_key_attempt_path()
+    if not path:
+        return mutator(_API_KEY_MEMORY)
+    lock_path = path + '.lock'
+    with open(lock_path, 'a+', encoding='utf-8') as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            data = {}
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as handle:
+                        loaded = json.load(handle)
+                    if isinstance(loaded, dict):
+                        data = loaded
+                except Exception:
+                    data = {}
+            result = mutator(data)
+            tmp = path + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as handle:
+                json.dump(data, handle)
+            os.replace(tmp, path)
+            return result
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
+def _note_bad_api_key():
+    """Count a wrong key. Returns retry-after seconds once the window is full, else 0.
+
+    A correct key does not come through here, so guessing cannot lock the
+    owner out. This store is not the PIN lockout.
+    """
+    now = time.time()
+    ip = _api_key_client_ip()
+    window = _API_KEY_WINDOW_SECONDS
+    limit = _API_KEY_MAX_FAILURES
+
+    def mutate(data):
+        entry = data.get(ip) if isinstance(data.get(ip), dict) else {}
+        fails = [
+            float(stamp) for stamp in entry.get('fails', [])
+            if isinstance(stamp, (int, float)) and now - float(stamp) < window
+        ]
+        if len(fails) >= limit:
+            oldest = min(fails) if fails else now
+            data[ip] = {'fails': fails}
+            _prune_api_key_attempts(data, now, window)
+            return max(1, int(window - (now - oldest)) + 1)
+        fails.append(now)
+        data[ip] = {'fails': fails}
+        _prune_api_key_attempts(data, now, window)
+        if len(fails) >= limit:
+            oldest = min(fails)
+            return max(1, int(window - (now - oldest)) + 1)
+        return 0
+
+    try:
+        return _api_key_attempt_update(mutate)
+    except Exception:
+        return 0
+
+
+def _api_key_error(message, status, retry_after=None):
+    body = {'success': False, 'error': message}
+    if retry_after:
+        body['retry_after'] = int(retry_after)
+    response = jsonify(body)
+    response.status_code = status
+    response.headers['Cache-Control'] = 'no-store'
+    if retry_after:
+        response.headers['Retry-After'] = str(int(retry_after))
+    return response
+
+
+def _readonly_api_key_gate(method, path):
+    """Authorise a key read, refuse anything else the key tries, or stay out of the way.
+
+    Returns a response when this request must stop. Returns None when the
+    normal session rules should run, or when the key already allowed the read
+    (``g.cr_readonly_api`` is set in that case).
+    """
+    expected = _configured_readonly_api_key()
+    presented = _presented_api_key()
+    if expected is None or presented is None:
+        return None
+    g.cr_api_key_request = True
+    matches = _api_key_matches(presented, expected)
+    if matches and readonly_api_allows(method, path):
+        g.cr_readonly_api = True
+        return None
+    if matches:
+        return _api_key_error('API key is read-only', 403)
+    retry_after = _note_bad_api_key()
+    if retry_after:
+        return _api_key_error('Too many attempts. Try again shortly.', 429, retry_after)
+    return _api_key_error('Invalid API key', 401)
+
+
+def sees_adult_alerts():
+    """Adult sessions and the read-only key can see rego and service alerts.
+
+    The key is the owner's. It does not turn adult mode on in the browser
+    cookie, and a child session that did not send the key still has those
+    alerts removed.
+    """
+    if getattr(g, 'cr_readonly_api', False):
+        return True
+    return bool(session.get('adult_mode', False))
+
 
 def install_auth(app):
     """Attach the session gate. Call this after the other before_request hooks."""
+    _announce_readonly_api_key()
 
     @app.before_request
     def _require_family_session():
@@ -291,6 +558,14 @@ def install_auth(app):
 
         path = normalise_path(request.path)
         method = request.method.upper()
+        # A presented key is the credential for this request. It is checked
+        # before the public-login shortcuts so it cannot open a session, post
+        # the PIN, or land on the home page (that page runs the daily reset).
+        denial = _readonly_api_key_gate(method, path)
+        if denial is not None:
+            return denial
+        if getattr(g, 'cr_readonly_api', False):
+            return None
         if is_public_request(method, path):
             return None
         if path == '/setup' and _setup_is_open():

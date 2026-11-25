@@ -141,6 +141,49 @@ The session cookie is HttpOnly and SameSite=Lax. It is marked Secure when the br
 
 If the site is reachable on the internet, put Cloudflare Access in front of it (email one-time PIN, allow-list of family emails) as a second layer. The app PIN is still the lock inside the house.
 
+### Read-only API key
+
+A trusted automation, such as the owner's assistant, can read family data without a browser login. Set `CR_READONLY_API_KEY` to a random string of at least 32 characters. If the variable is unset, blank, or shorter than that, the feature is off and the header is ignored.
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Put that value in the container environment, then restart so the process picks it up:
+
+```yaml
+environment:
+  - CR_READONLY_API_KEY=paste-that-value
+```
+
+```bash
+docker compose up -d
+```
+
+Send the key in a header. A query string is ignored.
+
+```bash
+curl -sS -H "Authorization: Bearer $CR_READONLY_API_KEY" \
+  http://localhost:3112/api/notifications
+```
+
+`X-API-Key: <key>` is accepted as well. The key allows `GET` and `HEAD` only, and only on these paths:
+
+- `/api/screensaver/chore_summary` — remaining chores per person, and the next upcoming calendar events
+- `/api/meal_planner`
+- `/api/shopping_list`
+- `/api/shopping_stores`
+- `/api/meal_ingredients`
+- `/api/notifications` — dashboard alerts, including vehicle service and rego reminders
+- `/api/notes`
+- `/api/dashboard_notes`
+- `/api/organise` — bills, vehicles, and next service dates
+- `/api/organise/<id>/services` — service history for one vehicle
+
+Anything else is refused, including `POST`, settings, uploads, and the home page. The home page is what runs the daily chore reset, so a key request cannot trigger that. The key does not create a session cookie and does not count toward the PIN lockout. Repeated wrong keys are rate-limited on their own.
+
+When the header is present it is the only credential checked for that request. A normal browser session does not send it, so PIN login stays the same.
+
 Map **both** volumes. Uploads (avatars, reward photos, screensaver pictures, organise photos) live under `/app/static/uploads` and will disappear on container update if that path is not persisted.
 
 ### Docker Compose
@@ -157,6 +200,7 @@ services:
     environment:
       - TZ=Australia/Adelaide
       - ENABLE_GOOGLE_CALENDAR=true
+      # - CR_READONLY_API_KEY=paste-that-value
     restart: always
 
 volumes:

@@ -27,7 +27,7 @@ import re
 import json as _json
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import fcntl
-from auth_guard import acceptable_secret, pin_matches, start_family_session
+from auth_guard import acceptable_secret, pin_matches, sees_adult_alerts, start_family_session
 
 try:
     from google.oauth2 import service_account as _gsa
@@ -2077,7 +2077,7 @@ def api_person_points():
 @routes_bp.route('/api/meal_planner', methods=['GET', 'POST'])
 def api_meal_planner():
     try:
-        if request.method == 'GET':
+        if request.method in ('GET', 'HEAD'):
             week_start_str = request.args.get('week_start', '').strip()
             try:
                 week_start = date.fromisoformat(week_start_str)
@@ -2153,7 +2153,7 @@ def api_meal_planner_suggestions():
 @routes_bp.route('/api/meal_ingredients', methods=['GET', 'POST'])
 def api_meal_ingredients():
     try:
-        if request.method == 'GET':
+        if request.method in ('GET', 'HEAD'):
             try:
                 data = _json.loads(AppSetting.get('meal_ingredients_json', '{}'))
             except Exception:
@@ -2375,7 +2375,7 @@ def api_meal_social_delete():
 @routes_bp.route('/api/shopping_list', methods=['GET', 'POST'])
 def api_shopping_list():
     try:
-        if request.method == 'GET':
+        if request.method in ('GET', 'HEAD'):
             try:
                 data = _json.loads(AppSetting.get('shopping_list_json', '{}'))
             except Exception:
@@ -2471,7 +2471,7 @@ def api_shopping_list():
 @routes_bp.route('/api/notes', methods=['GET', 'POST'])
 def api_notes():
     try:
-        if request.method == 'GET':
+        if request.method in ('GET', 'HEAD'):
             try:
                 data = _json.loads(AppSetting.get('notes_kanban_json', '{}'))
             except Exception:
@@ -2547,7 +2547,7 @@ def api_notes():
 @routes_bp.route('/api/text_pads', methods=['GET', 'POST'])
 def api_text_pads():
     try:
-        if request.method == 'GET':
+        if request.method in ('GET', 'HEAD'):
             try:
                 pads = _json.loads(AppSetting.get('text_pads_json', '[]'))
             except Exception:
@@ -2588,7 +2588,7 @@ DASHBOARD_NOTE_COLORS = ('#fef08a', '#fecaca', '#bbf7d0', '#bfdbfe', '#e9d5ff', 
 def api_dashboard_notes():
     """Small post-it style notes shown on the dashboard landing section."""
     try:
-        if request.method == 'GET':
+        if request.method in ('GET', 'HEAD'):
             try:
                 notes = _json.loads(AppSetting.get('dashboard_notes_json', '[]'))
             except Exception:
@@ -2646,7 +2646,7 @@ def api_dashboard_notes():
 @routes_bp.route('/api/shopping_stores', methods=['GET', 'POST'])
 def api_shopping_stores():
     try:
-        if request.method == 'GET':
+        if request.method in ('GET', 'HEAD'):
             return jsonify({'success': True, 'stores': _get_shopping_stores()})
 
         data = request.get_json() or {}
@@ -3994,8 +3994,9 @@ def api_notifications():
 
         alerts.sort(key=lambda a: (0 if a['severity'] == 'overdue' else 1, a['days']))
         # Car rego, service dates, and other organise alerts are marked admin_only.
-        # The bell used to hide those only in JavaScript.
-        if not session.get('adult_mode', False):
+        # The bell used to hide those only in JavaScript. The read-only API key
+        # belongs to the owner, so it sees the same alerts an adult session sees.
+        if not sees_adult_alerts():
             alerts = [a for a in alerts if not a.get('admin_only')]
 
         tz_name = AppSetting.get('timezone', 'UTC')

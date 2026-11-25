@@ -17,6 +17,7 @@ services:
       - TZ=Australia/Adelaide
       - ENABLE_GOOGLE_CALENDAR=true
       - CHORESREWARDS_TELEMETRY=off
+      # - CR_READONLY_API_KEY=replace-with-the-generated-value
     restart: unless-stopped
 
 volumes:
