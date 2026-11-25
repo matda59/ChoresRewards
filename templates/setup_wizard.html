@@ -615,7 +615,7 @@ document.addEventListener('click', function(e) {
     <!-- ── Reward System ── -->
     <div class="wizard-section">
       <h3 class="wizard-section-title"><i class="fas fa-trophy"></i> Reward System</h3>
-      <p class="wz-section-desc">Choose how you want to reward completed chores. <strong>Points</strong> uses a virtual score that kids can spend on rewards you define in Settings. <strong>Cash</strong> tracks a dollar value instead — useful if you pay real pocket money.</p>
+      <p class="wz-section-desc">Choose how you want to reward completed chores. <strong>Points</strong> uses a virtual score that kids can spend on rewards you define in Settings. <strong>Cash</strong> tracks a dollar value instead — useful if you pay real pocket money. <strong>Tech Time</strong> earns weekend screen minutes that expire each Monday.</p>
       <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
         <label class="reward-system-label selected" id="wizard-points-label">
           <input type="radio" class="reward-system-radio" name="reward_system" value="points" checked>
@@ -624,6 +624,10 @@ document.addEventListener('click', function(e) {
         <label class="reward-system-label" id="wizard-cash-label">
           <input type="radio" class="reward-system-radio" name="reward_system" value="cash">
           <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i> Cash
+        </label>
+        <label class="reward-system-label" id="wizard-tech-label">
+          <input type="radio" class="reward-system-radio" name="reward_system" value="tech_time">
+          <i class="fas fa-tv" style="color:#38bdf8;"></i> Tech Time
         </label>
       </div>
     </div>
@@ -777,21 +781,15 @@ document.addEventListener('click', function(e) {
     // Reward system radio button highlight logic (match settings page)
     document.addEventListener('DOMContentLoaded', function() {
       // Reward system highlight
-      const pointsRadio = document.querySelector('input[name="reward_system"][value="points"]');
-      const cashRadio = document.querySelector('input[name="reward_system"][value="cash"]');
-      const pointsLabel = document.getElementById('wizard-points-label');
-      const cashLabel = document.getElementById('wizard-cash-label');
       function updateRewardSystemHighlight() {
-        if (pointsRadio.checked) {
-          pointsLabel.classList.add('selected');
-          cashLabel.classList.remove('selected');
-        } else {
-          pointsLabel.classList.remove('selected');
-          cashLabel.classList.add('selected');
-        }
+        document.querySelectorAll('.reward-system-label').forEach(function (label) {
+          const radio = label.querySelector('input[name="reward_system"]');
+          label.classList.toggle('selected', !!(radio && radio.checked));
+        });
       }
-      pointsRadio.addEventListener('change', updateRewardSystemHighlight);
-      cashRadio.addEventListener('change', updateRewardSystemHighlight);
+      document.querySelectorAll('input[name="reward_system"]').forEach(function (radio) {
+        radio.addEventListener('change', updateRewardSystemHighlight);
+      });
       updateRewardSystemHighlight();
 
       // Bonus points static/range toggle logic
@@ -994,16 +992,15 @@ document.getElementById('confirm-delete-btn').onclick = function() {
 
 // Reward system pills
 document.addEventListener('DOMContentLoaded', function() {
-  const pointsRadio = document.querySelector('input[name="reward_system"][value="points"]');
-  const cashRadio   = document.querySelector('input[name="reward_system"][value="cash"]');
-  const pointsLabel = document.getElementById('wizard-points-label');
-  const cashLabel   = document.getElementById('wizard-cash-label');
   function updateRewardHighlight() {
-    pointsLabel.classList.toggle('selected', pointsRadio.checked);
-    cashLabel.classList.toggle('selected', cashRadio.checked);
+    document.querySelectorAll('.reward-system-label').forEach(function (label) {
+      const radio = label.querySelector('input[name="reward_system"]');
+      label.classList.toggle('selected', !!(radio && radio.checked));
+    });
   }
-  pointsRadio.addEventListener('change', updateRewardHighlight);
-  cashRadio.addEventListener('change', updateRewardHighlight);
+  document.querySelectorAll('input[name="reward_system"]').forEach(function (radio) {
+    radio.addEventListener('change', updateRewardHighlight);
+  });
   updateRewardHighlight();
 
   // Bonus toggle

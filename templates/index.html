@@ -1037,7 +1037,7 @@ window.addEventListener('DOMContentLoaded', function() {
                     <div class="dash-person-row">
                         <img class="dash-person-avatar" src="{{ url_for('static', filename=('uploads/' + person.avatar) if person.avatar else 'default_avatar.png') }}" alt="{{ person.name }}">
                         <div class="dash-person-info">
-                            <div class="dash-person-name">{{ person.name }}</div>
+                            <div class="dash-person-name">{{ person.name }}{% if reward_system == 'tech_time' %}: {{ tech_minutes_by_person.get(person.id, 0)|tech_time }}{% endif %}</div>
                             <div class="dash-person-chores">
                                 {% if today_incomplete %}
                                     {{ today_incomplete[:2] | map(attribute='title') | join(', ') }}{% if today_incomplete|length > 2 %} +{{ today_incomplete|length - 2 }} more{% endif %}
@@ -6460,6 +6460,15 @@ function deleteReward(rewardId) {
                     </h3>
                 </div>
                 <div class="points-display">
+                    {% if reward_system == 'tech_time' %}
+                    <div class="balance-label">Tech Time</div>
+                    <span class="chore-points-badge tech-time-balance" title="Weekend tech time for {{ person.name }}">
+                        <i class="fas fa-tv" style="color:#38bdf8; margin-right:4px;"></i>
+                        <span class="tech-time-who">{{ person.name }}:</span>
+                        <span class="chore-points-value">{{ tech_minutes_by_person.get(person.id, 0)|tech_time }}</span>
+                    </span>
+                    <button type="button" class="admin-only adjust-tech-time-btn" onclick="adjustTechTime({{ person.id }}, {{ person.name|tojson }})" style="margin-top:6px;background:#0284c7;color:#fff;border:none;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:0.8em;">Adjust</button>
+                    {% else %}
                     <div class="balance-label">{% if reward_system == 'cash' %}Balance{% else %}Points{% endif %}</div>
                     <span class="chore-points-badge" title="Total {{ 'cash' if reward_system == 'cash' else 'points' }} for {{ person.name }}">
                         {% set total_points = (person.points + person.bonus_points) %}
@@ -6471,6 +6480,7 @@ function deleteReward(rewardId) {
                             <span class="chore-points-value">{{ '%.2f' % total_points }}</span>
                         {% endif %}
                     </span>
+                    {% endif %}
                 </div>
                                 <div class="avatar-container" style="margin-bottom: 0px; padding-bottom: 0px;">
                     <img src="{{ url_for('static', filename='uploads/' + person.avatar if person.avatar else 'default_avatar.png') }}"
@@ -6482,7 +6492,7 @@ function deleteReward(rewardId) {
                          data-person-id="{{ person.id }}"
                          data-name="{{ person.name }}"
                          data-color="{{ person.color or '#555' }}"
-                         data-points="{{ person.points + person.bonus_points }}"
+                         data-points="{% if reward_system == 'tech_time' %}{{ tech_minutes_by_person.get(person.id, 0) }}{% else %}{{ person.points + person.bonus_points }}{% endif %}"
                          data-streak="{{ person_streaks.get(person.id).current_streak if person_streaks.get(person.id) else 0 }}"
                          data-best-streak="{{ person_streaks.get(person.id).longest_streak if person_streaks.get(person.id) else 0 }}">
                     <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
@@ -6562,8 +6572,11 @@ function deleteReward(rewardId) {
                     {% for chore in filtered_incomplete_chores %}
                         <div class="chore{% if chore.due_datetime %} has-due-date{% endif %}{% if chore.is_extra %} chore-extra{% endif %}" data-chore-id="{{ chore.id }}"{% if chore.extra_id %} data-extra-id="{{ chore.extra_id }}"{% endif %} style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px; padding-top:40px;">
                             <button class="btn-delete-chore-sm admin-only" onclick="confirmDeleteChore({{ chore.id }}, {{ chore.is_daily|tojson }})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
-                            <span class="chore-points-badge" style="position:absolute;top:6px;left:6px;margin-left:0;" title="Points for this chore">
-                                {% if reward_system == 'cash' %}
+                            <span class="chore-points-badge" style="position:absolute;top:6px;left:6px;margin-left:0;" title="{% if reward_system == 'tech_time' %}Minutes for this chore{% else %}Points for this chore{% endif %}">
+                                {% if reward_system == 'tech_time' %}
+                                    <i class="fas fa-clock" style="color:#38bdf8; margin-right:4px;"></i>
+                                    <span class="chore-points-value">{{ chore.points|as_minutes }}m</span>
+                                {% elif reward_system == 'cash' %}
                                     <i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i>
                                     <span class="chore-points-value">${{ '%.2f' % chore.points }}</span>
                                 {% else %}
@@ -6657,8 +6670,11 @@ function deleteReward(rewardId) {
                                 </div>
                                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
                                     <span style="display:inline-flex; align-items:center; gap:8px;"><button type="button" class="btn-undo-chore" onclick="undoChoreCompletion({{ chore.id }}, null, null, null)" title="Mark as not done (takes the points back)" aria-label="Undo completion"><i class="fas fa-undo"></i> Undo</button><span style="font-size:0.78em; color:#94a3b8;">&#10003; {% if chore.date_completed %}{{ chore.date_completed.strftime("%I:%M %p") }}{% else %}Today{% endif %}</span></span>
-                                    <span class="chore-points-badge" title="Points for this chore">
-                                        {% if reward_system == 'cash' %}
+                                    <span class="chore-points-badge" title="{% if reward_system == 'tech_time' %}Minutes for this chore{% else %}Points for this chore{% endif %}">
+                                        {% if reward_system == 'tech_time' %}
+                                            <i class="fas fa-clock" style="color:#38bdf8;"></i>
+                                            <span class="chore-points-value">{{ chore.points|as_minutes }}m</span>
+                                        {% elif reward_system == 'cash' %}
                                             <i class="fas fa-money-bill-wave"></i>
                                             <span class="chore-points-value">${{ '%.2f' % chore.points }}</span>
                                         {% else %}
@@ -6688,7 +6704,22 @@ function deleteReward(rewardId) {
 
 <script>
     // --- Profile modal ---
+function formatTechMinutes(value) {
+    const parsed = Number(value);
+    const total = Number.isFinite(parsed) ? Math.round(parsed) : 0;
+    const sign = total < 0 ? '-' : '';
+    const abs = Math.abs(total);
+    const hours = Math.floor(abs / 60);
+    const mins = abs % 60;
+    if (hours && mins) return `${sign}${hours}h ${mins}m`;
+    if (hours) return `${sign}${hours}h`;
+    return `${sign}${mins}m`;
+}
+
 function formatPointsValue(value, rewardSystem = window.REWARD_SYSTEM) {
+    if (rewardSystem === 'tech_time') {
+        return formatTechMinutes(value);
+    }
     const parsed = Number(value);
     const safe = Number.isFinite(parsed) ? parsed : 0;
     const rounded = Math.round((safe + Number.EPSILON) * 100) / 100;
@@ -6714,7 +6745,7 @@ function openProfileModalFromElem(img) {
     const earnedSet = new Set(earnedKeys);
 
     const pointsDisplay = formatPointsValue(points, rewardSystem);
-    const pointsLabel = rewardSystem === 'cash' ? 'Balance' : 'Points';
+    const pointsLabel = rewardSystem === 'tech_time' ? 'Tech Time' : (rewardSystem === 'cash' ? 'Balance' : 'Points');
 
     const badgeHTML = badgeDefs.map(badge => {
         const earned = earnedSet.has(badge.key);
@@ -6930,17 +6961,19 @@ function updateStreakDisplay(column, streakCount) {
         <div class="chore-meta-row">
             <div class="chore-field-group chore-points-group" style="max-width:150px;">
                 <label class="chore-field-label" for="points-input">
-                    {% if reward_system == 'cash' %}
+                    {% if reward_system == 'tech_time' %}
+                    <i class="fas fa-clock" style="color:#38bdf8;"></i> Minutes
+                    {% elif reward_system == 'cash' %}
                     <i class="fas fa-money-bill-wave" style="color:#4ade80;"></i> Cash amount
                     {% else %}
                     <i class="fas fa-star" style="color:#fbbf24;"></i> Points
                     {% endif %}
                 </label>
                 <input type="number" id="points-input" name="points"
-                      value="{% if reward_system == 'cash' %}1.00{% else %}1{% endif %}"
-                       placeholder="{% if reward_system == 'cash' %}1.00{% else %}1{% endif %}"
+                      value="{% if reward_system == 'tech_time' %}5{% elif reward_system == 'cash' %}1.00{% else %}1{% endif %}"
+                       placeholder="{% if reward_system == 'tech_time' %}5{% elif reward_system == 'cash' %}1.00{% else %}1{% endif %}"
                        min="0"
-                       step="{% if reward_system == 'cash' %}0.01{% else %}0.5{% endif %}"
+                       step="{% if reward_system == 'tech_time' %}1{% elif reward_system == 'cash' %}0.01{% else %}0.5{% endif %}"
                        class="modern-input" required>
             </div>
 
@@ -7305,7 +7338,7 @@ function updateStreakDisplay(column, streakCount) {
                     pills[0].classList.add('selected');
                     hiddenInput.value = pills[0].getAttribute('data-person');
                 }
-                setPoints(1);
+                setPoints(window.REWARD_SYSTEM === 'tech_time' ? 5 : 1);
                 if (daysRow) daysRow.style.display = 'none';
                 if (repeatingLabel) repeatingLabel.textContent = 'Off';
                 if (dueWrap) dueWrap.style.display = 'none';
@@ -8074,10 +8107,15 @@ function injectNewChoreCard(resp, formData) {
         tagsHtml += `<span class="chore-tag ${dueClass}"><i class="fas fa-clock"></i> ${dueLabel} ${timeStr}</span>`;
     }
 
-    const pointsLabel = Number.isFinite(points) ? (isCash ? points.toFixed(2) : String(points)) : (isCash ? '0.00' : '0');
-    const pointsHtml = isCash
+    const isTechTime = rewardSystem === 'tech_time';
+    const pointsLabel = Number.isFinite(points)
+        ? (isTechTime ? String(Math.round(points)) : (isCash ? points.toFixed(2) : String(points)))
+        : (isTechTime ? '0' : (isCash ? '0.00' : '0'));
+    const pointsHtml = isTechTime
+        ? `<i class="fas fa-clock" style="color:#38bdf8; margin-right:4px;"></i><span class="chore-points-value">${pointsLabel}m</span>`
+        : (isCash
         ? `<i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i><span class="chore-points-value">$${pointsLabel}</span>`
-        : `<i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i><span class="chore-points-value">${pointsLabel}</span>`;
+        : `<i class="fas fa-award" style="color:#fbbf24; margin-right:4px;"></i><span class="chore-points-value">${pointsLabel}</span>`);
 
     const cardHtml = `<div class="chore${formData.is_extra ? ' chore-extra' : ''}" data-chore-id="${resp.chore_id}"${formData.extra_id ? ` data-extra-id="${formData.extra_id}"` : ''} style="margin:8px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.12); padding-right:34px; padding-top:40px;">
         <button class="btn-delete-chore-sm" onclick="confirmDeleteChore(${resp.chore_id}, ${isDaily})" aria-label="Delete chore"><i class="fas fa-times"></i></button>
@@ -8320,8 +8358,9 @@ function completeChore(choreId) {
             const choreTitle = data.chore_title || 'Chore';
             if (window.showToast) {
                 if (data.overdue) {
+                    const missed = window.REWARD_SYSTEM === 'tech_time' ? 'No tech time awarded.' : 'No points awarded.';
                     showToast({
-                        message: `"${choreTitle}" was overdue. No points awarded.`,
+                        message: `"${choreTitle}" was overdue. ${missed}`,
                         type: 'warning',
                         duration: 5000,
                         actionText: 'Undo',
@@ -8493,6 +8532,13 @@ function updateColumnPoints(personName) {
             if (!column) return;
             const badge = column.querySelector('.points-display .chore-points-badge');
             if (!badge) return;
+            if (window.REWARD_SYSTEM === 'tech_time') {
+                const valueEl = badge.querySelector('.chore-points-value');
+                if (valueEl) {
+                    valueEl.textContent = data.tech_time_display || formatPointsValue(data.points, 'tech_time');
+                }
+                return;
+            }
             let icon, value;
             if (window.REWARD_SYSTEM === 'cash') {
                 icon = '<i class="fas fa-money-bill-wave" style="color:#4ade80; margin-right:4px;"></i>';
@@ -8917,6 +8963,29 @@ function deleteChore(choreId) {
 }
 
 // Reset points function
+function adjustTechTime(personId, personName) {
+    const raw = prompt('Minutes to add (positive) or subtract (negative) for ' + personName + ':', '');
+    if (raw === null) return;
+    const text = String(raw).trim();
+    if (!/^-?\d+$/.test(text) || parseInt(text, 10) === 0) {
+        alert('Enter a whole number of minutes, other than zero. Use a minus to subtract.');
+        return;
+    }
+    const noteRaw = prompt('Optional note for the activity log:', '');
+    if (noteRaw === null) return;
+    fetch('/adjust_tech_time', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person_id: personId, minutes: parseInt(text, 10), note: noteRaw.trim() }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) window.location.reload();
+        else alert(data.error || 'Failed to adjust tech time');
+    })
+    .catch(error => console.error('Error adjusting tech time:', error));
+}
+
 function resetPoints(personId) {
     let newPoints = prompt("Enter new points value (default is 0):", "0");
     if (newPoints === null) return;

@@ -1,17 +1,27 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from zoneinfo import ZoneInfo
+
+from sqlalchemy import func
+
 from extensions import db  # Import db from extensions.py
 import bcrypt
+
+REWARD_SYSTEMS = ('points', 'cash', 'tech_time')
+# Used only when Settings has no timezone. A saved timezone is the week boundary.
+TECH_TIME_DEFAULT_ZONE = 'Australia/Melbourne'
+
 
 class AppSetting(db.Model):
     @staticmethod
     def get_reward_system():
-        # Returns 'points' or 'cash', default to 'points'
+        # Returns 'points', 'cash', or 'tech_time'. Anything else is points.
         val = AppSetting.get('reward_system', 'points')
-        return val if val in ['points', 'cash'] else 'points'
+        return val if val in REWARD_SYSTEMS else 'points'
 
     @staticmethod
     def set_reward_system(system):
-        if system not in ['points', 'cash']:
+        if system not in REWARD_SYSTEMS:
             raise ValueError('Invalid reward system')
         AppSetting.set('reward_system', system)
     __tablename__ = 'app_settings'
@@ -338,6 +348,125 @@ class VehicleService(db.Model):
             'provider': self.provider,
             'notes': self.notes,
         }
+
+
+class TechTimeEntry(db.Model):
+    """One credit or debit of weekend tech-time minutes.
+
+    The balance for a week is the sum of rows with that Monday's ``week_start``.
+    Older weeks stay in the table and simply stop counting, so expiry does not
+    delete anything and does not touch the daily chore reset.
+    """
+    __tablename__ = 'tech_time_entry'
+    id = db.Column(db.Integer, primary_key=True)
+    person_id = db.Column(db.Integer, db.ForeignKey('person.id'), nullable=False, index=True)
+    minutes = db.Column(db.Integer, nullable=False)
+    week_start = db.Column(db.Date, nullable=False, index=True)
+    source = db.Column(db.String(32), nullable=False)
+    chore_id = db.Column(db.Integer, nullable=True)
+    note = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+def tech_time_zone():
+    """Zone that starts and ends a tech-time week.
+
+    A timezone saved in Settings is the site clock (the same one chore
+    completions are stored in). With nothing saved, the week is
+    Australia/Melbourne: unused minutes expire at Monday 00:00 there.
+    """
+    stored = (AppSetting.get('timezone') or '').strip()
+    if stored:
+        try:
+            return ZoneInfo(stored)
+        except Exception:
+            pass
+    return ZoneInfo(TECH_TIME_DEFAULT_ZONE)
+
+
+def week_start_for_date(day):
+    """Monday of the calendar week that contains ``day``."""
+    return day - timedelta(days=day.weekday())
+
+
+def week_start_for_instant(instant):
+    """Monday for a completion instant.
+
+    An aware instant is converted into the tech-time zone. A naive instant is
+    already a wall time in that zone, which is how ``date_completed`` is stored.
+    """
+    if instant is None:
+        instant = datetime.now(timezone.utc)
+    if instant.tzinfo is None:
+        local_day = instant.date()
+    else:
+        local_day = instant.astimezone(tech_time_zone()).date()
+    return week_start_for_date(local_day)
+
+
+def current_tech_week_start():
+    return week_start_for_instant(datetime.now(timezone.utc))
+
+
+def minutes_from_points(value):
+    """Whole minutes a chore value is worth in Tech Time mode.
+
+    Points and cash share this column. Half a point rounds up to one minute.
+    Zero and anything that is not a number award nothing.
+    """
+    try:
+        amount = Decimal(str(0 if value is None else value))
+    except (InvalidOperation, ValueError, TypeError):
+        return 0
+    if not amount.is_finite() or amount <= 0:
+        return 0
+    return int(amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+
+
+def format_tech_minutes(minutes):
+    """``130`` becomes ``2h 10m``. Zero is ``0m``. A negative balance keeps the sign."""
+    try:
+        total = int(minutes)
+    except (TypeError, ValueError):
+        total = 0
+    sign = '-' if total < 0 else ''
+    remaining = abs(total)
+    hours, mins = divmod(remaining, 60)
+    if hours and mins:
+        return f'{sign}{hours}h {mins}m'
+    if hours:
+        return f'{sign}{hours}h'
+    return f'{sign}{mins}m'
+
+
+def tech_time_balance(person_id, week_start=None):
+    if week_start is None:
+        week_start = current_tech_week_start()
+    total = db.session.query(func.sum(TechTimeEntry.minutes)).filter(
+        TechTimeEntry.person_id == person_id,
+        TechTimeEntry.week_start == week_start,
+    ).scalar()
+    return int(total or 0)
+
+
+def tech_time_balances(person_ids, week_start=None):
+    """Current-week minutes keyed by person id. Missing people are 0."""
+    ids = [person_id for person_id in person_ids if person_id is not None]
+    if week_start is None:
+        week_start = current_tech_week_start()
+    totals = {person_id: 0 for person_id in ids}
+    if not ids:
+        return totals
+    rows = db.session.query(
+        TechTimeEntry.person_id,
+        func.sum(TechTimeEntry.minutes),
+    ).filter(
+        TechTimeEntry.person_id.in_(ids),
+        TechTimeEntry.week_start == week_start,
+    ).group_by(TechTimeEntry.person_id).all()
+    for person_id, total in rows:
+        totals[person_id] = int(total or 0)
+    return totals
 
 
 def log_activity(action_type, description, user_name=None):

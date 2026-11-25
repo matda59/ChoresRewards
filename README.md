@@ -78,13 +78,23 @@ Points or cash, family members, bonus points, custom sounds, Gotify, quizzes, an
 - Schedule chores for specific days of the week
 - Decimal point values (e.g. 0.1 for brushing teeth)
 - Drag and drop to reorder chores
-- Points **or** cash / pocket-money mode
+- Points, cash / pocket money, or weekend **Tech Time** minutes
 - Bonus points when all chores are done — fixed amount, or a random range
 - Optional age-appropriate Brain Quiz for extra bonus points
 - Custom sound effects on chore complete (upload MP3, WAV, or OGG)
 - Celebrations when a kid finishes everything
 - Streaks and badges (first chore, 10/50/100 chores, perfect day, early bird, 3/7/30-day streaks)
 - 4-digit master PIN so kids can't change settings
+
+### Tech Time
+
+In **Settings → Reward System**, choose **Tech Time**. Chores are then worth minutes instead of points or cash (brush teeth 5, clean room 15). The same value field is used; only the label changes. Completing a chore adds those minutes to that child's balance. Undoing the completion takes them off again. Points and cash balances are left as they were, and they keep working as soon as you switch back.
+
+Minutes add up from Monday through Sunday in the timezone saved in Settings. If no timezone is saved, the week uses Australia/Melbourne. There is no cap and no countdown. Unused minutes expire when Monday starts: the balance is the sum of that week's completions and adjustments, so expiry does not delete history and does not run inside the daily chore reset.
+
+Parents track the time themselves. Each child is shown as `Charlie: 2h 10m` on the dashboard, on their column, and on the screensaver chore summary. Adults can add or subtract minutes (with an optional note) from the column or from Settings. That correction is written to the activity log and counts for the current week only.
+
+`/api/screensaver/chore_summary` includes `reward_mode` and, for each person, `tech_minutes`. `POST /adjust_tech_time` is on the write API key allowlist.
 
 ### Household
 - **Dashboard** — today's leftover chores, meals, events, rewards, and family photos
@@ -169,7 +179,7 @@ curl -sS -H "Authorization: Bearer $CR_READONLY_API_KEY" \
 
 `X-API-Key: <key>` is accepted as well. The key allows `GET` and `HEAD` only, and only on these paths:
 
-- `/api/screensaver/chore_summary` — remaining chores per person, and the next upcoming calendar events
+- `/api/screensaver/chore_summary` — remaining chores per person, each person's `tech_minutes` (and `tech_time_display`), the active `reward_mode`, and the next upcoming calendar events
 - `/api/meal_planner`
 - `/api/shopping_list`
 - `/api/shopping_stores`
@@ -242,6 +252,7 @@ A browser session is still checked for `Origin`. A request that presents a valid
 | `POST /complete_reward` | Redeem a reward and spend the points | `{"reward_id"}` |
 | `POST /award_bonus_points` | Award the configured bonus | `{"person_id","bonus_points"}` |
 | `POST /reset_points` | Set someone's points balance | `{"person_id","new_points"}` |
+| `POST /adjust_tech_time` | Add or subtract this week's tech-time minutes | `{"person_id","minutes","note"}`. `minutes` is a whole number; negative subtracts. `note` is optional. |
 | `POST /api/meal_planner/slot` | Set or clear one meal on one date | `{"date":"YYYY-MM-DD","meal":"dinner","value":"Pasta"}`. `meal` is breakfast, lunch, or dinner. An empty `value` clears that slot. |
 | `POST /api/meal_planner/recurring` | Set one weekday repeat | `{"weekday":"monday","meal":"dinner","value":"Pasta","enabled":true}` |
 | `POST /api/meal_planner/suggestions/items` | Add one meal name to the suggestion list | `{"text":"Tacos"}` |

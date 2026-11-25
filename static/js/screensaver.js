@@ -248,7 +248,7 @@
         return String(str).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
     }
 
-    function renderPeople(people) {
+    function renderPeople(people, rewardMode) {
         const el = document.getElementById('cr-ss-people');
         if (!el) return;
         if (!people || !people.length) { el.innerHTML = ''; return; }
@@ -257,11 +257,15 @@
             const status = p.remaining > 0
                 ? `<ul class="cr-ss-person-chores">${chores}</ul>`
                 : `<div class="cr-ss-person-done"><i class="fas fa-circle-check"></i> All done</div>`;
+            const techLine = rewardMode === 'tech_time'
+                ? `<div class="cr-ss-person-tech">${escapeHtml(p.name)}: ${escapeHtml(p.tech_time_display || '0m')}</div>`
+                : '';
             return `
                 <div class="cr-ss-person-card">
                     <img class="cr-ss-person-avatar" src="${p.avatar}" alt="" style="border-color:${p.color || '#fff'};">
                     <div class="cr-ss-person-info">
                         <div class="cr-ss-person-name">${escapeHtml(p.name)}</div>
+                        ${techLine}
                         ${status}
                     </div>
                 </div>`;
@@ -292,7 +296,7 @@
             .then(data => {
                 if (!data || !data.success || !showing) return;
                 panel.style.display = '';
-                renderPeople(data.people);
+                renderPeople(data.people, data.reward_mode);
                 renderEvents(data.events);
             })
             .catch(() => {});

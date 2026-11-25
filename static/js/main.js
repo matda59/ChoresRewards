@@ -1,4 +1,19 @@
+function formatTechMinutes(value) {
+    const parsed = Number(value);
+    const total = Number.isFinite(parsed) ? Math.round(parsed) : 0;
+    const sign = total < 0 ? '-' : '';
+    const abs = Math.abs(total);
+    const hours = Math.floor(abs / 60);
+    const mins = abs % 60;
+    if (hours && mins) return `${sign}${hours}h ${mins}m`;
+    if (hours) return `${sign}${hours}h`;
+    return `${sign}${mins}m`;
+}
+
 function formatPointsForBadge(value, rewardSystem = window.REWARD_SYSTEM) {
+    if (rewardSystem === 'tech_time') {
+        return formatTechMinutes(value);
+    }
     const parsed = Number(value);
     const safe = Number.isFinite(parsed) ? parsed : 0;
     const rounded = Math.round((safe + Number.EPSILON) * 100) / 100;
@@ -118,7 +133,10 @@ function drop(event) {
                 const badgeElem = column.querySelector('.points-display .chore-points-badge');
                 if (badgeElem) {
                     let icon, value;
-                    if (window.REWARD_SYSTEM === 'cash') {
+                    if (window.REWARD_SYSTEM === 'tech_time') {
+                        icon = '<i class="fas fa-tv" style="color:#38bdf8; margin-right:4px;"></i>';
+                        value = data.tech_time_display || formatPointsForBadge(data.new_points, 'tech_time');
+                    } else if (window.REWARD_SYSTEM === 'cash') {
                         icon = '<i class="fas fa-money-bill-wave" style="color:#4CAF50; margin-right:4px;"></i>';
                         value = formatPointsForBadge(data.new_points, 'cash');
                     } else {
@@ -136,7 +154,9 @@ function drop(event) {
             if (window.showToast) {
                 if (data.overdue) {
                     showToast({
-                        message: `"${choreTitle}" was overdue. No points awarded.`,
+                        message: window.REWARD_SYSTEM === 'tech_time'
+                            ? `"${choreTitle}" was overdue. No tech time awarded.`
+                            : `"${choreTitle}" was overdue. No points awarded.`,
                         type: 'warning',
                         duration: 5000,
                         actionText: 'Undo',

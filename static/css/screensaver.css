@@ -146,6 +146,12 @@
     font-weight: 700;
     margin-bottom: 0.15em;
 }
+.cr-ss-person-tech {
+    font-size: clamp(0.78rem, 1.4vw, 0.95rem);
+    font-weight: 700;
+    color: #7dd3fc;
+    margin-bottom: 0.2em;
+}
 .cr-ss-person-chores {
     list-style: none;
     margin: 0; padding: 0;
